@@ -79,9 +79,20 @@ async function onToggleProvider(idx: number, enabled: boolean) {
 
 // 切换单个 key 的启用状态
 async function onToggleKey(providerName: string, keyIdx: number, enabled: boolean) {
+  if (!config.value) return
   loading.value = true
   try {
     await toggleKey(providerName, keyIdx, enabled)
+    // 同步前端 config 中对应 key 的 enabled 状态
+    const provider = config.value.providers.find(p => p.name === providerName)
+    if (provider) {
+      const entry = provider.api_keys[keyIdx]
+      if (typeof entry === 'string') {
+        provider.api_keys[keyIdx] = { key: entry, enabled }
+      } else {
+        entry.enabled = enabled
+      }
+    }
     await refreshRuntime()
   } catch (e) { showMsg(String(e)) }
   finally { loading.value = false }
