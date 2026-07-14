@@ -1,8 +1,3 @@
-//! 流式转换：SSE 透传 + 各协议对流式状态机。
-//!
-//! 透传分支直接转发上游字节流；转换分支逐事件解析上游 SSE，
-//! 通过 StreamConverter 状态机产出下游 SSE payload，立即发送，不缓冲完整响应。
-
 use std::collections::HashMap;
 
 use axum::body::Body;
@@ -10,20 +5,19 @@ use axum::response::Response;
 use bytes::{Bytes, BytesMut};
 use serde_json::{json, Value};
 
-use crate::config::Protocol;
-use crate::converter::{map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat};
-use crate::error::AppError;
+use crate::config::types::Protocol;
+use crate::gateway::converter::{
+    map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat,
+};
+use crate::infra::error::AppError;
 
 // ===================== 公共入口 =====================
 
-/// 透传：原样转发上游 SSE 字节流
 pub fn stream_passthrough(resp: reqwest::Response) -> Response {
     let body = Body::from_stream(resp.bytes_stream());
     sse_response(body)
 }
 
-/// 转换：上游 SSE(src) -> 下游 SSE(dst)
-///   src = provider 协议, dst = consumer 协议
 pub async fn stream_convert(
     resp: reqwest::Response,
     src: Protocol,
@@ -49,7 +43,6 @@ pub async fn stream_convert(
             };
             buf.extend_from_slice(&chunk);
 
-            // 按 \n 切行，遇空行产出一个 SSE 事件
             loop {
                 let Some(nl) = buf.iter().position(|b| *b == b'\n') else {
                     break;
@@ -64,7 +57,6 @@ pub async fn stream_convert(
                 }
 
                 if s.is_empty() {
-                    // 事件边界
                     if !cur_data.is_empty() {
                         let payloads = conv.on_event(cur_event.as_deref(), &cur_data);
                         for p in payloads {
@@ -85,13 +77,10 @@ pub async fn stream_convert(
                     }
                     cur_data.push_str(d);
                 } else if s.starts_with(':') {
-                    // SSE 注释/心跳，忽略
                 }
-                // 其它未知行忽略
             }
         }
 
-        // 流结束：处理残留事件
         if !cur_data.is_empty() {
             for p in conv.on_event(cur_event.as_deref(), &cur_data) {
                 let line = make_sse_line(&p);
@@ -117,7 +106,6 @@ fn sse_response(body: Body) -> Response {
         .unwrap()
 }
 
-/// 把一个 payload 包成 SSE 行；[DONE] 也包成 data: [DONE]
 fn make_sse_line(payload: &str) -> String {
     format!("data: {payload}\n\n")
 }
@@ -125,13 +113,10 @@ fn make_sse_line(payload: &str) -> String {
 // ===================== StreamConverter trait =====================
 
 pub trait StreamConverter: Send {
-    /// 输入上游一个事件（event 类型 + data payload），输出若干下游 payload
     fn on_event(&mut self, event: Option<&str>, data: &str) -> Vec<String>;
-    /// 上游结束时收尾
     fn on_done(&mut self) -> Vec<String>;
 }
 
-/// 为 Box<dyn StreamConverter> 实现 trait，便于串联
 impl StreamConverter for Box<dyn StreamConverter> {
     fn on_event(&mut self, event: Option<&str>, data: &str) -> Vec<String> {
         (**self).on_event(event, data)
@@ -141,7 +126,6 @@ impl StreamConverter for Box<dyn StreamConverter> {
     }
 }
 
-/// 串联两个转换器：A 把上游转成 Chat SSE，B 把 Chat SSE 转成下游
 struct Chained<A: StreamConverter, B: StreamConverter>(A, B);
 
 impl<A: StreamConverter, B: StreamConverter> StreamConverter for Chained<A, B> {
@@ -164,7 +148,6 @@ impl<A: StreamConverter, B: StreamConverter> StreamConverter for Chained<A, B> {
     }
 }
 
-/// 不做任何转换（理论上不会走到，透传分支不经过 converter）
 struct Noop;
 impl StreamConverter for Noop {
     fn on_event(&mut self, _e: Option<&str>, data: &str) -> Vec<String> {
@@ -175,7 +158,6 @@ impl StreamConverter for Noop {
     }
 }
 
-/// 按 (上游协议 src, 下游协议 dst) 选择具体转换器
 fn make_converter(src: Protocol, dst: Protocol) -> Box<dyn StreamConverter> {
     match (src, dst) {
         (Protocol::Anthropic, Protocol::Chat) => Box::new(AnthropicToChatStream::new()),
@@ -201,14 +183,9 @@ struct AnthropicToChatStream {
     sent_done: bool,
     cur_tc_index: Option<usize>,
     next_tc_index: usize,
-    /// 从 message_start.message.usage 捕获的 input_tokens，
-    /// message_delta 的 usage 通常只有 output_tokens，需补入 prompt_tokens
     input_tokens: Option<u64>,
-    /// 当前 content block 是否为 thinking 类型
     in_thinking: bool,
-    /// 从 message_start 捕获的 chat id，复用到每个 chunk
     chat_id: Option<String>,
-    /// 从 message_start 捕获的 model 名
     model: Option<String>,
 }
 
@@ -226,7 +203,6 @@ impl AnthropicToChatStream {
         }
     }
 
-    /// 构造标准 chat.completion.chunk 帧，含 id/object/created/model/logprobs 等标准字段
     fn chunk(&self, delta: Value, finish: Option<&str>) -> Value {
         let id = self
             .chat_id
@@ -258,7 +234,6 @@ impl StreamConverter for AnthropicToChatStream {
         match t {
             "message_start" => {
                 self.sent_role = true;
-                // 捕获 id / model 供后续帧复用
                 if let Some(m) = v.get("message") {
                     if let Some(id) = m.get("id").and_then(|x| x.as_str()) {
                         self.chat_id = Some(id.to_string());
@@ -266,7 +241,6 @@ impl StreamConverter for AnthropicToChatStream {
                     if let Some(model) = m.get("model").and_then(|x| x.as_str()) {
                         self.model = Some(model.to_string());
                     }
-                    // 从 message_start 中捕获 input_tokens（message_delta 通常只有 output_tokens）
                     if let Some(u) = m.get("usage") {
                         if let Some(it) = u.get("input_tokens").and_then(|x| x.as_u64()) {
                             self.input_tokens = Some(it);
@@ -293,12 +267,10 @@ impl StreamConverter for AnthropicToChatStream {
                         }), None).to_string()]
                     }
                     "thinking" => {
-                        // thinking block 开始：标记状态，等 thinking_delta 产出 reasoning_content
                         self.in_thinking = true;
                         vec![]
                     }
                     _ => {
-                        // text block：无需输出，等 delta
                         self.in_thinking = false;
                         vec![]
                     }
@@ -313,7 +285,6 @@ impl StreamConverter for AnthropicToChatStream {
                         vec![self.chunk(json!({"content":text}), None).to_string()]
                     }
                     "thinking_delta" => {
-                        // 思考增量 -> chat 协议的 reasoning_content
                         let text = delta.get("thinking").cloned().unwrap_or(json!(""));
                         vec![self
                             .chunk(json!({"reasoning_content":text}), None)
@@ -349,14 +320,12 @@ impl StreamConverter for AnthropicToChatStream {
                     .and_then(|x| x.as_str())
                     .unwrap_or("end_turn");
                 let finish = map_stop_reason_anthropic_to_chat(stop_reason);
-                // 末帧 delta 含 content 和 reasoning_content（null），与标准 chat chunk 一致
                 let mut frame = self.chunk(
                     json!({"content":"","reasoning_content":null}),
                     Some(&finish),
                 );
                 if let Some(u) = v.get("usage") {
                     let mut usage = json!({});
-                    // input_tokens 优先用 message_delta 自带的，否则用 message_start 捕获的
                     let input_tok = u
                         .get("input_tokens")
                         .and_then(|x| x.as_u64())
@@ -376,7 +345,6 @@ impl StreamConverter for AnthropicToChatStream {
                     }
                     frame["usage"] = usage;
                 } else if self.input_tokens.is_some() {
-                    // message_delta 无 usage 但有 message_start 捕获的 input_tokens
                     let it = self.input_tokens.unwrap();
                     frame["usage"] = json!({"prompt_tokens": it});
                 }
@@ -406,7 +374,7 @@ struct ChatToAnthropicStream {
     started: bool,
     sent_done: bool,
     next_block: usize,
-    cur_block: Option<(usize, String)>, // (anthropic block index, type)
+    cur_block: Option<(usize, String)>,
 }
 
 impl ChatToAnthropicStream {
@@ -434,7 +402,6 @@ impl ChatToAnthropicStream {
         idx
     }
 
-    /// 确保当前是 thinking block，否则关闭当前 block 并开启新的 thinking block
     fn ensure_thinking(&mut self, out: &mut Vec<String>) -> usize {
         if let Some((idx, ref ty)) = self.cur_block {
             if ty == "thinking" {
@@ -482,7 +449,6 @@ impl StreamConverter for ChatToAnthropicStream {
         };
         let delta = choice.get("delta").cloned().unwrap_or(json!({}));
 
-        // reasoning_content delta -> thinking block
         if let Some(rc) = delta.get("reasoning_content") {
             if let Some(t) = rc.as_str() {
                 if !t.is_empty() {
@@ -492,7 +458,6 @@ impl StreamConverter for ChatToAnthropicStream {
             }
         }
 
-        // content delta
         if let Some(content) = delta.get("content") {
             if let Some(t) = content.as_str() {
                 if !t.is_empty() {
@@ -502,7 +467,6 @@ impl StreamConverter for ChatToAnthropicStream {
             }
         }
 
-        // tool_calls
         if let Some(tcs) = delta.get("tool_calls").and_then(|x| x.as_array()) {
             for tc in tcs {
                 let has_id = tc.get("id").is_some();
@@ -530,7 +494,6 @@ impl StreamConverter for ChatToAnthropicStream {
             }
         }
 
-        // finish_reason
         if let Some(fr) = choice.get("finish_reason").and_then(|x| x.as_str()) {
             if let Some((idx, _)) = self.cur_block.take() {
                 out.push(content_block_stop_frame(idx));
@@ -643,8 +606,6 @@ fn rand_id() -> String {
         .unwrap_or(0);
     format!("{n:x}")
 }
-
-/// 当前 Unix 时间戳（秒），用于 chat chunk 的 created 字段
 fn created_now() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -658,7 +619,6 @@ fn created_now() -> u64 {
 struct ResponsesToChatStream {
     sent_role: bool,
     sent_done: bool,
-    /// output_index -> chat tool_calls index
     tool_map: HashMap<u64, usize>,
     next_tc: usize,
 }
@@ -690,7 +650,6 @@ impl StreamConverter for ResponsesToChatStream {
                 .to_string()]
             }
             "response.reasoning_summary_text.delta" => {
-                // 推理摘要增量 -> chat 协议的 reasoning_content
                 let d = v.get("delta").and_then(|x| x.as_str()).unwrap_or("");
                 if d.is_empty() {
                     vec![]
@@ -702,7 +661,6 @@ impl StreamConverter for ResponsesToChatStream {
                 }
             }
             "response.reasoning_summary_text.done" => {
-                // 推理摘要完成，无需额外输出（增量已累积）
                 vec![]
             }
             "response.output_item.added" => {
@@ -795,9 +753,6 @@ impl StreamConverter for ResponsesToChatStream {
 
 // ===================== Chat -> Responses =====================
 
-/// 将 chat 协议的 usage（prompt_tokens/completion_tokens/total_tokens）
-/// 转换为 responses 协议的 usage（input_tokens/output_tokens/total_tokens），
-/// 并确保必要字段存在（codex 解析 response.completed 时要求 input_tokens 存在）
 fn chat_usage_to_responses_usage(u: &Value) -> Value {
     let mut out = json!({});
     if let Some(pt) = u.get("prompt_tokens") {
@@ -809,7 +764,6 @@ fn chat_usage_to_responses_usage(u: &Value) -> Value {
     if let Some(tt) = u.get("total_tokens") {
         out["total_tokens"] = tt.clone();
     }
-    // 缺失字段补 0，避免客户端解析失败
     if out.get("input_tokens").is_none() {
         out["input_tokens"] = json!(0);
     }
@@ -834,7 +788,6 @@ struct ChatToResponsesStream {
     sent_done: bool,
     next_output_index: usize,
     message_oi: Option<usize>,
-    /// chat tool index -> responses output_index
     tool_oi: HashMap<usize, usize>,
     usage: Value,
 }
@@ -855,7 +808,7 @@ impl ChatToResponsesStream {
 impl StreamConverter for ChatToResponsesStream {
     fn on_event(&mut self, _event: Option<&str>, data: &str) -> Vec<String> {
         if data == "[DONE]" {
-            return vec![]; // 由 finish 帧或 on_done 处理 completed
+            return vec![];
         }
         let v: Value = match serde_json::from_str(data) {
             Ok(v) => v,
@@ -883,7 +836,6 @@ impl StreamConverter for ChatToResponsesStream {
         };
         let delta = choice.get("delta").cloned().unwrap_or(json!({}));
 
-        // role 首帧 -> output_item.added(message)
         if delta.get("role").and_then(|x| x.as_str()).is_some() && self.message_oi.is_none() {
             let oi = self.next_output_index;
             self.next_output_index += 1;
@@ -897,7 +849,6 @@ impl StreamConverter for ChatToResponsesStream {
             );
         }
 
-        // reasoning_content delta -> response.reasoning_summary_text.delta
         if let Some(rc) = delta.get("reasoning_content") {
             if let Some(t) = rc.as_str() {
                 if !t.is_empty() {
@@ -912,7 +863,6 @@ impl StreamConverter for ChatToResponsesStream {
             }
         }
 
-        // content delta
         if let Some(content) = delta.get("content").and_then(|x| x.as_str()) {
             if !content.is_empty() {
                 let oi = self.message_oi.unwrap_or(0);
@@ -926,7 +876,6 @@ impl StreamConverter for ChatToResponsesStream {
             }
         }
 
-        // tool_calls
         if let Some(tcs) = delta.get("tool_calls").and_then(|x| x.as_array()) {
             for tc in tcs {
                 let chat_idx = tc
@@ -974,7 +923,6 @@ impl StreamConverter for ChatToResponsesStream {
             }
         }
 
-        // finish_reason -> completed
         if let Some(_fr) = choice.get("finish_reason").and_then(|x| x.as_str()) {
             if let Some(oi) = self.message_oi {
                 out.push(

@@ -1,18 +1,10 @@
-//! 协议转换：请求体 + 非流式响应体。
-//!
-//! 三种协议两两转换，共 3 对核心转换：
-//!   Chat ⇄ Responses、Chat ⇄ Anthropic、Responses ⇄ Anthropic（经 Chat 两级跳转）。
-//! 流式转换见 stream.rs。
-
 use serde_json::{json, Value};
 
-use crate::config::Protocol;
-use crate::error::AppError;
+use crate::config::types::Protocol;
+use crate::infra::error::AppError;
 
 // ===================== 分发 =====================
 
-/// 请求体转换：src 协议 -> dst 协议
-///   src = consumer 协议, dst = provider 协议
 pub fn req_convert(src: &Value, s: Protocol, d: Protocol) -> Result<Value, AppError> {
     match (s, d) {
         _ if s == d => Ok(src.clone()),
@@ -21,7 +13,6 @@ pub fn req_convert(src: &Value, s: Protocol, d: Protocol) -> Result<Value, AppEr
         (Protocol::Chat, Protocol::Anthropic) => Ok(chat_to_anthropic_req(src)),
         (Protocol::Anthropic, Protocol::Chat) => Ok(anthropic_to_chat_req(src)),
         (Protocol::Responses, Protocol::Anthropic) => {
-            // responses -> chat -> anthropic
             let chat = responses_to_chat_req(src);
             Ok(chat_to_anthropic_req(&chat))
         }
@@ -33,8 +24,6 @@ pub fn req_convert(src: &Value, s: Protocol, d: Protocol) -> Result<Value, AppEr
     }
 }
 
-/// 非流式响应体转换：src 协议 -> dst 协议
-///   src = provider 协议, dst = consumer 协议
 pub fn resp_convert(src: &Value, s: Protocol, d: Protocol) -> Result<Value, AppError> {
     match (s, d) {
         _ if s == d => Ok(src.clone()),
@@ -56,7 +45,6 @@ pub fn resp_convert(src: &Value, s: Protocol, d: Protocol) -> Result<Value, AppE
 
 // ===================== 通用 helper =====================
 
-/// 简单生成一个本地唯一 id 后缀
 fn rand_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let n = SystemTime::now()
@@ -66,7 +54,6 @@ fn rand_id() -> String {
     format!("{n:x}")
 }
 
-/// 当前 Unix 时间戳（秒），用于 chat completion 的 created 字段
 fn created_now() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -75,7 +62,6 @@ fn created_now() -> u64 {
         .unwrap_or(0)
 }
 
-/// chat content（string 或 [{type:text,text}]）-> 纯文本
 fn chat_content_to_text(content: &Value) -> String {
     match content {
         Value::String(s) => s.clone(),
@@ -95,7 +81,6 @@ fn chat_content_to_text(content: &Value) -> String {
     }
 }
 
-/// anthropic/tool_result 的 content（string 或 [{type:text,text}]）-> 纯文本
 fn block_content_to_text(content: Option<&Value>) -> String {
     match content {
         Some(Value::String(s)) => s.clone(),
@@ -114,7 +99,6 @@ fn block_content_to_text(content: Option<&Value>) -> String {
     }
 }
 
-/// responses content（按 role 选 input_text/output_text）-> 纯文本
 fn responses_content_to_text(content: Option<&Value>, role: &str) -> String {
     let want = if role == "assistant" {
         "output_text"
@@ -341,7 +325,6 @@ pub fn chat_to_anthropic_req(src: &Value) -> Value {
     out
 }
 
-/// 合并相邻 user 消息（Anthropic 要求 role 交替；连续 tool_result 合并进同一 user）
 fn push_anthropic_user(msgs: &mut Vec<Value>, m: Value) {
     if let Some(last) = msgs.last_mut() {
         if last.get("role").and_then(|r| r.as_str()) == Some("user") {
@@ -382,13 +365,11 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
             let blocks = m["content"].as_array();
             match role {
                 "user" => {
-                    // content 可能是字符串或数组，字符串直接作为文本
                     if let Some(s) = m.get("content").and_then(|c| c.as_str()) {
                         if !s.is_empty() {
                             messages.push(json!({"role":"user","content":s}));
                         }
                     } else if let Some(blocks) = blocks {
-                        // 按原始顺序处理：text 块和 tool_result 块交错 push
                         let mut text_parts = Vec::new();
                         for b in blocks {
                             let btype = b.get("type").and_then(|t| t.as_str()).unwrap_or("");
@@ -399,7 +380,6 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                                     }
                                 }
                                 "tool_result" => {
-                                    // 先 flush 累积的 text，保持原始顺序
                                     if !text_parts.is_empty() {
                                         messages.push(
                                             json!({"role":"user","content":text_parts.join("")}),
@@ -423,7 +403,6 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                     let mut text_parts = Vec::new();
                     let mut reasoning_parts = Vec::new();
                     let mut tool_calls = Vec::new();
-                    // content 可能是字符串或数组，字符串直接作为文本
                     if let Some(s) = m.get("content").and_then(|c| c.as_str()) {
                         if !s.is_empty() {
                             text_parts.push(s.to_string());
@@ -438,7 +417,6 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                                     }
                                 }
                                 "thinking" => {
-                                    // 保留式思考：thinking block -> reasoning_content
                                     if let Some(t) = b.get("thinking").and_then(|x| x.as_str()) {
                                         reasoning_parts.push(t.to_string());
                                     }
@@ -467,7 +445,6 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                         } else {
                             json!(text_parts.join(""))
                         };
-                        // 思考内容映射到 reasoning_content（保留式思考回传）
                         if !reasoning_parts.is_empty() {
                             msg["reasoning_content"] = json!(reasoning_parts.join(""));
                         }
@@ -502,7 +479,6 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
         "messages": messages,
         "stream": src.get("stream").cloned().unwrap_or(json!(false)),
     });
-    // max_tokens 透传（chat 协议也用 max_tokens）
     if let Some(mt) = src.get("max_tokens") {
         out["max_tokens"] = mt.clone();
     }
@@ -518,7 +494,6 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
     if let Some(t) = src.get("top_p") {
         out["top_p"] = t.clone();
     }
-    // stop_sequences -> stop
     if let Some(ss) = src.get("stop_sequences") {
         out["stop"] = ss.clone();
     }
@@ -742,7 +717,6 @@ pub fn anthropic_to_chat_resp(src: &Value) -> Value {
                     }
                 }
                 "thinking" => {
-                    // 思考内容 -> chat 协议的 reasoning_content
                     if let Some(t) = b.get("thinking").and_then(|x| x.as_str()) {
                         reasoning_parts.push(t.to_string());
                     }
@@ -773,7 +747,6 @@ pub fn anthropic_to_chat_resp(src: &Value) -> Value {
     } else {
         json!(text_parts.join(""))
     };
-    // 思考内容映射到 reasoning_content
     if !reasoning_parts.is_empty() {
         message["reasoning_content"] = json!(reasoning_parts.join(""));
     }
@@ -997,7 +970,6 @@ pub fn chat_to_responses_resp(src: &Value) -> Value {
             usage["total_tokens"] = tt.clone();
         }
     }
-    // 确保必要字段存在（responses 协议要求 input_tokens），缺失时补 0
     if usage.get("input_tokens").is_none() {
         usage["input_tokens"] = json!(0);
     }

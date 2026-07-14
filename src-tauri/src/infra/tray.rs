@@ -1,13 +1,10 @@
-//! 系统托盘：菜单构建、状态更新、事件处理
-
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};
 
-use crate::gateway::{start_gateway_inner, stop_gateway_inner};
-use crate::state::{AppCtrl, TrayItems};
+use crate::config::state::{AppCtrl, TrayItems};
+use crate::gateway::manager::{start_gateway_inner, stop_gateway_inner};
 
-/// 更新托盘状态文本和 tooltip，并通知前端网关状态变化
 pub fn update_tray(app: &tauri::AppHandle, running: bool) {
     if let Some(ts) = app.try_state::<TrayItems>() {
         let _ = ts.status.set_text(if running {
@@ -32,7 +29,6 @@ pub fn update_tray(app: &tauri::AppHandle, running: bool) {
     let _ = app.emit("gateway-state-changed", running);
 }
 
-/// 构建系统托盘，返回需要后续更新的菜单项引用
 pub fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
     let status_item = MenuItem::with_id(app, "status", "状态: 已停止", false, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;

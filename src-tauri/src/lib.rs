@@ -3,28 +3,22 @@
 #![warn(clippy::all)]
 #![warn(clippy::dbg_macro, clippy::todo)]
 
-mod commands;
+mod api;
 mod config;
-mod converter;
-mod db;
-mod error;
 mod gateway;
-mod handler;
-mod log_bridge;
-mod provider;
-mod router;
-mod state;
-mod stream;
-mod tray;
+mod infra;
 
 use std::sync::Mutex;
 
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
 
-use crate::commands::*;
-use crate::state::AppCtrl;
-use crate::tray::build_tray;
+use crate::api::commands::*;
+use crate::config::state::AppCtrl;
+use crate::config::types::default_config;
+use crate::infra::db;
+use crate::infra::log_bridge;
+use crate::infra::tray::build_tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -69,7 +63,7 @@ pub fn run() {
 
     let cfg = db::load_config(&conn).unwrap_or_else(|e| {
         tracing::error!(err = %e, "从数据库加载配置失败，使用空配置");
-        config::default_config()
+        default_config()
     });
     tracing::info!(db = %db_path_str, providers = cfg.providers.len(), "配置已加载");
 

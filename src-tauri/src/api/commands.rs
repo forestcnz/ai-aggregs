@@ -1,17 +1,14 @@
-//! Tauri IPC 命令（11 个）：配置管理、网关控制、运行时状态、自启
-
 use tauri::Manager;
 use tauri_plugin_autostart::ManagerExt;
 
-use crate::config::Config;
-use crate::db;
-use crate::error::IpcError;
-use crate::gateway::{
+use crate::config::state::{AppCtrl, GatewayStatus, ProviderRuntime};
+use crate::config::types::Config;
+use crate::gateway::manager::{
     rebuild_if_running, start_gateway_inner, stop_gateway_inner, sync_consumer_models,
 };
-use crate::state::{AppCtrl, GatewayStatus, ProviderRuntime};
+use crate::infra::db;
+use crate::infra::error::IpcError;
 
-/// 获取当前配置（自动同步 consumer.models）
 #[tauri::command]
 pub fn get_config(app: tauri::AppHandle) -> Config {
     let ctrl = app.state::<AppCtrl>();
@@ -20,7 +17,6 @@ pub fn get_config(app: tauri::AppHandle) -> Config {
     cfg
 }
 
-/// 保存配置（持久化到 SQLite + 热更新日志级别 + 网关重建）
 #[tauri::command]
 pub async fn save_config(app: tauri::AppHandle, mut cfg: Config) -> Result<(), IpcError> {
     sync_consumer_models(&mut cfg);
@@ -38,19 +34,16 @@ pub async fn save_config(app: tauri::AppHandle, mut cfg: Config) -> Result<(), I
     Ok(())
 }
 
-/// 启动网关
 #[tauri::command]
 pub async fn start_gateway(app: tauri::AppHandle) -> Result<String, IpcError> {
     start_gateway_inner(&app).await.map_err(IpcError::from)
 }
 
-/// 停止网关
 #[tauri::command]
 pub async fn stop_gateway(app: tauri::AppHandle) -> Result<(), IpcError> {
     stop_gateway_inner(&app).await.map_err(IpcError::from)
 }
 
-/// 查询网关状态
 #[tauri::command]
 pub fn gateway_status(app: tauri::AppHandle) -> GatewayStatus {
     let ctrl = app.state::<AppCtrl>();
@@ -62,7 +55,6 @@ pub fn gateway_status(app: tauri::AppHandle) -> GatewayStatus {
     }
 }
 
-/// 切换 provider 启用/禁用
 #[tauri::command]
 pub async fn toggle_provider(
     app: tauri::AppHandle,
@@ -86,7 +78,6 @@ pub async fn toggle_provider(
     Ok(())
 }
 
-/// 切换单个 API Key 的启用/禁用
 #[tauri::command]
 pub async fn toggle_key(
     app: tauri::AppHandle,
@@ -112,7 +103,6 @@ pub async fn toggle_key(
     Ok(())
 }
 
-/// 查询所有 provider 的运行时状态（含 key 黑名单信息）
 #[tauri::command]
 pub fn runtime_status(app: tauri::AppHandle) -> Vec<ProviderRuntime> {
     let ctrl = app.state::<AppCtrl>();
@@ -140,7 +130,6 @@ pub fn runtime_status(app: tauri::AppHandle) -> Vec<ProviderRuntime> {
         .collect()
 }
 
-/// 启用开机自启
 #[tauri::command]
 pub fn enable_autostart(app: tauri::AppHandle) -> Result<(), IpcError> {
     app.autolaunch()
@@ -148,7 +137,6 @@ pub fn enable_autostart(app: tauri::AppHandle) -> Result<(), IpcError> {
         .map_err(|e| IpcError(e.to_string()))
 }
 
-/// 禁用开机自启
 #[tauri::command]
 pub fn disable_autostart(app: tauri::AppHandle) -> Result<(), IpcError> {
     app.autolaunch()
@@ -156,7 +144,6 @@ pub fn disable_autostart(app: tauri::AppHandle) -> Result<(), IpcError> {
         .map_err(|e| IpcError(e.to_string()))
 }
 
-/// 查询开机自启状态
 #[tauri::command]
 pub fn autostart_status(app: tauri::AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)

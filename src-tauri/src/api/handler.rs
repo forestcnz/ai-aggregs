@@ -1,27 +1,22 @@
-//! 请求处理入口：鉴权、model 路由、协议判定、透传/转换、回吐响应
-
 use axum::extract::{Request, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
 
-use crate::config::{AppState, Protocol};
-use crate::converter;
-use crate::error::AppError;
-use crate::stream;
+use crate::config::state::AppState;
+use crate::config::types::Protocol;
+use crate::gateway::converter;
+use crate::gateway::stream;
+use crate::infra::error::AppError;
 
-/// 主代理入口：同时承载三个端点
 pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response, AppError> {
-    // 1. 鉴权
     auth(&st, req.headers())?;
 
-    // 2. consumer 协议由请求路径自动判定（三种端点均可访问）
     let c_proto = proto_from_path(req.uri().path());
     let req_method = req.method().clone();
     let req_path = req.uri().path().to_string();
 
-    // 3. 解析 body，取 model
     let bytes = axum::body::to_bytes(req.into_body(), 64 * 1024 * 1024)
         .await
         .map_err(|e| AppError::BadRequest(format!("read body: {e}")))?;
@@ -41,7 +36,6 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
         "proxy: request entry"
     );
 
-    // 4. model -> 候选 provider 列表（按配置顺序，第一个优先，后续为 failover 候选）
     let candidates = st
         .route(&model)
         .ok_or_else(|| AppError::ModelNotFound(model.clone()))?;
@@ -56,12 +50,9 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
         "proxy: route resolved"
     );
 
-    // 5. 遍历候选 provider：每个 provider 内部已有 key 级 failover，
-    //    外层再做 provider 级 failover。4xx(非429)视为请求本身问题，不切 provider。
     let mut last_err: Option<AppError> = None;
     for provider in &candidates {
         let p_proto = provider.protocol;
-        // 协议判定 + 请求体转换（per-provider，因为不同 provider 协议可能不同）
         let (send_body, need_convert) = if c_proto == p_proto {
             (body.clone(), false)
         } else {
@@ -98,7 +89,6 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                     status = %resp.status(),
                     "proxy: upstream responded"
                 );
-                // send 成功 = 上游已开始返回，commit 到此 provider，不再 failover
                 return build_response(resp, p_proto, c_proto, need_convert, stream).await;
             }
             Err(e) => {
@@ -110,11 +100,9 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                     "proxy: upstream send failed"
                 );
                 last_err = Some(AppError::UpstreamStatus(status, e.message));
-                // 4xx（非 429）是请求本身问题，换 provider 没用，直接返回
                 if status >= 400 && status < 500 && status != 429 {
                     break;
                 }
-                // 429 / 5xx / 超时：切下一个 provider
                 tracing::warn!(
                     provider = %provider.name,
                     model = %model,
@@ -127,7 +115,6 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
     Err(last_err.unwrap_or_else(|| AppError::Upstream("all providers exhausted".into())))
 }
 
-/// 把上游成功响应转换为客户端协议并返回
 async fn build_response(
     resp: reqwest::Response,
     p_proto: Protocol,
@@ -166,7 +153,6 @@ async fn build_response(
     }
 }
 
-/// 列出对外模型（兼容 OpenAI /v1/models 格式）
 pub async fn list_models(State(st): State<AppState>) -> impl IntoResponse {
     Json(json!({
         "object": "list",
@@ -176,7 +162,6 @@ pub async fn list_models(State(st): State<AppState>) -> impl IntoResponse {
     }))
 }
 
-/// 根据请求路径判定 consumer 协议
 fn proto_from_path(path: &str) -> Protocol {
     if path.ends_with("/responses") {
         Protocol::Responses
@@ -187,7 +172,6 @@ fn proto_from_path(path: &str) -> Protocol {
     }
 }
 
-/// 将 JSON Value 截断为字符串用于 debug 日志，防止输出过长
 fn truncate_json(v: &Value, max: usize) -> String {
     let s = serde_json::to_string(v).unwrap_or_default();
     if s.len() > max {
@@ -197,7 +181,6 @@ fn truncate_json(v: &Value, max: usize) -> String {
     }
 }
 
-/// 鉴权：支持 Authorization: Bearer xxx 或 x-api-key: xxx
 fn auth(st: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
     let bearer = headers
         .get("authorization")

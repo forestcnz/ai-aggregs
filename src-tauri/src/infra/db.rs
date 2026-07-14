@@ -1,19 +1,17 @@
-//! SQLite 数据持久化：providers / keys / models / 全局设置
-
 use std::collections::HashMap;
 
 use rusqlite::{params, Connection};
 
-use crate::config::{ApiKeyEntry, Config, ConsumerConfig, LogConfig, Protocol, ProviderConfig};
+use crate::config::types::{
+    ApiKeyEntry, Config, ConsumerConfig, LogConfig, Protocol, ProviderConfig,
+};
 
-/// 打开（或创建）数据库文件
 pub fn open(path: &str) -> anyhow::Result<Connection> {
     let conn = Connection::open(path)?;
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
     Ok(conn)
 }
 
-/// 创建表（幂等）
 pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
     conn.execute_batch(
         r#"
@@ -54,8 +52,6 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
     Ok(())
 }
 
-// ===================== 加载 =====================
-
 fn get_setting(conn: &Connection, key: &str) -> Option<String> {
     conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
         r.get(0)
@@ -63,7 +59,6 @@ fn get_setting(conn: &Connection, key: &str) -> Option<String> {
     .ok()
 }
 
-/// 从数据库加载完整配置
 pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
     let listen = get_setting(conn, "listen").unwrap_or_else(|| "127.0.0.1:8000".into());
     let key_blacklist_secs: u64 = get_setting(conn, "key_blacklist_secs")
@@ -75,7 +70,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
         .and_then(|v| serde_json::from_str(&v).ok())
         .unwrap_or_default();
 
-    // providers
     let mut providers = Vec::new();
     let mut stmt = conn.prepare(
         "SELECT id, name, protocol, base_url, timeout_secs, max_retries, enabled, reasoning_effort, extra_headers
@@ -108,7 +102,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             extra_headers_json,
         ) = row_result?;
 
-        // keys
         let mut api_keys = Vec::new();
         {
             let mut ks = conn.prepare(
@@ -125,7 +118,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             }
         }
 
-        // models
         let mut models = Vec::new();
         {
             let mut ms = conn.prepare(
@@ -159,14 +151,12 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
         providers,
         consumer: ConsumerConfig {
             api_keys: consumer_api_keys,
-            models: vec![], // 运行时由 sync_consumer_models 动态计算
+            models: vec![],
         },
         log: LogConfig { level: log_level },
         key_blacklist_secs,
     })
 }
-
-// ===================== 保存 =====================
 
 fn set_setting(conn: &Connection, key: &str, value: &str) -> anyhow::Result<()> {
     conn.execute(
@@ -177,7 +167,6 @@ fn set_setting(conn: &Connection, key: &str, value: &str) -> anyhow::Result<()> 
     Ok(())
 }
 
-/// 全量保存配置到数据库（事务：清空 → 重写）
 pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
     let tx = conn.unchecked_transaction()?;
 
@@ -185,7 +174,6 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
     tx.execute("DELETE FROM provider_models", [])?;
     tx.execute("DELETE FROM providers", [])?;
 
-    // 全局设置（不存 consumer_models，运行时动态计算）
     set_setting(&tx, "listen", &cfg.listen)?;
     set_setting(
         &tx,
