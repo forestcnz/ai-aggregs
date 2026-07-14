@@ -73,7 +73,6 @@ watch(() => props.logs.length, () => {
           <div class="dot"></div>
           {{ status.running ? '运行中' : '已停止' }}
         </div>
-        <span class="addr" v-if="status.running">http://{{ status.listen_addr }}</span>
       </div>
       <button class="btn" :class="status.running ? 'btn-stop' : 'btn-start'" :disabled="starting" @click="toggle">
         {{ starting ? '处理中...' : (status.running ? '停止网关' : '启动网关') }}

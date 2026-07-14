@@ -74,11 +74,11 @@ body {
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 12px; border-radius: var(--r-sm);
-  font-size: 13px; font-weight: 500; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer;
   transition: var(--transition); font-family: inherit;
 }
 /* 主按钮：近黑底反白字 */
-.btn-start, .btn-primary { background: var(--bg-strong); color: var(--text-inverted); }
+.btn-start, .btn-primary { background: var(--bg-strong); color: var(--text-inverted); border-color: transparent; }
 .btn-start:hover, .btn-primary:hover { background: var(--bg-strong-hover); }
 /* 停止按钮：描边红色 */
 .btn-stop { background: var(--bg); color: var(--red); border: 1px solid var(--red); }
