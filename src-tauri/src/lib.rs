@@ -328,7 +328,7 @@ fn update_tray(app: &tauri::AppHandle, running: bool) {
         let _ = ts.toggle_gw.set_text(if running { "停止网关" } else { "启动网关" });
     }
     if let Some(tray) = app.tray_by_id("main-tray") {
-        let tip = if running { "ai-aggregs - 运行中" } else { "ai-aggregs - 已停止" };
+        let tip = if running { "AI 聚合网关 - 运行中" } else { "AI 聚合网关 - 已停止" };
         let _ = tray.set_tooltip(Some(tip));
     }
     let _ = app.emit("gateway-state-changed", running);
@@ -349,7 +349,7 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
 
     let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(app.default_window_icon().unwrap().clone())
-        .tooltip("ai-aggregs - 已停止")
+        .tooltip("AI 聚合网关 - 已停止")
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => {
