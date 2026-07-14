@@ -154,7 +154,7 @@ onUnmounted(() => {
       </nav>
 
       <!-- 内容区 -->
-      <main class="content">
+      <main class="content" :class="{ 'content-flush': activeTab === 'dashboard' }">
         <GatewayStatusView v-if="activeTab === 'dashboard'" :status="status" :logs="logs" @changed="refreshStatus" @clear-logs="logs = []" />
         <ProviderList v-else-if="activeTab === 'providers'" :gateway-running="status.running" />
         <ChatView v-else-if="activeTab === 'chat'" :status="status" />
@@ -269,5 +269,10 @@ onUnmounted(() => {
 .content {
   flex: 1; overflow-y: auto; padding: 24px 28px;
   background: var(--bg);
+}
+.content-flush {
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
 }
 </style>

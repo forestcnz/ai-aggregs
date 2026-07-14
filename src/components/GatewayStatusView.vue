@@ -48,7 +48,7 @@ watch(() => props.logs.length, () => {
 </script>
 
 <template>
-  <div>
+  <div class="dashboard-root">
     <h1 class="page-title">网关状态</h1>
     <p class="page-sub">管理 API 聚合网关的运行</p>
 
@@ -98,6 +98,7 @@ watch(() => props.logs.length, () => {
 </template>
 
 <style scoped>
+.dashboard-root { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .page-title { font-size: 20px; font-weight: 600; color: var(--text-strong); letter-spacing: -.01em; }
 .page-sub { font-size: 12px; color: var(--text-weak); margin-top: 2px; margin-bottom: 22px; }
 
@@ -127,11 +128,12 @@ watch(() => props.logs.length, () => {
 .btn.sm { padding: 5px 10px; font-size: 12px; }
 
 /* 日志面板 */
-.log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.log-section { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-shrink: 0; }
 .log-header h3 { font-size: 13px; font-weight: 600; color: var(--text-strong); }
 .log-panel {
   background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  padding: 12px 14px; height: 240px; overflow-y: auto; font-size: 11px; line-height: 1.9;
+  padding: 12px 14px; flex: 1; min-height: 0; overflow-y: auto; font-size: 11px; line-height: 1.9;
 }
 .log-empty { color: var(--text-weak); text-align: center; padding: 40px; }
 .log-line { display: flex; gap: 10px; }

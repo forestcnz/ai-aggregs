@@ -8,8 +8,8 @@
   --bg-weak-hover: #efeded;         /* 次级背景 hover */
   --bg-strong: #1f1e1e;             /* 深色按钮/强调反色 · 近黑 */
   --bg-strong-hover: #2b2a29;       /* 深色按钮 hover */
-  --bg-interactive: #e9f08a;        /* 交互高亮 · 输入聚焦光晕 · 淡黄绿 */
-  --bg-interactive-weaker: #f0f5d8; /* 聚焦输入框底色 */
+  --bg-interactive: transparent;     /* 交互高亮 · 已禁用 */
+  --bg-interactive-weaker: transparent; /* 聚焦输入框底色 · 已禁用 */
   --text: #646363;                  /* 正文文字 · 中灰 */
   --text-weak: #999898;             /* 次级文字 */
   --text-weaker: #d1cfcb;           /* 更弱文字 */
