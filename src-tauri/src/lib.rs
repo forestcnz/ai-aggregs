@@ -424,7 +424,7 @@ pub fn run() {
             log_bridge::purge_old_logs(&purge_dir, 30, 10 * 1024 * 1024 * 1024);
         }
     });
-    tracing::info!("日志系统启动，文件日志写入 ./logs/ 目录，按天+按大小(10MB)双滚动，gzip 归档，保留 30 天，总大小上限 1GB");
+    tracing::info!("日志系统启动，文件日志写入 ./logs/ 目录，按天+按大小(10MB)双滚动，gzip 归档，保留 30 天，总大小上限 10GB");
 
     // 数据库文件：可执行文件所在目录下的 ./data/config.db
     let db_dir = std::env::current_exe()
