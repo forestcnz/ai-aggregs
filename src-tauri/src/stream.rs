@@ -45,7 +45,7 @@ pub async fn stream_convert(
             let chunk = match chunk {
                 Ok(c) => c,
                 Err(e) => {
-                    tracing::warn!(err = %e, "upstream stream read error");
+                    tracing::error!(err = ?e, "upstream stream read error (decoding response body)");
                     break;
                 }
             };
