@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ai-aggregs",
+  "productName": "AI聚合网关",
   "version": "0.1.0",
   "identifier": "com.aiaggregs.app",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "ai-aggregs",
+        "title": "AI聚合网关",
         "width": 1000,
         "height": 720,
         "minWidth": 800,
