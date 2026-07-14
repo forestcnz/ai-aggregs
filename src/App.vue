@@ -7,8 +7,9 @@ import {
 import GatewayStatusView from './components/GatewayStatusView.vue'
 import ProviderList from './components/ProviderList.vue'
 import ConfigEditor from './components/ConfigEditor.vue'
+import ChatView from './components/ChatView.vue'
 
-const activeTab = ref<'dashboard' | 'providers' | 'settings'>('dashboard')
+const activeTab = ref<'dashboard' | 'providers' | 'chat' | 'settings'>('dashboard')
 const status = ref<GatewayStatus>({ running: false, listen_addr: '' })
 let unlisten: (() => void) | null = null
 
@@ -40,6 +41,7 @@ onUnmounted(() => { unlisten?.() })
         v-for="tab in [
           { id: 'dashboard', label: '网关状态', icon: '▣' },
           { id: 'providers', label: '提供商', icon: '▤' },
+          { id: 'chat', label: '聊天', icon: '✦' },
           { id: 'settings', label: '设置', icon: '⚙' },
         ]"
         :key="tab.id"
@@ -62,6 +64,7 @@ onUnmounted(() => { unlisten?.() })
     <main class="content">
       <GatewayStatusView v-if="activeTab === 'dashboard'" :status="status" @changed="refreshStatus" />
       <ProviderList v-else-if="activeTab === 'providers'" :gateway-running="status.running" />
+      <ChatView v-else-if="activeTab === 'chat'" :status="status" />
       <ConfigEditor v-else />
     </main>
   </div>

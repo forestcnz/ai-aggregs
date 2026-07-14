@@ -424,6 +424,22 @@ impl ChatToAnthropicStream {
         out.push(content_block_start_text_frame(idx));
         idx
     }
+
+    /// 确保当前是 thinking block，否则关闭当前 block 并开启新的 thinking block
+    fn ensure_thinking(&mut self, out: &mut Vec<String>) -> usize {
+        if let Some((idx, ref ty)) = self.cur_block {
+            if ty == "thinking" {
+                return idx;
+            }
+            out.push(content_block_stop_frame(idx));
+        }
+        self.cur_block.take();
+        let idx = self.next_block;
+        self.next_block += 1;
+        self.cur_block = Some((idx, "thinking".into()));
+        out.push(content_block_start_thinking_frame(idx));
+        idx
+    }
 }
 
 impl StreamConverter for ChatToAnthropicStream {
@@ -456,6 +472,16 @@ impl StreamConverter for ChatToAnthropicStream {
             return out;
         };
         let delta = choice.get("delta").cloned().unwrap_or(json!({}));
+
+        // reasoning_content delta -> thinking block
+        if let Some(rc) = delta.get("reasoning_content") {
+            if let Some(t) = rc.as_str() {
+                if !t.is_empty() {
+                    let idx = self.ensure_thinking(&mut out);
+                    out.push(thinking_delta_event(idx, t));
+                }
+            }
+        }
 
         // content delta
         if let Some(content) = delta.get("content") {
@@ -550,6 +576,20 @@ fn content_block_start_text_frame(idx: usize) -> String {
     })
     .to_string()
 }
+fn content_block_start_thinking_frame(idx: usize) -> String {
+    json!({
+        "type":"content_block_start","index":idx,
+        "content_block":{"type":"thinking","thinking":""}
+    })
+    .to_string()
+}
+fn thinking_delta_event(idx: usize, text: &str) -> String {
+    json!({
+        "type":"content_block_delta","index":idx,
+        "delta":{"type":"thinking_delta","thinking":text}
+    })
+    .to_string()
+}
 fn content_block_start_tool_event(idx: usize, id: Value, name: Value) -> String {
     json!({
         "type":"content_block_start","index":idx,
@@ -638,6 +678,22 @@ impl StreamConverter for ResponsesToChatStream {
                     "choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]
                 })
                 .to_string()]
+            }
+            "response.reasoning_summary_text.delta" => {
+                // 推理摘要增量 -> chat 协议的 reasoning_content
+                let d = v.get("delta").and_then(|x| x.as_str()).unwrap_or("");
+                if d.is_empty() {
+                    vec![]
+                } else {
+                    vec![json!({
+                        "choices":[{"index":0,"delta":{"reasoning_content":d},"finish_reason":null}]
+                    })
+                    .to_string()]
+                }
+            }
+            "response.reasoning_summary_text.done" => {
+                // 推理摘要完成，无需额外输出（增量已累积）
+                vec![]
             }
             "response.output_item.added" => {
                 let item = v.get("item").cloned().unwrap_or(json!({}));
@@ -835,6 +891,21 @@ impl StreamConverter for ChatToResponsesStream {
                 })
                 .to_string(),
             );
+        }
+
+        // reasoning_content delta -> response.reasoning_summary_text.delta
+        if let Some(rc) = delta.get("reasoning_content") {
+            if let Some(t) = rc.as_str() {
+                if !t.is_empty() {
+                    out.push(
+                        json!({
+                            "type":"response.reasoning_summary_text.delta",
+                            "delta":t
+                        })
+                        .to_string(),
+                    );
+                }
+            }
         }
 
         // content delta
