@@ -2,6 +2,8 @@
 //!
 //! 使用 AppHandleSlot 模式：subscriber 在 run() 初始化时注册（此时还没有 AppHandle），
 //! setup hook 中再注入 AppHandle。
+//!
+//! 日志级别可通过动态过滤层运行时更新，无需重启应用。
 
 use std::sync::{Arc, Mutex};
 
@@ -23,6 +25,17 @@ pub struct LogEntry {
 /// 共享的 AppHandle 持有者（setup 时注入）
 pub type AppHandleSlot = Arc<Mutex<Option<AppHandle>>>;
 
+/// 日志级别设置器（类型擦除，避免 reload::Handle 的复杂泛型）
+pub struct LogLevelSetter {
+    inner: Box<dyn Fn(&str) + Send + Sync>,
+}
+
+impl LogLevelSetter {
+    pub fn set(&self, level: &str) {
+        (self.inner)(level);
+    }
+}
+
 pub fn create_slot() -> AppHandleSlot {
     Arc::new(Mutex::new(None))
 }
@@ -32,17 +45,35 @@ pub fn set_app_handle(slot: &AppHandleSlot, app: AppHandle) {
     *slot.lock().unwrap() = Some(app);
 }
 
-/// 安装 tracing subscriber：控制台 fmt 层 + Tauri event 层
-pub fn install(level: &str, slot: AppHandleSlot) {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level));
+/// 安装 tracing subscriber，返回日志级别设置器
+pub fn install(level: &str, slot: AppHandleSlot) -> LogLevelSetter {
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(level));
+    let (reloadable_filter, handle) = tracing_subscriber::reload::Layer::new(filter);
 
-    let tauri_layer = TauriLogLayer { slot }
-        .with_filter(filter.clone());
+    let tauri_layer = TauriLogLayer { slot };
+    let fmt_layer = tracing_subscriber::fmt::layer();
 
     let _ = tracing_subscriber::registry()
         .with(tauri_layer)
-        .with(tracing_subscriber::fmt::layer().with_filter(filter))
+        .with(fmt_layer)
+        .with(reloadable_filter)
         .try_init();
+
+    let setter = Box::new(move |new_level: &str| {
+        let new_filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new(new_level));
+        if let Err(e) = handle.reload(new_filter) {
+            // 此时 tracing 可能还未完全初始化，用 eprintln 兜底
+            eprintln!("[log_bridge] 热更新日志级别失败: {e}");
+        } else {
+            // 通过最新的 handle 发一条 info 日志（此时新级别已生效）
+            let _ = handle.reload(EnvFilter::new(new_level));
+            eprintln!("[log_bridge] 日志级别已更新为 {new_level}");
+        }
+    });
+
+    LogLevelSetter { inner: setter }
 }
 
 /// 自定义 tracing Layer：把事件转发到 Tauri 前端
@@ -88,7 +119,7 @@ impl MessageCollector {
             self.result.push(' ');
         }
         self.result.push_str(name);
-        self.result.push('=');
+        self.result.push_str("=");
         self.result.push_str(value);
     }
 }

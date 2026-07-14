@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ai-aggregs · 重新设计稿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   设计令牌 — 暖白纸感 · 工程文档美学（浅色）
+   ============================================================ */
+:root{
+  --bg-0:#ffffff;        /* 卡片最高表面 */
+  --bg-1:#f5f6f3;        /* 页面主背景（暖白） */
+  --bg-2:#fcfcfa;        /* 次级表面 */
+  --bg-3:#eef0eb;        /* 提升表面 / 标签底 */
+  --bg-4:#e4e7e1;        /* 悬停 */
+  --line:#e2e5df;        /* 描边 */
+  --line-2:#cfd3c9;      /* 亮描边 */
+  --text-0:#141a1f;      /* 主文字 · 深墨蓝 */
+  --text-1:#4a5660;      /* 次文字 */
+  --text-2:#8b9598;      /* 弱文字 */
+  --ink:#141a1f;         /* 墨色 */
+  --cyan:#0e7490;        /* 数据流 / 网关主色（深青，浅底可读） */
+  --cyan-2:#06b6d4;
+  --amber:#b45309;       /* 活跃 / 警示 */
+  --amber-2:#d97706;
+  --emerald:#047857;     /* 运行 / 成功 */
+  --rose:#be123c;        /* 停止 / 错误 */
+  --violet:#6d28d9;      /* Anthropic 协议色 */
+  --radius-sm:7px;
+  --radius-md:11px;
+  --radius-lg:16px;
+  --ease:cubic-bezier(.4,0,.2,1);
+  --t:200ms var(--ease);
+  --font-display:'Chakra Petch',system-ui,sans-serif;
+  --font-body:'Manrope',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  --shadow-sm:0 1px 2px rgba(20,26,31,.05);
+  --shadow-md:0 4px 16px -6px rgba(20,26,31,.08), 0 1px 2px rgba(20,26,31,.04);
+  --shadow-lg:0 28px 60px -22px rgba(20,26,31,.18), 0 6px 16px -8px rgba(20,26,31,.08);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font-body);
+  background:var(--bg-1);
+  color:var(--text-0);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.55;
+  overflow-x:hidden;
+}
+
+/* 全局氛围：细网格 + 顶部柔光（浅色版，极克制） */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(900px 460px at 80% -6%, rgba(14,116,144,.10), transparent 70%),
+    radial-gradient(720px 400px at 10% 4%, rgba(180,83,9,.07), transparent 70%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(20,26,31,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20,26,31,.028) 1px, transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(1200px 700px at 50% 0%, #000 30%, transparent 75%);
+}
+
+.wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 28px}
+
+/* ============================================================
+   通用组件
+   ============================================================ */
+.kicker{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--cyan);
+  display:inline-flex;align-items:center;gap:8px;
+}
+.kicker::before{content:'';width:22px;height:1px;background:var(--cyan);opacity:.55}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--font-mono);font-size:11px;font-weight:600;
+  padding:3px 10px;border-radius:999px;
+  border:1px solid var(--line-2);background:var(--bg-0);
+  color:var(--text-1);
+  box-shadow:var(--shadow-sm);
+}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.on{background:var(--emerald);box-shadow:0 0 0 2px rgba(4,120,87,.18)}
+.dot.off{background:var(--text-2)}
+.dot.cyan{background:var(--cyan);box-shadow:0 0 0 2px rgba(14,116,144,.18)}
+.dot.amber{background:var(--amber);box-shadow:0 0 0 2px rgba(180,83,9,.18)}
+
+/* ============================================================
+   Hero 区
+   ============================================================ */
+.hero{padding:72px 0 40px;text-align:center}
+.hero-logo{display:flex;justify-content:center;margin-bottom:26px}
+.hero h1{
+  font-family:var(--font-display);font-weight:700;
+  font-size:clamp(40px,7vw,76px);letter-spacing:-.02em;line-height:1;
+  color:var(--ink);
+}
+.hero h1 .accent{
+  background:linear-gradient(92deg,var(--cyan),var(--amber));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero .tag{
+  margin-top:18px;font-size:17px;color:var(--text-1);max-width:560px;
+  margin-left:auto;margin-right:auto;line-height:1.65;
+}
+.hero .tag b{color:var(--text-0);font-weight:600}
+.hero-meta{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:24px}
+
+/* ============================================================
+   区块标题
+   ============================================================ */
+.section{padding:54px 0}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:26px;flex-wrap:wrap}
+.section-head h2{font-family:var(--font-display);font-weight:600;font-size:30px;letter-spacing:-.01em;margin-top:8px;color:var(--ink)}
+.section-head p{color:var(--text-1);font-size:14px;max-width:480px}
+
+/* ============================================================
+   Logo 系统
+   ============================================================ */
+.logo-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:16px}
+.logo-card{
+  background:var(--bg-0);border:1px solid var(--line);border-radius:var(--radius-lg);
+  padding:28px;display:flex;flex-direction:column;gap:14px;min-height:220px;
+  position:relative;overflow:hidden;box-shadow:var(--shadow-sm);
+}
+.logo-card .label{font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-2)}
+.logo-card .stage{flex:1;display:flex;align-items:center;justify-content:center}
+.logo-card.paper{background:var(--bg-2)}
+.logo-card.grid-bg{
+  background:
+    linear-gradient(rgba(14,116,144,.06) 1px, transparent 1px) 0 0/22px 22px,
+    linear-gradient(90deg, rgba(14,116,144,.06) 1px, transparent 1px) 0 0/22px 22px,
+    var(--bg-0);
+}
+.logo-card.tint{background:linear-gradient(160deg,#f0f6f8, #fbfaf6)}
+
+/* 主标志横向排版 */
+.brand-lockup{display:flex;align-items:center;gap:14px}
+.brand-lockup .wordmark{font-family:var(--font-display);font-weight:700;font-size:26px;letter-spacing:-.01em;color:var(--ink)}
+.brand-lockup .wordmark .a{color:var(--cyan)}
+
+/* Logo 尺寸行 */
+.logo-sizes{display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.logo-sizes .sz{display:flex;flex-direction:column;align-items:center;gap:8px}
+.logo-sizes .sz span{font-family:var(--font-mono);font-size:10px;color:var(--text-2)}
+
+/* ============================================================
+   设计系统：色彩 / 字体
+   ============================================================ */
+.dsystem{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+.panel{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-sm)}
+.panel h3{font-family:var(--font-display);font-weight:600;font-size:16px;margin-bottom:18px;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.panel h3 .idx{font-family:var(--font-mono);font-size:10px;color:var(--cyan);border:1px solid var(--line-2);border-radius:4px;padding:1px 6px}
+
+.swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sw{border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.sw .blk{height:62px;position:relative}
+.sw .meta{padding:8px 10px;font-family:var(--font-mono);font-size:10px;line-height:1.5;background:var(--bg-0)}
+.sw .meta b{display:block;color:var(--text-0);font-weight:600;font-size:11px;letter-spacing:.04em}
+.sw .meta span{color:var(--text-2)}
+
+.typespec{display:flex;flex-direction:column;gap:18px}
+.tspec{padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--bg-2)}
+.tspec .role{font-family:var(--font-mono);font-size:10px;color:var(--text-2);letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+.tspec .sample{font-size:26px;line-height:1.1;color:var(--ink)}
+.tspec .info{font-family:var(--font-mono);font-size:10px;color:var(--text-2);margin-top:6px}
+
+/* ============================================================
+   应用窗口 Mockup
+   ============================================================ */
+.mockup-wrap{margin-top:8px}
+.window{
+  background:var(--bg-0);border:1px solid var(--line-2);border-radius:var(--radius-lg);
+  overflow:hidden;box-shadow:var(--shadow-lg);
+}
+.titlebar{height:38px;background:var(--bg-3);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 14px;gap:10px}
+.tl-dots{display:flex;gap:7px}
+.tl-dots i{width:11px;height:11px;border-radius:50%;display:block}
+.tl-dots i:nth-child(1){background:#ff5f57}
+.tl-dots i:nth-child(2){background:#febc2e}
+.tl-dots i:nth-child(3){background:#28c840}
+.tl-title{flex:1;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-2);letter-spacing:.08em}
+.tl-title .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;border:1px solid var(--line-2);background:var(--bg-0)}
+.tl-title .pill .dot{width:6px;height:6px}
+
+.app{display:flex;height:580px}
+/* 侧边栏 */
+.sidebar{width:212px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:6px 10px 18px}
+.sb-brand .wm{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--ink);letter-spacing:-.01em}
+.sb-brand .wm .a{color:var(--cyan)}
+.sb-nav{display:flex;flex-direction:column;gap:3px}
+.nav-item{
+  display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--radius-sm);
+  color:var(--text-1);font-size:13px;font-weight:500;text-decoration:none;
+  cursor:pointer;transition:var(--t);user-select:none;border:1px solid transparent;
+}
+.nav-item:hover{background:var(--bg-0);color:var(--text-0)}
+.nav-item.active{background:var(--bg-0);color:var(--ink);border-color:var(--line);box-shadow:inset 3px 0 0 var(--cyan), var(--shadow-sm)}
+.nav-item .ic{width:16px;height:16px;flex-shrink:0;opacity:.8}
+.nav-item.active .ic{opacity:1;color:var(--cyan)}
+.sb-spacer{flex:1}
+.sb-foot{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--text-2);padding:11px 12px;border-top:1px solid var(--line);margin:0 -12px -16px}
+.sb-foot code{font-family:var(--font-mono);font-size:11px;color:var(--text-1)}
+
+/* 内容区 */
+.content{flex:1;overflow-y:auto;padding:24px 30px;background:var(--bg-1)}
+.content::-webkit-scrollbar{width:8px;height:8px}
+.content::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+.content::-webkit-scrollbar-track{background:transparent}
+
+.page-title{font-family:var(--font-display);font-weight:600;font-size:22px;letter-spacing:-.01em;color:var(--ink)}
+.page-sub{font-size:13px;color:var(--text-1);margin-top:3px;margin-bottom:22px}
+
+/* ---- 通用按钮 ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 16px;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:13px;font-weight:600;border:none;cursor:pointer;transition:var(--t)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-cyan{background:var(--cyan);color:#fff}
+.btn-cyan:hover{background:#0e8aa8;box-shadow:0 0 0 3px rgba(14,116,144,.16)}
+.btn-emerald{background:var(--emerald);color:#fff}
+.btn-emerald:hover{filter:brightness(1.06)}
+.btn-rose{background:var(--rose);color:#fff}
+.btn-rose:hover{filter:brightness(1.06)}
+.btn-ghost{background:var(--bg-0);color:var(--text-1);border:1px solid var(--line-2)}
+.btn-ghost:hover{background:var(--bg-3);color:var(--ink)}
+.btn-amber{background:var(--amber);color:#fff}
+.btn-amber:hover{filter:brightness(1.06)}
+
+/* ---- Toggle ---- */
+.toggle{position:relative;width:38px;height:21px;flex-shrink:0;cursor:pointer;display:inline-block}
+.toggle input{position:absolute;opacity:0;width:0;height:0}
+.toggle .sl{position:absolute;inset:0;background:var(--bg-4);border:1px solid var(--line-2);border-radius:11px;transition:var(--t)}
+.toggle .sl::after{content:'';position:absolute;width:15px;height:15px;border-radius:50%;background:#fff;top:2px;left:2px;transition:var(--t);box-shadow:0 1px 2px rgba(20,26,31,.2)}
+.toggle input:checked+.sl{background:var(--emerald);border-color:transparent}
+.toggle input:checked+.sl::after{transform:translateX(17px)}
+
+/* ---- 状态徽章 ---- */
+.badge{display:inline-flex;align-items:center;gap:7px;padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;font-family:var(--font-body)}
+.badge.run{background:rgba(4,120,87,.1);color:var(--emerald);border:1px solid rgba(4,120,87,.26)}
+.badge.stop{background:rgba(190,18,60,.07);color:var(--rose);border:1px solid rgba(190,18,60,.22)}
+.badge .dot{width:6px;height:6px}
+.badge.run .dot{background:var(--emerald);box-shadow:0 0 0 2px rgba(4,120,87,.2)}
+.badge.stop .dot{background:var(--rose)}
+
+/* ============================================================
+   页面：网关状态
+   ============================================================ */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+.stat{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--radius-md);padding:16px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
+.stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cyan);opacity:.8}
+.stat .lab{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2)}
+.stat .val{font-family:var(--font-display);font-size:22px;font-weight:600;margin-top:6px;color:var(--ink)}
+.stat .val.run{color:var(--emerald)}
+.stat .val.mono{font-family:var(--font-mono);font-size:17px;font-weight:500}
+
+.ctrl{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--radius-md);padding:18px 22px;display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;box-shadow:var(--shadow-sm)}
+.ctrl-info{display:flex;flex-direction:column;gap:7px}
+.ctrl-info .addr{font-family:var(--font-mono);font-size:13px;color:var(--text-1)}
+
+.log-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.log-head h3{font-family:var(--font-display);font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.log-head h3 .ct{font-family:var(--font-mono);font-size:11px;color:var(--text-2);font-weight:400}
+.log-panel{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-md);
+  padding:14px 16px;height:230px;overflow-y:auto;font-family:var(--font-mono);font-size:12px;line-height:1.85;
+}
+.log-panel::-webkit-scrollbar{width:6px}
+.log-panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+.log-line{display:flex;gap:10px;white-space:nowrap}
+.log-line .lv{flex-shrink:0;width:46px;font-weight:700;font-size:10px;letter-spacing:.05em}
+.log-line .ts{color:var(--text-2);flex-shrink:0}
+.log-line .ms{color:var(--text-1);white-space:normal;word-break:break-all}
+.lv.info{color:var(--cyan)}
+.lv.warn{color:var(--amber)}
+.lv.err{color:var(--rose)}
+.lv.dbg{color:var(--text-2)}
+
+/* ============================================================
+   页面：提供商
+   ============================================================ */
+.ph-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.ph-row .left{display:flex;flex-direction:column;gap:3px}
+.pc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pc{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;transition:var(--t);box-shadow:var(--shadow-sm)}
+.pc:hover{border-color:var(--line-2);box-shadow:var(--shadow-md)}
+.pc.off{opacity:.5}
+.pc-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px}
+.pc-left{display:flex;align-items:center;gap:11px;min-width:0}
+.pc-icon{width:32px;height:32px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid var(--line-2)}
+.pc-icon.chat{background:rgba(14,116,144,.08);color:var(--cyan);border-color:rgba(14,116,144,.22)}
+.pc-icon.responses{background:rgba(4,120,87,.08);color:var(--emerald);border-color:rgba(4,120,87,.22)}
+.pc-icon.anthropic{background:rgba(109,40,217,.08);color:var(--violet);border-color:rgba(109,40,217,.24)}
+.pc-name{display:flex;align-items:center;gap:8px;min-width:0}
+.pc-name .nm{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.proto-tag{font-family:var(--font-mono);font-size:10px;font-weight:600;color:var(--text-2);background:var(--bg-3);padding:2px 7px;border-radius:4px;border:1px solid var(--line)}
+.pc-body{padding:13px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.pf{display:grid;grid-template-columns:88px 1fr;gap:8px;font-size:13px;align-items:start}
+.pf .fl{color:var(--text-2);font-family:var(--font-mono);font-size:11px;letter-spacing:.04em}
+.pf .fv{color:var(--text-1);word-break:break-all}
+.pf .fv.mono{font-family:var(--font-mono);font-size:12px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tags span{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:4px;background:var(--bg-3);color:var(--text-1);border:1px solid var(--line)}
+.keys-sec{margin-top:2px;padding-top:11px;border-top:1px solid var(--line)}
+.keys-sec .kh{font-family:var(--font-mono);font-size:11px;color:var(--text-2);margin-bottom:8px;letter-spacing:.04em}
+.key-row{display:flex;align-items:center;gap:11px;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg-2);border:1px solid var(--line);margin-bottom:5px}
+.key-row .kv{flex:1;font-family:var(--font-mono);font-size:12px;color:var(--text-1)}
+.ks{font-size:10px;padding:1px 8px;border-radius:4px;white-space:nowrap;font-family:var(--font-mono);font-weight:600}
+.ks.ok{background:rgba(4,120,87,.1);color:var(--emerald);border:1px solid rgba(4,120,87,.24)}
+.ks.bl{background:rgba(190,18,60,.07);color:var(--rose);border:1px solid rgba(190,18,60,.22)}
+.ks.ds{color:var(--text-2);border:1px solid var(--line)}
+
+/* ============================================================
+   页面：聊天
+   ============================================================ */
+.chat-page{display:flex;flex-direction:column;height:calc(580px - 48px)}
+.chat-head{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-shrink:0;flex-wrap:wrap}
+.sel{padding:7px 12px;border-radius:var(--radius-sm);border:1px solid var(--line-2);background:var(--bg-0);font-family:var(--font-body);font-size:13px;color:var(--text-0);cursor:pointer;min-width:120px;outline:none;box-shadow:var(--shadow-sm)}
+.sel:focus{border-color:var(--cyan)}
+.notice{background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.24);border-radius:var(--radius-md);padding:10px 14px;color:var(--amber);font-size:13px;margin-bottom:14px}
+.msgs{flex:1;overflow-y:auto;padding:6px 4px 14px;display:flex;flex-direction:column;gap:16px}
+.msgs::-webkit-scrollbar{width:6px}
+.msgs::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+.msg-row{display:flex;gap:10px;max-width:84%}
+.msg-row.user{align-self:flex-end;flex-direction:row-reverse}
+.msg-row.ai{align-self:flex-start}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;font-family:var(--font-display)}
+.msg-row.user .av{background:var(--cyan);color:#fff}
+.msg-row.ai .av{background:var(--bg-3);color:var(--text-1);border:1px solid var(--line-2)}
+.bub{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--radius-md);padding:12px 16px;font-size:14px;line-height:1.65;word-break:break-word;min-width:0;box-shadow:var(--shadow-sm)}
+.msg-row.user .bub{background:var(--cyan);color:#fff;border-color:transparent}
+.think{margin-bottom:9px;border-radius:var(--radius-sm);background:var(--bg-2);border:1px solid var(--line);overflow:hidden}
+.think-h{display:flex;align-items:center;gap:7px;padding:6px 11px;font-family:var(--font-mono);font-size:10px;color:var(--text-2);font-weight:700;letter-spacing:.14em}
+.think-h .pulse{display:inline-flex;gap:3px}
+.think-h .pulse i{width:4px;height:4px;border-radius:50%;background:var(--cyan);animation:blink 1.4s infinite ease-in-out both}
+.think-h .pulse i:nth-child(2){animation-delay:.2s}
+.think-h .pulse i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2;transform:scale(.7)}40%{opacity:1;transform:scale(1)}}
+.think-c{padding:8px 12px 10px;font-size:13px;line-height:1.6;color:var(--text-2);border-top:1px solid var(--line);font-style:italic;white-space:pre-wrap}
+.mc{white-space:pre-wrap}
+.input-area{display:flex;gap:10px;align-items:flex-end;padding:12px 0 0;flex-shrink:0}
+.tarea{flex:1;resize:none;padding:10px 14px;border-radius:var(--radius-md);border:1px solid var(--line-2);background:var(--bg-0);font-family:var(--font-body);font-size:14px;color:var(--text-0);line-height:1.5;transition:var(--t);outline:none;box-shadow:var(--shadow-sm)}
+.tarea:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(14,116,144,.14)}
+.send-btn{height:44px}
+
+/* ============================================================
+   页面：设置
+   ============================================================ */
+.group{background:var(--bg-0);border:1px solid var(--line);border-radius:var(--radius-md);padding:20px 24px;margin-bottom:14px;box-shadow:var(--shadow-sm)}
+.group h3{font-family:var(--font-display);font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:9px;color:var(--ink)}
+.group h3 .gn{font-family:var(--font-mono);font-size:10px;color:var(--cyan);border:1px solid var(--line-2);border-radius:4px;padding:1px 6px}
+.row{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center;margin-bottom:13px}
+.row:last-child{margin-bottom:0}
+.row label{font-size:13px;color:var(--text-1);font-weight:500}
+.inp{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-0);font-size:13px;font-family:var(--font-body);outline:none;transition:var(--t);max-width:420px;width:100%}
+.inp:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(14,116,144,.14)}
+.inp.mono{font-family:var(--font-mono);font-size:12px}
+.inline-tg{display:flex;align-items:center;gap:10px}
+.inline-tg span{font-size:13px;color:var(--text-1)}
+.mtags{display:flex;flex-wrap:wrap;gap:5px;max-width:520px}
+.mtags span{font-family:var(--font-mono);font-size:11px;padding:3px 9px;border-radius:5px;background:var(--bg-3);color:var(--text-1);border:1px solid var(--line)}
+.mtags .auto{color:var(--text-2);font-style:italic;font-family:var(--font-body);font-size:12px;border:none;background:none;padding:0}
+.actions{display:flex;gap:12px;justify-content:flex-end;align-items:center;margin-top:18px}
+
+/* 页面切换 */
+.tabpane{display:none}
+.tabpane.active{display:block;animation:fade .35s var(--ease)}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   底部
+   ============================================================ */
+.footer{margin-top:30px;padding:34px 0 60px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.footer .meta{font-family:var(--font-mono);font-size:11px;color:var(--text-2);letter-spacing:.06em}
+.footer .meta b{color:var(--text-1);font-weight:600}
+
+/* 响应式 */
+@media (max-width:880px){
+  .logo-grid{grid-template-columns:1fr}
+  .dsystem{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr}
+  .pc-grid{grid-template-columns:1fr}
+  .row{grid-template-columns:1fr;gap:6px}
+  .swatches{grid-template-columns:repeat(2,1fr)}
+  .app{height:auto;flex-direction:column}
+  .sidebar{width:100%;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)}
+  .sb-spacer{display:none}
+  .content{height:560px}
+  .chat-page{height:auto}
+  .msgs{height:340px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== Logo 定义（复用） ===================== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- 主渐变：青 → 琥珀 -->
+    <linearGradient id="lg-main" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0e7490"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <!-- Logo 图标 symbol：三流汇聚（浅色版，中心节点用墨色） -->
+    <symbol id="ico-aggregs" viewBox="0 0 64 64">
+      <!-- 输入流（三色，圆头） -->
+      <path d="M5 19 C 21 19, 25 31, 33 32" fill="none" stroke="#0e7490" stroke-width="4.2" stroke-linecap="round"/>
+      <path d="M5 32 L 33 32" fill="none" stroke="#0891b2" stroke-width="4.2" stroke-linecap="round"/>
+      <path d="M5 45 C 21 45, 25 33, 33 32" fill="none" stroke="#b45309" stroke-width="4.2" stroke-linecap="round"/>
+      <!-- 汇聚后的单一输出流（渐变） -->
+      <path d="M33 32 L 59 32" fill="none" stroke="url(#lg-main)" stroke-width="4.6" stroke-linecap="round"/>
+      <!-- 中心网关节点（菱形） -->
+      <rect x="29" y="28" width="8" height="8" rx="2" transform="rotate(45 33 32)" fill="#141a1f"/>
+      <!-- 节点内核（白点） -->
+      <circle cx="33" cy="32" r="2.1" fill="#ffffff"/>
+    </symbol>
+
+    <!-- 单色版（用于反色底/单色场景） -->
+    <symbol id="ico-aggregs-mono" viewBox="0 0 64 64">
+      <path d="M5 19 C 21 19, 25 31, 33 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" opacity=".5"/>
+      <path d="M5 32 L 33 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" opacity=".75"/>
+      <path d="M5 45 C 21 45, 25 33, 33 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" opacity=".5"/>
+      <path d="M33 32 L 59 32" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="round"/>
+      <rect x="29" y="28" width="8" height="8" rx="2" transform="rotate(45 33 32)" fill="currentColor"/>
+    </symbol>
+
+    <!-- 导航图标 -->
+    <symbol id="ic-dashboard" viewBox="0 0 16 16">
+      <rect x="1.5" y="1.5" width="5" height="5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="9.5" y="1.5" width="5" height="5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="1.5" y="9.5" width="5" height="5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="9.5" y="9.5" width="5" height="5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="ic-providers" viewBox="0 0 16 16">
+      <path d="M2 4h12M2 8h12M2 12h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="13" cy="12" r="1.5" fill="currentColor"/>
+    </symbol>
+    <symbol id="ic-chat" viewBox="0 0 16 16">
+      <path d="M2 3h12v8H7l-3 3v-3H2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M5 6.5h6M5 9h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-settings" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4M12.6 12.6l-1.4-1.4M4.8 4.8L3.4 3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero">
+    <div class="hero-logo">
+      <svg width="96" height="96" style="filter:drop-shadow(0 6px 18px rgba(14,116,144,.22))">
+        <use href="#ico-aggregs"/>
+      </svg>
+    </div>
+    <h1>ai<span class="accent">·</span>aggregs</h1>
+    <p class="tag">
+      <b>AI API 聚合网关</b> · 一个本地端点，反向代理多个上游提供商，<br/>
+      支持三种协议互转与故障转移。本稿重设计 Logo 与全局页面风格。
+    </p>
+    <div class="hero-meta">
+      <span class="chip"><span class="dot cyan"></span>Chat</span>
+      <span class="chip"><span class="dot on"></span>Responses</span>
+      <span class="chip" style="color:var(--violet);border-color:rgba(109,40,217,.28)"><span class="dot" style="background:var(--violet);box-shadow:0 0 0 2px rgba(109,40,217,.18)"></span>Anthropic</span>
+      <span class="chip">故障转移</span>
+      <span class="chip">Tauri v2</span>
+    </div>
+  </header>
+
+  <!-- ===================== Logo 系统 ===================== -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <span class="kicker">01 · 标识系统</span>
+        <h2>Logo — 三流汇聚，一端输出</h2>
+      </div>
+      <p>三条不同颜色的输入流（深青 / 青 / 琥珀，象征多个提供商与三种协议）在中心菱形网关节点处汇聚为一条统一输出流，直观传达「聚合 → 统一端点」的核心能力。</p>
+    </div>
+
+    <div class="logo-grid">
+      <!-- 主标志 -->
+      <div class="logo-card grid-bg">
+        <span class="label">PRIMARY · 品牌横排</span>
+        <div class="stage">
+          <div class="brand-lockup">
+            <svg width="56" height="56" style="filter:drop-shadow(0 4px 12px rgba(14,116,144,.22))"><use href="#ico-aggregs"/></svg>
+            <span class="wordmark">ai<span class="a">·</span>aggregs</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 白底图标 -->
+      <div class="logo-card">
+        <span class="label">PAPER · 图标</span>
+        <div class="stage">
+          <svg width="76" height="76"><use href="#ico-aggregs"/></svg>
+        </div>
+      </div>
+
+      <!-- 暖色调底单色 -->
+      <div class="logo-card tint">
+        <span class="label">TINT · 单色</span>
+        <div class="stage" style="color:var(--ink)">
+          <svg width="76" height="76"><use href="#ico-aggregs-mono"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- 尺寸规范 -->
+    <div class="panel" style="margin-top:16px">
+      <h3><span class="idx">SIZES</span> 尺寸与清晰度</h3>
+      <div class="logo-sizes">
+        <div class="sz"><svg width="64" height="64"><use href="#ico-aggregs"/></svg><span>64 · 应用图标</span></div>
+        <div class="sz"><svg width="40" height="40"><use href="#ico-aggregs"/></svg><span>40 · 侧边栏</span></div>
+        <div class="sz"><svg width="28" height="28"><use href="#ico-aggregs"/></svg><span>28 · 托盘</span></div>
+        <div class="sz"><svg width="20" height="20"><use href="#ico-aggregs"/></svg><span>20 · Favicon</span></div>
+        <div class="sz"><svg width="16" height="16"><use href="#ico-aggregs"/></svg><span>16 · 最小</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 设计系统 ===================== -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <span class="kicker">02 · 设计系统</span>
+        <h2>色彩与字体</h2>
+      </div>
+      <p>暖白纸感底色营造工程文档的精致感，深墨蓝文字保证可读性，深青为主交互色驱动数据流，琥珀用于活跃/警示，翡翠表示运行态。字体组合：切角技术感的 Chakra Petch + 圆润的 Manrope + JetBrains Mono。</p>
+    </div>
+
+    <div class="dsystem">
+      <!-- 色彩 -->
+      <div class="panel">
+        <h3><span class="idx">COLOR</span> 调色板</h3>
+        <div class="swatches">
+          <div class="sw"><div class="blk" style="background:#ffffff;border-bottom:1px solid var(--line)"></div><div class="meta"><b>bg-0</b><span>#FFFFFF</span></div></div>
+          <div class="sw"><div class="blk" style="background:#f5f6f3"></div><div class="meta"><b>bg-1</b><span>#F5F6F3</span></div></div>
+          <div class="sw"><div class="blk" style="background:#fcfcfa"></div><div class="meta"><b>bg-2</b><span>#FCFCFA</span></div></div>
+          <div class="sw"><div class="blk" style="background:#eef0eb"></div><div class="meta"><b>bg-3</b><span>#EEF0EB</span></div></div>
+          <div class="sw"><div class="blk" style="background:#0e7490"></div><div class="meta"><b>cyan</b><span>#0E7490</span></div></div>
+          <div class="sw"><div class="blk" style="background:#b45309"></div><div class="meta"><b>amber</b><span>#B45309</span></div></div>
+          <div class="sw"><div class="blk" style="background:#047857"></div><div class="meta"><b>emerald</b><span>#047857</span></div></div>
+          <div class="sw"><div class="blk" style="background:#6d28d9"></div><div class="meta"><b>violet</b><span>#6D28D9</span></div></div>
+        </div>
+        <p style="font-size:12px;color:var(--text-2);margin-top:14px;font-family:var(--font-mono);line-height:1.7">
+          cyan → 网关 / 数据流 / 主交互<br>
+          amber → 活跃 / 警示 / 限流<br>
+          emerald → 运行中 / 成功<br>
+          rose #BE123C → 停止 / 错误<br>
+          violet → Anthropic 协议标识
+        </p>
+      </div>
+
+      <!-- 字体 -->
+      <div class="panel">
+        <h3><span class="idx">TYPE</span> 字体规范</h3>
+        <div class="typespec">
+          <div class="tspec">
+            <div class="role">DISPLAY · 品牌 / 标题</div>
+            <div class="sample" style="font-family:var(--font-display);font-weight:700">Chakra Petch</div>
+            <div class="info">切角几何感 — 用于品牌、页面标题、数值</div>
+          </div>
+          <div class="tspec">
+            <div class="role">BODY · 正文 / UI</div>
+            <div class="sample" style="font-family:var(--font-body);font-weight:600">Manrope 400/600</div>
+            <div class="info">圆润清晰 — 用于正文、表单、按钮</div>
+          </div>
+          <div class="tspec">
+            <div class="role">MONO · 数据 / 代码</div>
+            <div class="sample" style="font-family:var(--font-mono);font-size:22px">JetBrains Mono</div>
+            <div class="info">等宽 — 地址、日志、Key、模型名、标签</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 应用界面 Mockup ===================== -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <span class="kicker">03 · 界面预览</span>
+        <h2>应用窗口 — 四个页面</h2>
+      </div>
+      <p>完整的桌面应用界面预览。点击左侧导航切换页面，所有页面均采用新设计语言：暖白面板、青色数据流高亮、等宽数据呈现。</p>
+    </div>
+
+    <div class="mockup-wrap">
+      <div class="window">
+        <!-- 标题栏 -->
+        <div class="titlebar">
+          <div class="tl-dots"><i></i><i></i><i></i></div>
+          <div class="tl-title">
+            <span class="pill"><span class="dot on"></span>ai-aggregs — 127.0.0.1:8000</span>
+          </div>
+          <div style="width:54px"></div>
+        </div>
+
+        <div class="app">
+          <!-- 侧边栏 -->
+          <nav class="sidebar">
+            <div class="sb-brand">
+              <svg width="26" height="26"><use href="#ico-aggregs"/></svg>
+              <span class="wm">ai<span class="a">·</span>aggregs</span>
+            </div>
+            <div class="sb-nav" id="nav">
+              <a class="nav-item active" data-tab="dashboard"><svg class="ic"><use href="#ic-dashboard"/></svg>网关状态</a>
+              <a class="nav-item" data-tab="providers"><svg class="ic"><use href="#ic-providers"/></svg>提供商</a>
+              <a class="nav-item" data-tab="chat"><svg class="ic"><use href="#ic-chat"/></svg>聊天</a>
+              <a class="nav-item" data-tab="settings"><svg class="ic"><use href="#ic-settings"/></svg>设置</a>
+            </div>
+            <div class="sb-spacer"></div>
+            <div class="sb-foot">
+              <span class="dot on"></span>运行中 <code>8000</code>
+            </div>
+          </nav>
+
+          <!-- 内容区 -->
+          <main class="content">
+
+            <!-- ===== 网关状态 ===== -->
+            <div class="tabpane active" data-pane="dashboard">
+              <div class="page-title">网关状态</div>
+              <div class="page-sub">管理 API 聚合网关的运行</div>
+
+              <div class="stats">
+                <div class="stat"><div class="lab">网关</div><div class="val run">运行中</div></div>
+                <div class="stat"><div class="lab">监听地址</div><div class="val mono">127.0.0.1:8000</div></div>
+                <div class="stat"><div class="lab">活跃提供商</div><div class="val">3 / 3</div></div>
+              </div>
+
+              <div class="ctrl">
+                <div class="ctrl-info">
+                  <span class="badge run"><span class="dot"></span>运行中</span>
+                  <span class="addr">http://127.0.0.1:8000</span>
+                </div>
+                <button class="btn btn-rose">停止网关</button>
+              </div>
+
+              <div>
+                <div class="log-head">
+                  <h3>运行日志 <span class="ct">128 条</span></h3>
+                  <button class="btn btn-ghost btn-sm">清除</button>
+                </div>
+                <div class="log-panel">
+                  <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Gateway listening on http://127.0.0.1:8000</span></div>
+                  <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Provider "openai" ready · chat · 3 keys, 5 models</span></div>
+                  <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Provider "anthropic" ready · anthropic · 2 keys, 4 models</span></div>
+                  <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Provider "glm" ready · chat · 1 key, 3 models</span></div>
+                  <div class="log-line"><span class="ts">14:02:34</span><span class="lv info">INFO</span><span class="ms">POST /v1/chat/completions → openai · 200 · 842ms</span></div>
+                  <div class="log-line"><span class="ts">14:03:02</span><span class="lv warn">WARN</span><span class="ms">openai key#2 blacklisted (429) · release in 600s</span></div>
+                  <div class="log-line"><span class="ts">14:03:02</span><span class="lv info">INFO</span><span class="ms">failover → openai key#3 · retrying</span></div>
+                  <div class="log-line"><span class="ts">14:03:04</span><span class="lv info">INFO</span><span class="ms">POST /v1/messages → anthropic · 200 · 1.2s</span></div>
+                  <div class="log-line"><span class="ts">14:03:21</span><span class="lv dbg">DBG</span><span class="ms">consumer models synced: 12 models from 3 providers</span></div>
+                  <div class="log-line"><span class="ts">14:04:18</span><span class="lv info">INFO</span><span class="ms">POST /v1/responses → glm · 200 · 643ms</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== 提供商 ===== -->
+            <div class="tabpane" data-pane="providers">
+              <div class="ph-row">
+                <div class="left">
+                  <div class="page-title">提供商管理</div>
+                  <div class="page-sub">管理上游 API 提供商及密钥</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <span class="chip" style="color:var(--emerald);border-color:rgba(4,120,87,.26)">已保存</span>
+                  <button class="btn btn-cyan btn-sm">+ 添加提供商</button>
+                </div>
+              </div>
+
+              <div class="pc-grid">
+                <!-- OpenAI -->
+                <div class="pc">
+                  <div class="pc-head">
+                    <div class="pc-left">
+                      <div class="pc-icon chat">💬</div>
+                      <div class="pc-name"><span class="nm">openai</span><span class="proto-tag">chat</span></div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                  </div>
+                  <div class="pc-body">
+                    <div class="pf"><span class="fl">Base URL</span><span class="fv mono">https://api.openai.com/v1</span></div>
+                    <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>gpt-4o-mini</span><span>o1</span><span>o3-mini</span><span>gpt-4.1</span></div></span></div>
+                    <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
+                    <div class="keys-sec">
+                      <div class="kh">API KEYS (3)</div>
+                      <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**7QxZ</span><span class="ks ok">正常</span></div>
+                      <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**3KdW</span><span class="ks bl">限流 · 14:23:09 解除</span></div>
+                      <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**9BnL</span><span class="ks ok">正常</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Anthropic -->
+                <div class="pc">
+                  <div class="pc-head">
+                    <div class="pc-left">
+                      <div class="pc-icon anthropic">🧠</div>
+                      <div class="pc-name"><span class="nm">anthropic</span><span class="proto-tag">anthropic</span></div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                  </div>
+                  <div class="pc-body">
+                    <div class="pf"><span class="fl">Base URL</span><span class="fv mono">https://api.anthropic.com</span></div>
+                    <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>claude-3-5-sonnet</span><span>claude-3-opus</span><span>claude-3-haiku</span><span>claude-sonnet-4</span></div></span></div>
+                    <div class="pf"><span class="fl">Reasoning</span><span class="fv">无</span></div>
+                    <div class="keys-sec">
+                      <div class="kh">API KEYS (2)</div>
+                      <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-ant**4MnK</span><span class="ks ok">正常</span></div>
+                      <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-ant**8RtQ</span><span class="ks ok">正常</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- GLM -->
+                <div class="pc">
+                  <div class="pc-head">
+                    <div class="pc-left">
+                      <div class="pc-icon chat">💬</div>
+                      <div class="pc-name"><span class="nm">glm</span><span class="proto-tag">chat</span></div>
+                    </div>
+                    <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                  </div>
+                  <div class="pc-body">
+                    <div class="pf"><span class="fl">Base URL</span><span class="fv mono">https://open.bigmodel.cn/api/paas/v4</span></div>
+                    <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>glm-4-plus</span><span>glm-4-air</span><span>glm-4-flash</span></div></span></div>
+                    <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
+                    <div class="keys-sec">
+                      <div class="kh">API KEYS (1)</div>
+                      <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">xxxxxxxx**f2a1</span><span class="ks ok">正常</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 离线示例 -->
+                <div class="pc off">
+                  <div class="pc-head">
+                    <div class="pc-left">
+                      <div class="pc-icon responses">🔄</div>
+                      <div class="pc-name"><span class="nm">azure-openai</span><span class="proto-tag">responses</span></div>
+                    </div>
+                    <label class="toggle"><input type="checkbox"><span class="sl"></span></label>
+                  </div>
+                  <div class="pc-body">
+                    <div class="pf"><span class="fl">Base URL</span><span class="fv mono">https://my-azure.openai.azure.com</span></div>
+                    <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>o1</span></div></span></div>
+                    <div class="pf"><span class="fl">超时</span><span class="fv">120s</span></div>
+                    <div class="keys-sec">
+                      <div class="kh">API KEYS (1)</div>
+                      <div class="key-row"><label class="toggle"><input type="checkbox"><span class="sl"></span></label><span class="kv">azure**c7D2</span><span class="ks ds">已禁用</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== 聊天 ===== -->
+            <div class="tabpane" data-pane="chat">
+              <div class="chat-page">
+                <div class="chat-head">
+                  <select class="sel"><option>Chat</option><option>Responses</option><option>Anthropic</option></select>
+                  <select class="sel" style="min-width:200px"><option>claude-3-5-sonnet</option><option>gpt-4o</option><option>glm-4-plus</option></select>
+                  <button class="btn btn-ghost btn-sm">清空</button>
+                </div>
+
+                <div class="msgs">
+                  <div class="msg-row user">
+                    <div class="av">我</div>
+                    <div class="bub">简单解释这个网关做了什么，以及三种协议的区别。</div>
+                  </div>
+
+                  <div class="msg-row ai">
+                    <div class="av">AI</div>
+                    <div class="bub">
+                      <div class="think">
+                        <div class="think-h">THINKING <span class="pulse"><i></i><i></i><i></i></span></div>
+                        <div class="think-c">用户问的是网关作用和三种协议差异。需要从聚合、转换、故障转移三点切入，再对比 Chat / Responses / Anthropic 的请求结构。</div>
+                      </div>
+                      <div class="mc">ai-aggregs 网关在本地起一个 HTTP 端点，把你的请求按顺序转发到多个上游提供商，并在 429 / 5xx / 超时时自动切换到下一个提供商或下一把密钥（故障转移）。
+
+三种协议的区别：
+• Chat — OpenAI 经典 messages 结构，/v1/chat/completions
+• Responses — OpenAI 新版 input 结构，/v1/responses
+• Anthropic — messages + max_tokens，/v1/messages，用 x-api-key 鉴权
+
+网关会在三种协议间做转换，所以你可以用任意一种协议消费，后端提供商可以是任意协议。</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="input-area">
+                  <textarea class="tarea" rows="3" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+                  <button class="btn btn-cyan send-btn">发送</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== 设置 ===== -->
+            <div class="tabpane" data-pane="settings">
+              <div class="page-title">设置</div>
+              <div class="page-sub">网关全局配置</div>
+
+              <div class="group">
+                <h3><span class="gn">01</span>通用</h3>
+                <div class="row"><label>监听地址</label><input class="inp mono" value="127.0.0.1:8000"></div>
+                <div class="row"><label>Key 黑名单时长(秒)</label><input class="inp mono" type="number" value="600"></div>
+                <div class="row"><label>日志级别</label><select class="sel" style="max-width:420px;width:100%"><option>info</option><option>debug</option><option>warn</option><option>error</option></select></div>
+              </div>
+
+              <div class="group">
+                <h3><span class="gn">02</span>Consumer</h3>
+                <div class="row"><label>API Keys</label><input class="inp mono" value="sk-consumer-001, sk-consumer-002"></div>
+                <div class="row"><label>Models</label><div class="mtags"><span>gpt-4o</span><span>gpt-4o-mini</span><span>o1</span><span>claude-3-5-sonnet</span><span>claude-sonnet-4</span><span>glm-4-plus</span><span class="auto">（自动从已启用提供商聚合）</span></div></div>
+              </div>
+
+              <div class="group">
+                <h3><span class="gn">03</span>系统</h3>
+                <div class="row"><label>开机自启</label><div class="inline-tg"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span>系统启动时自动运行（最小化到托盘）</span></div></div>
+              </div>
+
+              <div class="actions">
+                <span class="chip" style="color:var(--emerald);border-color:rgba(4,120,87,.26)">配置已保存</span>
+                <button class="btn btn-cyan">保存配置</button>
+              </div>
+            </div>
+
+          </main>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 底部 ===================== -->
+  <footer class="footer">
+    <div class="meta">ai-aggregs <b>redesign</b> · 暖白纸感工程美学 · Chakra Petch / Manrope / JetBrains Mono</div>
+    <div class="meta">三流汇聚 · 一端输出 · <b>2026</b></div>
+  </footer>
+
+</div>
+
+<script>
+// 页面切换交互
+const nav = document.getElementById('nav');
+nav.addEventListener('click', e => {
+  const item = e.target.closest('.nav-item');
+  if (!item) return;
+  const tab = item.dataset.tab;
+  nav.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n === item));
+  document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+});
+</script>
+</body>
+</html>

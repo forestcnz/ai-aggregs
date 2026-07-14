@@ -35,6 +35,7 @@ struct AppCtrl {
     server: Mutex<Option<ServerHandle>>,
     listen_addr: Mutex<String>,
     providers: Mutex<Vec<Arc<Provider>>>,
+    log_level_setter: log_bridge::LogLevelSetter,
 }
 
 /// 托盘菜单项引用（供运行时更新文本）
@@ -202,8 +203,13 @@ async fn save_config(app: tauri::AppHandle, mut cfg: Config) -> Result<(), Strin
     sync_consumer_models(&mut cfg);
     {
         let ctrl = app.state::<AppCtrl>();
+        let old_level = ctrl.config.lock().unwrap().log.level.clone();
         db::save_config(&ctrl.db.lock().unwrap(), &cfg).map_err(|e| e.to_string())?;
-        *ctrl.config.lock().unwrap() = cfg;
+        let mut guard = ctrl.config.lock().unwrap();
+        if cfg.log.level != old_level {
+            ctrl.log_level_setter.set(&cfg.log.level);
+        }
+        *guard = cfg;
     }
     rebuild_if_running(&app).await?;
     Ok(())
@@ -399,7 +405,7 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let log_slot = log_bridge::create_slot();
-    log_bridge::install("info", log_slot.clone());
+    let log_level_setter = log_bridge::install("info", log_slot.clone());
 
     // 数据库文件：可执行文件所在目录下的 ./data/config.db
     let db_dir = std::env::current_exe()
@@ -434,6 +440,7 @@ pub fn run() {
             server: Mutex::new(None),
             listen_addr: Mutex::new(String::new()),
             providers: Mutex::new(Vec::new()),
+            log_level_setter,
         })
         .setup(move |app| {
             log_bridge::set_app_handle(&log_slot, app.handle().clone());
