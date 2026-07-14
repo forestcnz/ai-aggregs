@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ai-aggreg-gateway"
+name = "ai-aggregs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
