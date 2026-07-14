@@ -88,7 +88,7 @@ where
     fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
         let target = event.metadata().target();
         // 只转发网关自身产生的日志（过滤掉第三方库噪音）
-        if !target.starts_with("ai_aggregs_lib") {
+        if !target.starts_with("ai_aggreg_gateway_lib") {
             return;
         }
 

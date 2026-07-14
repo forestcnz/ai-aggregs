@@ -1,12 +1,12 @@
 [package]
-name = "ai-aggregs"
+name = "ai-aggreg-gateway"
 version = "0.1.0"
 description = "AI API 聚合网关桌面版"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "ai_aggregs_lib"
+name = "ai_aggreg_gateway_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
