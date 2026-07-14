@@ -21,6 +21,8 @@ pub async fn proxy(
 
     // 2. consumer 协议由请求路径自动判定（三种端点均可访问）
     let c_proto = proto_from_path(req.uri().path());
+    let req_method = req.method().clone();
+    let req_path = req.uri().path().to_string();
 
     // 3. 解析 body，取 model
     let bytes = axum::body::to_bytes(req.into_body(), 64 * 1024 * 1024)
@@ -32,12 +34,27 @@ pub async fn proxy(
         .and_then(|m| m.as_str())
         .ok_or_else(|| AppError::BadRequest("missing model".into()))?
         .to_string();
+    tracing::debug!(
+        method = %req_method,
+        path = %req_path,
+        model = %model,
+        consumer_proto = ?c_proto,
+        body_len = bytes.len(),
+        stream = %body.get("stream").map(|v| v.to_string()).unwrap_or_default(),
+        "proxy: request entry"
+    );
 
     // 4. model -> 候选 provider 列表（按配置顺序，第一个优先，后续为 failover 候选）
     let candidates = st
         .route(&model)
         .ok_or_else(|| AppError::ModelNotFound(model.clone()))?;
     let stream = body.get("stream").and_then(|v| v.as_bool()).unwrap_or(false);
+    tracing::debug!(
+        model = %model,
+        candidates = ?candidates.iter().map(|p| &p.name).collect::<Vec<_>>(),
+        stream,
+        "proxy: route resolved"
+    );
 
     // 5. 遍历候选 provider：每个 provider 内部已有 key 级 failover，
     //    外层再做 provider 级 failover。4xx(非429)视为请求本身问题，不切 provider。
@@ -66,13 +83,32 @@ pub async fn proxy(
         );
 
         let endpoint = provider.endpoint();
+        tracing::debug!(
+            provider = %provider.name,
+            protocol = ?p_proto,
+            endpoint = %endpoint,
+            need_convert,
+            body_preview = %truncate_json(&send_body, 500),
+            "proxy: sending to provider"
+        );
         match provider.send(endpoint, &send_body, stream).await {
             Ok(resp) => {
+                tracing::debug!(
+                    provider = %provider.name,
+                    status = %resp.status(),
+                    "proxy: upstream responded"
+                );
                 // send 成功 = 上游已开始返回，commit 到此 provider，不再 failover
                 return build_response(resp, p_proto, c_proto, need_convert, stream).await;
             }
             Err(e) => {
                 let status = e.status;
+                tracing::error!(
+                    provider = %provider.name,
+                    status = status,
+                    message = %e.message,
+                    "proxy: upstream send failed"
+                );
                 last_err = Some(AppError::UpstreamStatus(status, e.message));
                 // 4xx（非 429）是请求本身问题，换 provider 没用，直接返回
                 if status >= 400 && status < 500 && status != 429 {
@@ -99,6 +135,14 @@ async fn build_response(
     need_convert: bool,
     stream: bool,
 ) -> Result<Response, AppError> {
+    tracing::debug!(
+        p_proto = ?p_proto,
+        c_proto = ?c_proto,
+        need_convert,
+        stream,
+        status = %resp.status(),
+        "build_response"
+    );
     if stream {
         if need_convert {
             Ok(stream::stream_convert(resp, p_proto, c_proto).await?)
@@ -140,6 +184,16 @@ fn proto_from_path(path: &str) -> Protocol {
         Protocol::Anthropic
     } else {
         Protocol::Chat
+    }
+}
+
+/// 将 JSON Value 截断为字符串用于 debug 日志，防止输出过长
+fn truncate_json(v: &Value, max: usize) -> String {
+    let s = serde_json::to_string(v).unwrap_or_default();
+    if s.len() > max {
+        format!("{}... (truncated {})", &s[..max], s.len())
+    } else {
+        s
     }
 }
 
