@@ -59,6 +59,8 @@ export interface LogEntry {
   level: string
   target: string
   message: string
+  /** 事件发生时的 UNIX 时间戳（毫秒） */
+  ts: number
 }
 
 // ===================== 命令封装 =====================

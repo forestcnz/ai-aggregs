@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import {
-  startGateway, stopGateway, onLog,
+  startGateway, stopGateway,
   type GatewayStatus, type LogEntry,
 } from '../api/commands'
 
-const props = defineProps<{ status: GatewayStatus }>()
-const emit = defineEmits<{ changed: [] }>()
+const props = defineProps<{ status: GatewayStatus; logs: LogEntry[] }>()
+const emit = defineEmits<{ changed: []; 'clear-logs': [] }>()
 
-const logs = ref<LogEntry[]>([])
 const logPanel = ref<HTMLElement | null>(null)
 const starting = ref(false)
-let unlisten: (() => void) | null = null
 
 async function toggle() {
   starting.value = true
@@ -33,17 +31,20 @@ function levelClass(level: string): string {
   return level.toLowerCase()
 }
 
-onMounted(async () => {
-  unlisten = await onLog((entry) => {
-    logs.value.push(entry)
-    if (logs.value.length > 500) logs.value.shift()
-    nextTick(() => {
-      if (logPanel.value) logPanel.value.scrollTop = logPanel.value.scrollHeight
-    })
+// 把 UNIX 时间戳（毫秒）格式化为本地时间字符串（YYYY-MM-DD HH:mm:ss.SSS）
+function formatTime(ts: number): string {
+  const d = new Date(ts)
+  const pad = (n: number, l = 2) => String(n).padStart(l, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`
+}
+
+// 监听 logs 变化，自动滚动到底部
+watch(() => props.logs.length, () => {
+  nextTick(() => {
+    if (logPanel.value) logPanel.value.scrollTop = logPanel.value.scrollHeight
   })
 })
-
-onUnmounted(() => { unlisten?.() })
 </script>
 
 <template>
@@ -83,11 +84,12 @@ onUnmounted(() => { unlisten?.() })
     <div class="log-section">
       <div class="log-header">
         <h3>运行日志</h3>
-        <button class="btn btn-secondary sm" @click="logs = []">清除</button>
+        <button class="btn btn-secondary sm" @click="emit('clear-logs')">清除</button>
       </div>
       <div class="log-panel" ref="logPanel">
         <div v-if="logs.length === 0" class="log-empty">暂无日志</div>
         <div v-for="(log, i) in logs" :key="i" class="log-line">
+          <span class="time">{{ formatTime(log.ts) }}</span>
           <span :class="['level', levelClass(log.level)]">{{ log.level }}</span>
           <span class="msg">{{ log.message }}</span>
         </div>
@@ -134,6 +136,10 @@ onUnmounted(() => { unlisten?.() })
 }
 .log-empty { color: var(--text-weak); text-align: center; padding: 40px; }
 .log-line { display: flex; gap: 10px; }
+.log-line .time {
+  flex-shrink: 0; font-size: 10px; color: var(--text-weak);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .log-line .level {
   flex-shrink: 0; width: 42px; font-weight: 600; font-size: 10px; text-transform: uppercase;
 }

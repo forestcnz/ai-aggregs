@@ -20,6 +20,8 @@ pub struct LogEntry {
     pub level: String,
     pub target: String,
     pub message: String,
+    /// 事件发生时的 UNIX 时间戳（毫秒）
+    pub ts: u64,
 }
 
 /// 共享的 AppHandle 持有者（setup 时注入）
@@ -95,10 +97,17 @@ where
         let mut visitor = MessageCollector::default();
         event.record(&mut visitor);
 
+        // 记录事件发生时的 UNIX 时间戳（毫秒）
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+
         let entry = LogEntry {
             level: event.metadata().level().to_string(),
             target: target.to_string(),
             message: visitor.result,
+            ts,
         };
 
         if let Some(app) = self.slot.lock().unwrap().as_ref() {

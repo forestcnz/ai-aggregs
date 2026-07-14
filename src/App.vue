@@ -2,8 +2,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import {
-  gatewayStatus, onGatewayStateChanged,
-  type GatewayStatus,
+  gatewayStatus, onGatewayStateChanged, onLog,
+  type GatewayStatus, type LogEntry,
 } from './api/commands'
 import GatewayStatusView from './components/GatewayStatusView.vue'
 import ProviderList from './components/ProviderList.vue'
@@ -15,6 +15,10 @@ const status = ref<GatewayStatus>({ running: false, listen_addr: '' })
 const isMaximized = ref(false)
 let unlistenStatus: (() => void) | null = null
 let unlistenResize: (() => void) | null = null
+let unlistenLog: (() => void) | null = null
+
+// 日志状态提升到 App 层级，避免切换页面时组件卸载导致日志丢失
+const logs = ref<LogEntry[]>([])
 
 const appWindow = getCurrentWindow()
 
@@ -45,11 +49,17 @@ onMounted(async () => {
     refreshStatus()
   })
   unlistenResize = await appWindow.onResized(() => checkMaximized())
+  // 日志监听在 App 层级注册，整个应用生命周期内保持活跃
+  unlistenLog = await onLog((entry) => {
+    logs.value.push(entry)
+    if (logs.value.length > 500) logs.value.shift()
+  })
 })
 
 onUnmounted(() => {
   unlistenStatus?.()
   unlistenResize?.()
+  unlistenLog?.()
 })
 </script>
 
@@ -145,7 +155,7 @@ onUnmounted(() => {
 
       <!-- 内容区 -->
       <main class="content">
-        <GatewayStatusView v-if="activeTab === 'dashboard'" :status="status" @changed="refreshStatus" />
+        <GatewayStatusView v-if="activeTab === 'dashboard'" :status="status" :logs="logs" @changed="refreshStatus" @clear-logs="logs = []" />
         <ProviderList v-else-if="activeTab === 'providers'" :gateway-running="status.running" />
         <ChatView v-else-if="activeTab === 'chat'" :status="status" />
         <ConfigEditor v-else />
