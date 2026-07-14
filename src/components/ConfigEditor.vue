@@ -129,11 +129,15 @@ onMounted(load)
 
     <!-- 保存按钮 -->
     <div class="actions">
-      <span class="msg" :class="{ ok: msg.includes('已保存') }">{{ msg }}</span>
       <button class="btn btn-primary" :disabled="saving" @click="save">
         {{ saving ? '保存中...' : '保存配置' }}
       </button>
     </div>
+
+    <!-- 保存提示 toast -->
+    <Transition name="toast">
+      <div v-if="msg" class="toast" :class="{ ok: msg.includes('已保存') }">{{ msg }}</div>
+    </Transition>
   </div>
 </template>
 
@@ -173,8 +177,17 @@ onMounted(load)
 }
 .muted { font-size: 11px; color: var(--text-weak); font-style: italic; }
 .actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; margin-top: 16px; }
-.msg { font-size: 12px; color: var(--text-weak); }
-.msg.ok { color: var(--green); }
+
+/* ---- 保存提示 toast ---- */
+.toast {
+  position: fixed; top: 52px; right: 28px; z-index: 100;
+  padding: 7px 14px; border: 1px solid var(--border-weak); border-radius: var(--r-md);
+  background: var(--bg); color: var(--text);
+  font-size: 12px; font-weight: 500;
+}
+.toast.ok { color: var(--green); border-color: var(--green); }
+.toast-enter-active, .toast-leave-active { transition: opacity 160ms ease, transform 160ms ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-6px); }
 
 /* ---- Chip 输入框（与供应商 API Key 输入框一致） ---- */
 .chip-input {
