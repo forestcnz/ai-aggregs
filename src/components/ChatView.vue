@@ -438,7 +438,7 @@ function onKeydown(e: KeyboardEvent) {
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 48px);
+  height: calc(100vh - 36px - 48px);
 }
 .chat-header {
   display: flex;
