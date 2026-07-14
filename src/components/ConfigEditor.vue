@@ -9,6 +9,23 @@ const cfg = ref<Config | null>(null)
 const saving = ref(false)
 const autoStart = ref(false)
 const msg = ref('')
+const keyInput = ref('')
+
+function addKey() {
+  if (!cfg.value) return
+  const v = keyInput.value.trim()
+  if (!v) return
+  cfg.value.consumer.api_keys.push(v)
+  keyInput.value = ''
+}
+function removeKey(i: number) {
+  if (!cfg.value) return
+  cfg.value.consumer.api_keys.splice(i, 1)
+}
+function maskKey(key: string): string {
+  if (key.length <= 12) return key.slice(0, 4) + '**'
+  return key.slice(0, 6) + '**' + key.slice(-6)
+}
 
 async function load() {
   try {
@@ -76,9 +93,13 @@ onMounted(load)
       <h3><span class="gn">02</span>Consumer</h3>
       <div class="row">
         <label>API Keys</label>
-        <input :value="cfg.consumer.api_keys.join(', ')"
-          @input="cfg.consumer.api_keys = ($event.target as HTMLInputElement).value.split(',').map(s=>s.trim()).filter(Boolean)"
-          type="text" placeholder="sk-key1, sk-key2" />
+        <div class="chip-input">
+          <span v-for="(k, ki) in cfg.consumer.api_keys" :key="ki" class="chip">
+            <span class="chip-text">{{ maskKey(k) }}</span>
+            <button class="chip-x" @click="removeKey(ki)">×</button>
+          </span>
+          <input v-model="keyInput" class="chip-field" :placeholder="cfg.consumer.api_keys.length ? '' : 'API Key，回车添加'" @keydown.enter.prevent="addKey" />
+        </div>
       </div>
       <div class="row">
         <label>Models</label>
@@ -133,12 +154,12 @@ onMounted(load)
 }
 .row:last-child { margin-bottom: 0; }
 .row label { font-size: 12px; color: var(--text); font-weight: 400; }
-.row input, .row select {
+.row > input, .row > select {
   background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
   padding: 8px 12px; color: var(--text-strong); font-size: 12px; outline: none;
   font-family: inherit; transition: var(--transition); max-width: 400px;
 }
-.row input:focus, .row select:focus {
+.row > input:focus, .row > select:focus {
   background: var(--bg-interactive-weaker); border-color: var(--text-strong);
   box-shadow: 0 0 0 3px var(--bg-interactive);
 }
@@ -154,4 +175,30 @@ onMounted(load)
 .actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; margin-top: 16px; }
 .msg { font-size: 12px; color: var(--text-weak); }
 .msg.ok { color: var(--green); }
+
+/* ---- Chip 输入框（与供应商 API Key 输入框一致） ---- */
+.chip-input {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  background: var(--bg-weak); border: 1px solid var(--border-weak);
+  border-radius: var(--r-md); padding: 5px 7px; cursor: text;
+  min-height: 34px; max-width: 400px; transition: var(--transition);
+}
+.chip-input:focus-within { background: var(--bg-interactive-weaker); border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
+.chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--bg); border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm); padding: 1px 2px 1px 7px; font-size: 11px;
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+.chip:hover { border-color: var(--border); }
+.chip-text { color: var(--text); font-size: 10px; }
+.chip-x {
+  background: none; border: none; color: var(--text-weak); cursor: pointer;
+  font-size: 12px; line-height: 1; padding: 0 2px; transition: var(--transition);
+}
+.chip-x:hover { color: var(--red); }
+.chip-field {
+  flex: 1; min-width: 130px; border: none; outline: none; background: transparent;
+  color: var(--text-strong); font-size: 12px; padding: 2px 0; font-family: inherit;
+}
 </style>
