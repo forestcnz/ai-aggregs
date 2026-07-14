@@ -150,6 +150,8 @@ function modalAddKey() {
 }
 function modalRemoveKey(i: number) { editingProvider.value.api_keys.splice(i, 1) }
 
+
+
 // ---- 辅助 ----
 
 function getRuntime(name: string) { return runtimeMap.value.get(name) }
@@ -329,36 +331,27 @@ onUnmounted(() => {
               <input v-model="editingProvider.base_url" class="f-input" placeholder="https://api.example.com/v1" />
             </div>
 
-            <!-- 模型 -->
+            <!-- API Keys（先填 key 再填模型） -->
             <div class="mf">
-              <label>模型</label>
-              <div class="tag-editor">
-                <div class="tag-list" v-if="editingProvider.models.length">
-                  <span v-for="(m, mi) in editingProvider.models" :key="mi" class="tag removable">
-                    {{ m }}<button class="tag-x" @click="modalRemoveModel(mi)">×</button>
-                  </span>
-                </div>
-                <div class="tag-add">
-                  <input v-model="modelInput" class="f-input" placeholder="模型名，回车添加" @keydown.enter.prevent="modalAddModel" />
-                  <button class="btn btn-secondary xs" @click="modalAddModel">添加</button>
-                </div>
+              <label>API Keys</label>
+              <div class="chip-input">
+                <span v-for="(k, ki) in editingProvider.api_keys" :key="ki" class="chip">
+                  <span class="chip-text">{{ maskKey(normalizeKey(k).key) }}</span>
+                  <button class="chip-x" @click="modalRemoveKey(ki)">×</button>
+                </span>
+                <input v-model="keyInput" class="chip-field mono" :placeholder="editingProvider.api_keys.length ? '' : 'API Key，回车添加'" @keydown.enter.prevent="modalAddKey" />
               </div>
             </div>
 
-            <!-- Keys -->
+            <!-- 模型 -->
             <div class="mf">
-              <label>API Keys</label>
-              <div class="tag-editor">
-                <div v-if="editingProvider.api_keys.length" class="key-list">
-                  <div v-for="(k, ki) in editingProvider.api_keys" :key="ki" class="key-item">
-                    <span class="key-mask">{{ maskKey(normalizeKey(k).key) }}</span>
-                    <button class="tag-x" @click="modalRemoveKey(ki)">×</button>
-                  </div>
-                </div>
-                <div class="tag-add">
-                  <input v-model="keyInput" class="f-input mono" placeholder="API Key，回车添加" @keydown.enter.prevent="modalAddKey" />
-                  <button class="btn btn-secondary xs" @click="modalAddKey">添加</button>
-                </div>
+              <label>模型</label>
+              <div class="chip-input">
+                <span v-for="(m, mi) in editingProvider.models" :key="mi" class="chip">
+                  <span class="chip-text">{{ m }}</span>
+                  <button class="chip-x" @click="modalRemoveModel(mi)">×</button>
+                </span>
+                <input v-model="modelInput" class="chip-field" :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'" @keydown.enter.prevent="modalAddModel" />
               </div>
             </div>
 
@@ -540,29 +533,32 @@ onUnmounted(() => {
   font-family: inherit; width: 100%;
 }
 
-/* ---- 标签编辑器 ---- */
-.tag-editor { display: flex; flex-direction: column; gap: 8px; }
-.tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
-.tag {
-  font-size: 12px; padding: 3px 8px; border-radius: 4px;
-  background: var(--bg-elevated); color: var(--text-secondary);
-  border: 1px solid var(--border);
+/* ---- Chip 输入框 ---- */
+.chip-input {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  background: var(--bg-deep); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 5px 8px; cursor: text;
+  min-height: 34px; transition: var(--transition);
 }
-.tag.removable { display: inline-flex; align-items: center; gap: 4px; padding-right: 4px; }
-.tag-x {
+.chip-input:focus-within { border-color: var(--amber); }
+.chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 2px 1px 6px; font-size: 12px;
+  white-space: nowrap; cursor: pointer; user-select: none;
+}
+.chip:hover { border-color: var(--text-muted); }
+.chip-text { color: var(--text-secondary); }
+.chip-x {
   background: none; border: none; color: var(--text-muted); cursor: pointer;
   font-size: 14px; line-height: 1; padding: 0 2px;
 }
-.tag-x:hover { color: var(--red); }
-.tag-add { display: flex; gap: 6px; }
-.tag-add .f-input { flex: 1; }
-
-/* ---- Key 列表 ---- */
-.key-list { display: flex; flex-direction: column; gap: 3px; }
-.key-item {
-  display: flex; align-items: center; justify-content: space-between;
-  background: var(--bg-elevated); border-radius: var(--radius-sm);
-  padding: 5px 10px;
+.chip-x:hover { color: var(--red); }
+.chip-field {
+  flex: 1; min-width: 120px; border: none; outline: none; background: transparent;
+  color: var(--text-primary); font-size: 13px; padding: 2px 0; font-family: inherit;
 }
-.key-mask { font-family: monospace; font-size: 12px; color: var(--text-secondary); }
+.chip-field.mono { font-family: monospace; font-size: 12px; }
+
+
 </style>
