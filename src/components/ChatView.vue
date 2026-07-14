@@ -438,89 +438,85 @@ function onKeydown(e: KeyboardEvent) {
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 48px);
 }
 .chat-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   flex-shrink: 0;
 }
-.page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-secondary); }
-.chat-controls { display: flex; gap: 8px; align-items: center; }
+.chat-controls { display: flex; gap: 7px; align-items: center; }
 .proto-select {
-  padding: 7px 12px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); background: var(--bg-card);
-  font-size: 13px; font-family: inherit; color: var(--text-primary);
-  min-width: 110px; cursor: pointer;
+  padding: 6px 11px; border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak); background: var(--bg-weak);
+  font-size: 12px; font-family: inherit; color: var(--text-strong);
+  min-width: 110px; cursor: pointer; transition: var(--transition); outline: none;
 }
-.proto-select:focus { outline: none; border-color: var(--amber); }
+.proto-select:focus { border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
 .model-select {
-  padding: 7px 12px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); background: var(--bg-card);
-  font-size: 13px; font-family: inherit; color: var(--text-primary);
-  min-width: 200px; cursor: pointer;
+  padding: 6px 11px; border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak); background: var(--bg-weak);
+  font-size: 12px; font-family: inherit; color: var(--text-strong);
+  min-width: 200px; cursor: pointer; transition: var(--transition); outline: none;
 }
-.model-select:focus { outline: none; border-color: var(--amber); }
-.btn.sm { padding: 7px 14px; font-size: 12px; }
+.model-select:focus { border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
+.btn.sm { padding: 5px 10px; font-size: 12px; }
 
 .notice {
-  background: rgba(220,38,38,.06); border: 1px solid rgba(220,38,38,.2);
-  border-radius: var(--radius-md); padding: 12px 16px;
-  color: var(--red); font-size: 13px; margin-bottom: 16px;
+  background: var(--bg-weak); border: 1px solid var(--border-weak);
+  border-radius: var(--r-md); padding: 10px 14px;
+  color: var(--text-weak); font-size: 12px; margin-bottom: 14px;
 }
 
 /* 消息列表 */
 .messages {
   flex: 1; overflow-y: auto;
-  padding: 8px 4px 16px;
-  display: flex; flex-direction: column; gap: 16px;
+  padding: 6px 2px 14px;
+  display: flex; flex-direction: column; gap: 14px;
 }
 .empty-hint {
-  text-align: center; color: var(--text-muted);
-  padding: 60px 0; font-size: 14px;
+  text-align: center; color: var(--text-weak);
+  padding: 60px 0; font-size: 13px;
 }
 .msg-row {
-  display: flex; gap: 10px; max-width: 85%;
+  display: flex; gap: 9px; max-width: 82%;
 }
 .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
 .msg-row.assistant { align-self: flex-start; }
 .msg-avatar {
-  width: 30px; height: 30px; border-radius: 50%;
+  width: 26px; height: 26px; border-radius: var(--r-sm);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; flex-shrink: 0;
+  font-size: 10px; font-weight: 600; flex-shrink: 0;
+  border: 1px solid var(--border-weak); background: var(--bg-weak); color: var(--text-weak);
 }
-.msg-row.user .msg-avatar { background: var(--amber); color: #fff; }
-.msg-row.assistant .msg-avatar { background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border); }
+.msg-row.user .msg-avatar { background: var(--bg-strong); color: var(--text-inverted); border-color: var(--bg-strong); }
 .msg-bubble {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: var(--radius-md); padding: 12px 16px;
-  font-size: 14px; line-height: 1.6; word-break: break-word;
+  background: var(--bg-weak); border: 1px solid var(--border-weak);
+  border-radius: var(--r-md); padding: 11px 15px;
+  font-size: 13px; line-height: 1.7; word-break: break-word;
 }
-.msg-row.user .msg-bubble { background: var(--amber); color: #fff; border-color: transparent; }
+.msg-row.user .msg-bubble { background: var(--bg-strong); color: var(--text-inverted); border-color: var(--bg-strong); }
 
 /* 思考过程 */
 .thinking-block {
-  margin-bottom: 8px; border-radius: var(--radius-sm);
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  overflow: hidden;
+  margin-bottom: 8px; border: 1px solid var(--border-weak); border-radius: var(--r-sm);
+  background: var(--bg); overflow: hidden;
 }
 .thinking-header {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px;
-  font-size: 11px; color: var(--text-muted); font-weight: 700;
-  letter-spacing: 1px;
+  padding: 5px 10px;
+  font-size: 9px; color: var(--text-weak); font-weight: 600;
+  letter-spacing: .12em; border-bottom: 1px solid var(--border-weak); background: var(--bg-weak);
 }
-.thinking-label { color: var(--text-muted); }
+.thinking-label { color: var(--text-weak); }
 .thinking-dots {
   display: inline-flex; gap: 3px; align-items: center;
 }
 .thinking-dots span {
   width: 4px; height: 4px; border-radius: 50%;
-  background: var(--amber);
-  animation: thinking-blink 1.4s infinite ease-in-out both;
+  background: var(--text-strong); animation: thinking-blink 1.4s infinite ease-in-out both;
 }
 .thinking-dots span:nth-child(1) { animation-delay: 0s; }
 .thinking-dots span:nth-child(2) { animation-delay: .2s; }
@@ -530,21 +526,20 @@ function onKeydown(e: KeyboardEvent) {
   40% { opacity: 1; transform: scale(1); }
 }
 .thinking-content {
-  padding: 8px 12px 10px; font-size: 13px; line-height: 1.6;
-  color: var(--text-muted); white-space: pre-wrap;
-  border-top: 1px solid var(--border);
+  padding: 7px 11px 9px; font-size: 12px; line-height: 1.6;
+  color: var(--text-weak); white-space: pre-wrap;
   font-style: italic;
 }
 
 .msg-content { white-space: pre-wrap; }
-.msg-error { color: var(--red); font-size: 13px; }
+.msg-error { color: var(--red); font-size: 12px; }
 
 /* 等待动画 */
 .msg-waiting { padding: 4px 0; }
 .dots { display: inline-flex; gap: 4px; }
 .dots span {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--text-muted); animation: bounce 1.4s infinite ease-in-out;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--text-weak); animation: bounce 1.4s infinite ease-in-out;
 }
 .dots span:nth-child(1) { animation-delay: -.32s; }
 .dots span:nth-child(2) { animation-delay: -.16s; }
@@ -555,16 +550,16 @@ function onKeydown(e: KeyboardEvent) {
 
 /* 输入区 */
 .input-area {
-  display: flex; gap: 10px; align-items: flex-end;
-  padding: 12px 0 0; flex-shrink: 0;
+  display: flex; gap: 9px; align-items: flex-end;
+  padding: 10px 0 0; flex-shrink: 0;
 }
 .input-box {
-  flex: 1; resize: none; padding: 10px 14px;
-  border-radius: var(--radius-md); border: 1px solid var(--border);
-  background: var(--bg-card); font-size: 14px; font-family: inherit;
-  color: var(--text-primary); line-height: 1.5; transition: var(--transition);
+  flex: 1; resize: none; padding: 10px 13px;
+  border-radius: var(--r-md); border: 1px solid var(--border-weak);
+  background: var(--bg-weak); font-size: 13px; font-family: inherit;
+  color: var(--text-strong); line-height: 1.5; transition: var(--transition); outline: none;
 }
-.input-box:focus { outline: none; border-color: var(--amber); }
-.input-box:disabled { opacity: .6; }
+.input-box:focus { background: var(--bg-interactive-weaker); border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
+.input-box:disabled { opacity: .5; }
 .send-btn { height: 42px; }
 </style>

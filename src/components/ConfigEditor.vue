@@ -54,7 +54,7 @@ onMounted(load)
 
     <!-- 通用 -->
     <div class="group">
-      <h3>通用</h3>
+      <h3><span class="gn">01</span>通用</h3>
       <div class="row">
         <label>监听地址</label>
         <input v-model="cfg.listen" type="text" placeholder="127.0.0.1:8000" />
@@ -73,7 +73,7 @@ onMounted(load)
 
     <!-- Consumer -->
     <div class="group">
-      <h3>Consumer</h3>
+      <h3><span class="gn">02</span>Consumer</h3>
       <div class="row">
         <label>API Keys</label>
         <input :value="cfg.consumer.api_keys.join(', ')"
@@ -93,7 +93,7 @@ onMounted(load)
 
     <!-- 系统 -->
     <div class="group">
-      <h3>系统</h3>
+      <h3><span class="gn">03</span>系统</h3>
       <div class="row">
         <label>开机自启</label>
         <div class="inline-toggle">
@@ -117,40 +117,41 @@ onMounted(load)
 </template>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.page-title { font-size: 20px; font-weight: 600; color: var(--text-strong); letter-spacing: -.01em; }
+.page-sub { font-size: 12px; color: var(--text-weak); margin-top: 2px; margin-bottom: 22px; }
+
+/* 分组 — 1px 描边面板 */
 .group {
-  background: var(--bg-card); border-radius: var(--radius-md);
-  border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 16px;
+  background: var(--bg); border: 1px solid var(--border-weak); border-radius: var(--r-md);
+  padding: 18px 22px; margin-bottom: 12px;
 }
-.group h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+.group h3 { font-size: 13px; font-weight: 600; color: var(--text-strong); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.group h3 .gn { font-size: 9px; color: var(--text-weak); border: 1px solid var(--border-weak); border-radius: var(--r-sm); padding: 1px 5px; }
 .row {
   display: grid; grid-template-columns: 140px 1fr; gap: 12px;
-  align-items: center; margin-bottom: 12px;
+  align-items: center; margin-bottom: 11px;
 }
 .row:last-child { margin-bottom: 0; }
-.row label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+.row label { font-size: 12px; color: var(--text); font-weight: 400; }
 .row input, .row select {
-  background: var(--bg-deep); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); padding: 8px 12px;
-  color: var(--text-primary); font-size: 13px; outline: none;
-  font-family: inherit; transition: var(--transition);
-  max-width: 400px;
+  background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
+  padding: 8px 12px; color: var(--text-strong); font-size: 12px; outline: none;
+  font-family: inherit; transition: var(--transition); max-width: 400px;
 }
 .row input:focus, .row select:focus {
-  border-color: var(--amber); box-shadow: 0 0 0 2px rgba(37,99,235,.12);
+  background: var(--bg-interactive-weaker); border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
 }
-.inline-toggle { display: flex; align-items: center; gap: 10px; }
-.inline-toggle span { font-size: 13px; color: var(--text-secondary); }
+.inline-toggle { display: flex; align-items: center; gap: 9px; }
+.inline-toggle span { font-size: 12px; color: var(--text); }
 .auto-models { max-width: 500px; }
 .model-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .model-tag {
-  font-size: 12px; padding: 3px 10px; border-radius: 4px;
-  background: var(--bg-elevated); color: var(--text-secondary);
-  border: 1px solid var(--border);
+  font-size: 10px; padding: 2px 8px; border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm); color: var(--text);
 }
-.muted { font-size: 12px; color: var(--text-muted); font-style: italic; }
-.actions { display: flex; gap: 12px; justify-content: flex-end; align-items: center; margin-top: 20px; }
-.msg { font-size: 13px; color: var(--text-secondary); }
+.muted { font-size: 11px; color: var(--text-weak); font-style: italic; }
+.actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; margin-top: 16px; }
+.msg { font-size: 12px; color: var(--text-weak); }
 .msg.ok { color: var(--green); }
 </style>

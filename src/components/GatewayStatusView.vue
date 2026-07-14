@@ -51,7 +51,7 @@ onUnmounted(() => { unlisten?.() })
     <h1 class="page-title">网关状态</h1>
     <p class="page-sub">管理 API 聚合网关的运行</p>
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片 — 1px 分隔三栏 -->
     <div class="stats">
       <div class="stat-card">
         <span class="label">网关</span>
@@ -97,47 +97,49 @@ onUnmounted(() => { unlisten?.() })
 </template>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-.page-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
-.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.page-title { font-size: 20px; font-weight: 600; color: var(--text-strong); letter-spacing: -.01em; }
+.page-sub { font-size: 12px; color: var(--text-weak); margin-top: 2px; margin-bottom: 22px; }
+
+/* 统计卡 — 1px 分隔，无外框包裹 */
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border-weak); border-radius: var(--r-md); margin-bottom: 16px; overflow: hidden; }
 .stat-card {
-  background: var(--bg-card); border-radius: var(--radius-md);
-  border: 1px solid var(--border); padding: 18px 20px;
+  padding: 14px 16px; border-right: 1px solid var(--border-weak);
 }
+.stat-card:last-child { border-right: none; }
 .stat-card .label {
-  font-size: 12px; font-weight: 500; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 4px;
+  font-size: 10px; font-weight: 400; color: var(--text-weak);
+  text-transform: uppercase; letter-spacing: .1em; display: block; margin-bottom: 6px;
 }
-.stat-card .value { font-size: 24px; font-weight: 700; }
+.stat-card .value { font-size: 20px; font-weight: 500; color: var(--text-strong); }
 .stat-card .value.running { color: var(--green); }
-.stat-card .value.stopped { color: var(--red); }
-.stat-card .value.mono { font-family: 'JetBrains Mono', monospace; font-size: 18px; }
+.stat-card .value.stopped { color: var(--text-weak); }
+.stat-card .value.mono { font-size: 16px; font-weight: 400; }
+
+/* 控制卡 */
 .control-card {
-  background: var(--bg-card); border-radius: var(--radius-md);
-  border: 1px solid var(--border); padding: 20px 24px;
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 24px;
+  border: 1px solid var(--border-weak); border-radius: var(--r-md);
+  padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
 }
 .status-info { display: flex; flex-direction: column; gap: 6px; }
-.addr { font-size: 13px; color: var(--text-secondary); font-family: monospace; }
-.btn.sm { padding: 4px 12px; font-size: 12px; }
-.log-section { }
-.log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.log-header h3 { font-size: 14px; font-weight: 600; }
+.addr { font-size: 12px; color: var(--text); }
+.btn.sm { padding: 5px 10px; font-size: 12px; }
+
+/* 日志面板 */
+.log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.log-header h3 { font-size: 13px; font-weight: 600; color: var(--text-strong); }
 .log-panel {
-  background: var(--bg-deep); border-radius: var(--radius-md);
-  border: 1px solid var(--border); padding: 14px;
-  height: 280px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px;
-  line-height: 1.7;
+  background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
+  padding: 12px 14px; height: 240px; overflow-y: auto; font-size: 11px; line-height: 1.9;
 }
-.log-empty { color: var(--text-muted); text-align: center; padding: 40px; }
-.log-line { display: flex; gap: 8px; }
+.log-empty { color: var(--text-weak); text-align: center; padding: 40px; }
+.log-line { display: flex; gap: 10px; }
 .log-line .level {
-  flex-shrink: 0; width: 50px; font-weight: 600; font-size: 11px; text-transform: uppercase;
+  flex-shrink: 0; width: 42px; font-weight: 600; font-size: 10px; text-transform: uppercase;
 }
-.log-line .level.info { color: var(--blue); }
-.log-line .level.warn { color: #ea580c; }
+.log-line .level.info { color: var(--text-strong); }
+.log-line .level.warn { color: var(--green); }
 .log-line .level.error { color: var(--red); }
-.log-line .level.trace, .log-line .level.debug { color: var(--text-muted); }
-.log-line .msg { color: var(--text-secondary); word-break: break-all; }
+.log-line .level.trace, .log-line .level.debug { color: var(--text-weak); }
+.log-line .msg { color: var(--text); word-break: break-all; }
 </style>
