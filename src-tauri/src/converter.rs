@@ -215,11 +215,7 @@ fn map_tool_choice_chat_to_responses(tc: &Value) -> Value {
     match tc {
         Value::String(_) => tc.clone(),
         Value::Object(_) => {
-            if let Some(name) = tc
-                .get("function")
-                .and_then(|f| f.get("name"))
-                .cloned()
-            {
+            if let Some(name) = tc.get("function").and_then(|f| f.get("name")).cloned() {
                 json!({"type":"function","name":name})
             } else {
                 tc.clone()
@@ -405,7 +401,9 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                                 "tool_result" => {
                                     // 先 flush 累积的 text，保持原始顺序
                                     if !text_parts.is_empty() {
-                                        messages.push(json!({"role":"user","content":text_parts.join("")}));
+                                        messages.push(
+                                            json!({"role":"user","content":text_parts.join("")}),
+                                        );
                                         text_parts.clear();
                                     }
                                     let tool_use_id =
@@ -459,7 +457,10 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                             }
                         }
                     }
-                    if !text_parts.is_empty() || !tool_calls.is_empty() || !reasoning_parts.is_empty() {
+                    if !text_parts.is_empty()
+                        || !tool_calls.is_empty()
+                        || !reasoning_parts.is_empty()
+                    {
                         let mut msg = json!({"role":"assistant"});
                         msg["content"] = if text_parts.is_empty() {
                             json!("")
@@ -651,13 +652,10 @@ pub fn responses_to_chat_req(src: &Value) -> Value {
                             if last.get("role").and_then(|r| r.as_str()) == Some("assistant")
                                 && last.get("tool_calls").is_some()
                             {
-                                last["tool_calls"]
-                                    .as_array_mut()
-                                    .unwrap()
-                                    .push(json!({
-                                        "id": id, "type":"function",
-                                        "function":{"name":name,"arguments":args}
-                                    }));
+                                last["tool_calls"].as_array_mut().unwrap().push(json!({
+                                    "id": id, "type":"function",
+                                    "function":{"name":name,"arguments":args}
+                                }));
                                 true
                             } else {
                                 false
@@ -678,7 +676,8 @@ pub fn responses_to_chat_req(src: &Value) -> Value {
                     "function_call_output" => {
                         let call_id = item.get("call_id").and_then(|x| x.as_str()).unwrap_or("");
                         let output = item.get("output").and_then(|x| x.as_str()).unwrap_or("");
-                        messages.push(json!({"role":"tool","tool_call_id":call_id,"content":output}));
+                        messages
+                            .push(json!({"role":"tool","tool_call_id":call_id,"content":output}));
                     }
                     _ => {}
                 }

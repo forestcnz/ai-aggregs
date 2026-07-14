@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import {
-  startGateway, stopGateway,
-  type GatewayStatus, type LogEntry,
-} from '../api/commands'
+import { startGateway, stopGateway, type GatewayStatus, type LogEntry } from '../api/commands'
 
 const props = defineProps<{ status: GatewayStatus; logs: LogEntry[] }>()
 const emit = defineEmits<{ changed: []; 'clear-logs': [] }>()
@@ -35,16 +32,21 @@ function levelClass(level: string): string {
 function formatTime(ts: number): string {
   const d = new Date(ts)
   const pad = (n: number, l = 2) => String(n).padStart(l, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
     `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`
+  )
 }
 
 // 监听 logs 变化，自动滚动到底部
-watch(() => props.logs.length, () => {
-  nextTick(() => {
-    if (logPanel.value) logPanel.value.scrollTop = logPanel.value.scrollHeight
-  })
-})
+watch(
+  () => props.logs.length,
+  () => {
+    nextTick(() => {
+      if (logPanel.value) logPanel.value.scrollTop = logPanel.value.scrollHeight
+    })
+  }
+)
 </script>
 
 <template>
@@ -74,8 +76,13 @@ watch(() => props.logs.length, () => {
           {{ status.running ? '运行中' : '已停止' }}
         </div>
       </div>
-      <button class="btn" :class="status.running ? 'btn-stop' : 'btn-start'" :disabled="starting" @click="toggle">
-        {{ starting ? '处理中...' : (status.running ? '停止网关' : '启动网关') }}
+      <button
+        class="btn"
+        :class="status.running ? 'btn-stop' : 'btn-start'"
+        :disabled="starting"
+        @click="toggle"
+      >
+        {{ starting ? '处理中...' : status.running ? '停止网关' : '启动网关' }}
       </button>
     </div>
 
@@ -85,7 +92,7 @@ watch(() => props.logs.length, () => {
         <h3>运行日志</h3>
         <button class="btn btn-secondary sm" @click="emit('clear-logs')">清除</button>
       </div>
-      <div class="log-panel" ref="logPanel">
+      <div ref="logPanel" class="log-panel">
         <div v-if="logs.length === 0" class="log-empty">暂无日志</div>
         <div v-for="(log, i) in logs" :key="i" class="log-line">
           <span class="time">{{ formatTime(log.ts) }}</span>
@@ -98,55 +105,158 @@ watch(() => props.logs.length, () => {
 </template>
 
 <style scoped>
-.dashboard-root { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.page-title { font-size: 20px; font-weight: 600; color: var(--text-strong); letter-spacing: -.01em; }
-.page-sub { font-size: 12px; color: var(--text-weak); margin-top: 2px; margin-bottom: 22px; }
+.dashboard-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--text-weak);
+  margin-top: 2px;
+  margin-bottom: 22px;
+}
 
 /* 统计卡 — 1px 分隔，无外框包裹 */
-.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border-weak); border-radius: var(--r-md); margin-bottom: 16px; overflow: hidden; }
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
 .stat-card {
-  padding: 14px 16px; border-right: 1px solid var(--border-weak);
+  padding: 14px 16px;
+  border-right: 1px solid var(--border-weak);
 }
-.stat-card:last-child { border-right: none; }
+.stat-card:last-child {
+  border-right: none;
+}
 .stat-card .label {
-  font-size: 10px; font-weight: 400; color: var(--text-weak);
-  text-transform: uppercase; letter-spacing: .1em; display: block; margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-weak);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 6px;
 }
-.stat-card .value { font-size: 20px; font-weight: 500; color: var(--text-strong); }
-.stat-card .value.running { color: var(--green); }
-.stat-card .value.stopped { color: var(--text-weak); }
-.stat-card .value.mono { font-size: 16px; font-weight: 400; }
+.stat-card .value {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.stat-card .value.running {
+  color: var(--green);
+}
+.stat-card .value.stopped {
+  color: var(--text-weak);
+}
+.stat-card .value.mono {
+  font-size: 16px;
+  font-weight: 400;
+}
 
 /* 控制卡 */
 .control-card {
-  border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
 }
-.status-info { display: flex; flex-direction: column; gap: 6px; }
-.addr { font-size: 12px; color: var(--text); }
-.btn.sm { padding: 5px 10px; font-size: 12px; }
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.addr {
+  font-size: 12px;
+  color: var(--text);
+}
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
 
 /* 日志面板 */
-.log-section { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.log-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-shrink: 0; }
-.log-header h3 { font-size: 13px; font-weight: 600; color: var(--text-strong); }
-.log-panel {
-  background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  padding: 12px 14px; flex: 1; min-height: 0; overflow-y: auto; font-size: 11px; line-height: 1.9;
+.log-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
-.log-empty { color: var(--text-weak); text-align: center; padding: 40px; }
-.log-line { display: flex; gap: 10px; }
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.log-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.log-panel {
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.log-empty {
+  color: var(--text-weak);
+  text-align: center;
+  padding: 40px;
+}
+.log-line {
+  display: flex;
+  gap: 10px;
+}
 .log-line .time {
-  flex-shrink: 0; font-size: 10px; color: var(--text-weak);
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-weak);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .log-line .level {
-  flex-shrink: 0; width: 42px; font-weight: 600; font-size: 10px; text-transform: uppercase;
+  flex-shrink: 0;
+  width: 42px;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
 }
-.log-line .level.info { color: var(--text-strong); }
-.log-line .level.warn { color: var(--green); }
-.log-line .level.error { color: var(--red); }
-.log-line .level.trace, .log-line .level.debug { color: var(--text-weak); }
-.log-line .msg { color: var(--text); word-break: break-all; }
+.log-line .level.info {
+  color: var(--text-strong);
+}
+.log-line .level.warn {
+  color: var(--green);
+}
+.log-line .level.error {
+  color: var(--red);
+}
+.log-line .level.trace,
+.log-line .level.debug {
+  color: var(--text-weak);
+}
+.log-line .msg {
+  color: var(--text);
+  word-break: break-all;
+}
 </style>

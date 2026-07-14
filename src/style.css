@@ -3,31 +3,39 @@
    等宽字体 · 暖近白底 · 近黑文字 · 1px 分隔 · 极简
    ============================================================ */
 :root {
-  --bg: #fcfafa;                    /* 主背景 · 暖近白 */
-  --bg-weak: #f7f6f6;               /* 次级背景 · 代码面板/输入框 */
-  --bg-weak-hover: #efeded;         /* 次级背景 hover */
-  --bg-strong: #1f1e1e;             /* 深色按钮/强调反色 · 近黑 */
-  --bg-strong-hover: #2b2a29;       /* 深色按钮 hover */
-  --bg-interactive: transparent;     /* 交互高亮 · 已禁用 */
+  --bg: #fcfafa; /* 主背景 · 暖近白 */
+  --bg-weak: #f7f6f6; /* 次级背景 · 代码面板/输入框 */
+  --bg-weak-hover: #efeded; /* 次级背景 hover */
+  --bg-strong: #1f1e1e; /* 深色按钮/强调反色 · 近黑 */
+  --bg-strong-hover: #2b2a29; /* 深色按钮 hover */
+  --bg-interactive: transparent; /* 交互高亮 · 已禁用 */
   --bg-interactive-weaker: transparent; /* 聚焦输入框底色 · 已禁用 */
-  --text: #646363;                  /* 正文文字 · 中灰 */
-  --text-weak: #999898;             /* 次级文字 */
-  --text-weaker: #d1cfcb;           /* 更弱文字 */
-  --text-strong: #1f1e1e;           /* 标题/强调文字 · 近黑 */
-  --text-inverted: #fcfafa;         /* 深色按钮上的反色文字 */
-  --border: #d1cfcb;                /* 边框 · 浅灰偏暖 */
+  --text: #646363; /* 正文文字 · 中灰 */
+  --text-weak: #999898; /* 次级文字 */
+  --text-weaker: #d1cfcb; /* 更弱文字 */
+  --text-strong: #1f1e1e; /* 标题/强调文字 · 近黑 */
+  --text-inverted: #fcfafa; /* 深色按钮上的反色文字 */
+  --border: #d1cfcb; /* 边框 · 浅灰偏暖 */
   --border-weak: rgba(8, 8, 8, 0.12); /* 主分隔线 · 极淡黑色透明 */
-  --green: #03b000;                 /* 成功状态（全站唯一彩色强调） */
-  --red: #c00;                      /* 错误/停止 */
-  --r-sm: 4px;                      /* 小圆角 · 按钮/徽章 */
-  --r-md: 6px;                      /* 中圆角 · 面板/输入框 */
-  --r-lg: 8px;                      /* 大圆角 */
-  --transition: 160ms cubic-bezier(.4, 0, .2, 1);
+  --green: #03b000; /* 成功状态（全站唯一彩色强调） */
+  --red: #c00; /* 错误/停止 */
+  --r-sm: 4px; /* 小圆角 · 按钮/徽章 */
+  --r-md: 6px; /* 中圆角 · 面板/输入框 */
+  --r-lg: 8px; /* 大圆角 */
+  --transition: 160ms cubic-bezier(0.4, 0, 0.2, 1);
   /* 全站等宽字体 — opencode.ai 核心视觉特征 */
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   background: var(--bg);
@@ -39,71 +47,144 @@ body {
 }
 
 /* 文本选区高亮 — 淡黄绿 */
-::selection { background: var(--bg-interactive); color: var(--text-strong); }
+::selection {
+  background: var(--bg-interactive);
+  color: var(--text-strong);
+}
 
 /* 滚动条 — 极简细线 */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-weaker); }
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-weaker);
+}
 
 /* Toggle switch — opencode 风（小、方） */
 .toggle {
-  position: relative; width: 32px; height: 18px; flex-shrink: 0; cursor: pointer;
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
   display: inline-block;
 }
-.toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
 .toggle .slider {
-  position: absolute; inset: 0;
-  border: 1px solid var(--border); border-radius: var(--r-sm);
-  background: var(--bg-weak); transition: var(--transition);
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-weak);
+  transition: var(--transition);
 }
 .toggle .slider::after {
-  content: ''; position: absolute; width: 12px; height: 12px;
-  border-radius: var(--r-sm); background: var(--text-strong);
-  top: 2px; left: 2px; transition: var(--transition);
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-sm);
+  background: var(--text-strong);
+  top: 2px;
+  left: 2px;
+  transition: var(--transition);
 }
 .toggle input:checked + .slider {
-  background: var(--bg-strong); border-color: var(--bg-strong);
+  background: var(--bg-strong);
+  border-color: var(--bg-strong);
 }
 .toggle input:checked + .slider::after {
-  transform: translateX(14px); background: var(--text-inverted);
+  transform: translateX(14px);
+  background: var(--text-inverted);
 }
 
 /* Buttons — 深色实心主按钮 / 描边次级 */
 .btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: var(--r-sm);
-  font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer;
-  transition: var(--transition); font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
 }
 /* 主按钮：近黑底反白字 */
-.btn-start, .btn-primary { background: var(--bg-strong); color: var(--text-inverted); border-color: transparent; }
-.btn-start:hover, .btn-primary:hover { background: var(--bg-strong-hover); }
+.btn-start,
+.btn-primary {
+  background: var(--bg-strong);
+  color: var(--text-inverted);
+  border-color: transparent;
+}
+.btn-start:hover,
+.btn-primary:hover {
+  background: var(--bg-strong-hover);
+}
 /* 停止按钮：描边红色 */
-.btn-stop { background: var(--bg); color: var(--red); border: 1px solid var(--red); }
-.btn-stop:hover { background: var(--red); color: var(--text-inverted); }
+.btn-stop {
+  background: var(--bg);
+  color: var(--red);
+  border: 1px solid var(--red);
+}
+.btn-stop:hover {
+  background: var(--red);
+  color: var(--text-inverted);
+}
 /* 次级按钮：描边 */
 .btn-secondary {
-  background: var(--bg); color: var(--text-strong);
+  background: var(--bg);
+  color: var(--text-strong);
   border: 1px solid var(--border-weak);
 }
-.btn-secondary:hover { background: var(--bg-weak); }
+.btn-secondary:hover {
+  background: var(--bg-weak);
+}
 
 /* Status badge — opencode 风（方角、描边） */
 .badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 8px; border-radius: var(--r-sm); font-size: 11px; font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
 }
 .badge.running {
-  background: transparent; color: var(--green);
+  background: transparent;
+  color: var(--green);
   border: 1px solid var(--green);
 }
 .badge.stopped {
-  background: transparent; color: var(--text-weak);
+  background: transparent;
+  color: var(--text-weak);
   border: 1px solid var(--border);
 }
-.badge .dot { width: 6px; height: 6px; border-radius: 50%; }
-.badge.running .dot { background: var(--green); }
-.badge.stopped .dot { background: var(--text-weaker); }
+.badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.badge.running .dot {
+  background: var(--green);
+}
+.badge.stopped .dot {
+  background: var(--text-weaker);
+}

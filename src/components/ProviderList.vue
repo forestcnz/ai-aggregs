@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import {
-  getConfig, saveConfig, runtimeStatus, toggleProvider, toggleKey,
+  getConfig,
+  saveConfig,
+  runtimeStatus,
+  toggleProvider,
+  toggleKey,
   normalizeKey,
-  type Config, type ProviderConfig, type ProviderRuntime,
+  type Config,
+  type ProviderConfig,
+  type ProviderRuntime
 } from '../api/commands'
 
 defineProps<{ gatewayRunning: boolean }>()
@@ -27,9 +33,16 @@ const keyInput = ref('')
 
 function blankProvider(): ProviderConfig {
   return {
-    name: '', protocol: 'chat', base_url: '', api_keys: [],
-    models: [], timeout_secs: 300, max_retries: 2,
-    extra_headers: {}, enabled: true, reasoning_effort: null,
+    name: '',
+    protocol: 'chat',
+    base_url: '',
+    api_keys: [],
+    models: [],
+    timeout_secs: 300,
+    max_retries: 2,
+    extra_headers: {},
+    enabled: true,
+    reasoning_effort: null
   }
 }
 
@@ -43,14 +56,18 @@ async function refresh() {
 async function refreshRuntime() {
   try {
     const rt = await runtimeStatus()
-    runtimeMap.value = new Map(rt.map(p => [p.name, p]))
+    runtimeMap.value = new Map(rt.map((p) => [p.name, p]))
     lastRuntimeAt.value = Date.now()
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function showMsg(text: string) {
   msg.value = text
-  setTimeout(() => { msg.value = '' }, 3000)
+  setTimeout(() => {
+    msg.value = ''
+  }, 3000)
 }
 
 async function save() {
@@ -60,8 +77,11 @@ async function save() {
     await saveConfig(config.value)
     await refreshRuntime()
     showMsg('已保存')
-  } catch (e) { showMsg('保存失败: ' + String(e)) }
-  finally { saving.value = false }
+  } catch (e) {
+    showMsg('保存失败: ' + String(e))
+  } finally {
+    saving.value = false
+  }
 }
 
 // ---- 卡片操作 ----
@@ -73,8 +93,11 @@ async function onToggleProvider(idx: number, enabled: boolean) {
     await toggleProvider(config.value.providers[idx].name, enabled)
     config.value.providers[idx].enabled = enabled
     await refreshRuntime()
-  } catch (e) { showMsg(String(e)) }
-  finally { loading.value = false }
+  } catch (e) {
+    showMsg(String(e))
+  } finally {
+    loading.value = false
+  }
 }
 
 // 切换单个 key 的启用状态
@@ -84,7 +107,7 @@ async function onToggleKey(providerName: string, keyIdx: number, enabled: boolea
   try {
     await toggleKey(providerName, keyIdx, enabled)
     // 同步前端 config 中对应 key 的 enabled 状态
-    const provider = config.value.providers.find(p => p.name === providerName)
+    const provider = config.value.providers.find((p) => p.name === providerName)
     if (provider) {
       const entry = provider.api_keys[keyIdx]
       if (typeof entry === 'string') {
@@ -94,8 +117,11 @@ async function onToggleKey(providerName: string, keyIdx: number, enabled: boolea
       }
     }
     await refreshRuntime()
-  } catch (e) { showMsg(String(e)) }
-  finally { loading.value = false }
+  } catch (e) {
+    showMsg(String(e))
+  } finally {
+    loading.value = false
+  }
 }
 
 // ---- 弹窗 ----
@@ -124,7 +150,10 @@ function closeModal() {
 
 function submitModal() {
   const p = editingProvider.value
-  if (!p.name.trim() || !p.base_url.trim()) { showMsg('名称和 Base URL 不能为空'); return }
+  if (!p.name.trim() || !p.base_url.trim()) {
+    showMsg('名称和 Base URL 不能为空')
+    return
+  }
   if (!config.value) return
 
   if (modalMode.value === 'add') {
@@ -137,7 +166,10 @@ function submitModal() {
 }
 
 function deleteFromModal() {
-  if (editingIdx.value < 0 || !config.value) { modalMode.value = null; return }
+  if (editingIdx.value < 0 || !config.value) {
+    modalMode.value = null
+    return
+  }
   config.value.providers.splice(editingIdx.value, 1)
   modalMode.value = null
   save()
@@ -151,7 +183,9 @@ function modalAddModel() {
   editingProvider.value.models.push(v)
   modelInput.value = ''
 }
-function modalRemoveModel(i: number) { editingProvider.value.models.splice(i, 1) }
+function modalRemoveModel(i: number) {
+  editingProvider.value.models.splice(i, 1)
+}
 
 function modalAddKey() {
   const v = keyInput.value.trim()
@@ -159,17 +193,19 @@ function modalAddKey() {
   editingProvider.value.api_keys.push({ key: v, enabled: true })
   keyInput.value = ''
 }
-function modalRemoveKey(i: number) { editingProvider.value.api_keys.splice(i, 1) }
-
-
+function modalRemoveKey(i: number) {
+  editingProvider.value.api_keys.splice(i, 1)
+}
 
 // ---- 辅助 ----
 
-function getRuntime(name: string) { return runtimeMap.value.get(name) }
+function getRuntime(name: string) {
+  return runtimeMap.value.get(name)
+}
 
 // 按 idx 从 runtime 中取某个 key 的运行时状态（用于黑名单/禁用）
 function keyRuntime(name: string, idx: number) {
-  return getRuntime(name)?.keys.find(k => k.idx === idx)
+  return getRuntime(name)?.keys.find((k) => k.idx === idx)
 }
 
 function maskKey(key: string): string {
@@ -180,9 +216,12 @@ function maskKey(key: string): string {
 // 按协议返回图标 emoji
 function iconFor(protocol: string): string {
   switch (protocol) {
-    case 'anthropic': return '🧠'
-    case 'responses': return '🔄'
-    default: return '💬'
+    case 'anthropic':
+      return '🧠'
+    case 'responses':
+      return '🔄'
+    default:
+      return '💬'
   }
 }
 
@@ -241,8 +280,12 @@ onUnmounted(() => {
           </div>
           <div class="provider-card-right">
             <label class="toggle" @click.stop>
-              <input type="checkbox" :checked="p.enabled" :disabled="loading"
-                @change="onToggleProvider(idx, ($event.target as HTMLInputElement).checked)" />
+              <input
+                type="checkbox"
+                :checked="p.enabled"
+                :disabled="loading"
+                @change="onToggleProvider(idx, ($event.target as HTMLInputElement).checked)"
+              />
               <span class="slider"></span>
             </label>
           </div>
@@ -278,15 +321,21 @@ onUnmounted(() => {
             <template v-if="p.api_keys.length">
               <div v-for="(entry, ki) in p.api_keys" :key="ki" class="key-row">
                 <label class="toggle" @click.stop>
-                  <input type="checkbox" :checked="normalizeKey(entry).enabled" :disabled="loading"
-                    @change="onToggleKey(p.name, ki, ($event.target as HTMLInputElement).checked)" />
+                  <input
+                    type="checkbox"
+                    :checked="normalizeKey(entry).enabled"
+                    :disabled="loading"
+                    @change="onToggleKey(p.name, ki, ($event.target as HTMLInputElement).checked)"
+                  />
                   <span class="slider"></span>
                 </label>
                 <span class="key-value">{{ maskKey(normalizeKey(entry).key) }}</span>
                 <span v-if="keyRuntime(p.name, ki)?.blacklisted" class="key-status blacklisted">
                   {{ fmtTime(keyReleaseTime(keyRuntime(p.name, ki)?.blacklist_remaining_secs)!) }}
                 </span>
-                <span v-else-if="!normalizeKey(entry).enabled" class="key-status disabled">已禁用</span>
+                <span v-else-if="!normalizeKey(entry).enabled" class="key-status disabled"
+                  >已禁用</span
+                >
                 <span v-else-if="getRuntime(p.name)" class="key-status ok">正常</span>
               </div>
             </template>
@@ -320,11 +369,26 @@ onUnmounted(() => {
               <div class="mf">
                 <label>协议</label>
                 <div class="seg">
-                  <input type="radio" id="proto-chat" value="chat" v-model="editingProvider.protocol">
+                  <input
+                    id="proto-chat"
+                    v-model="editingProvider.protocol"
+                    type="radio"
+                    value="chat"
+                  />
                   <label for="proto-chat">chat</label>
-                  <input type="radio" id="proto-resp" value="responses" v-model="editingProvider.protocol">
+                  <input
+                    id="proto-resp"
+                    v-model="editingProvider.protocol"
+                    type="radio"
+                    value="responses"
+                  />
                   <label for="proto-resp">responses</label>
-                  <input type="radio" id="proto-anth" value="anthropic" v-model="editingProvider.protocol">
+                  <input
+                    id="proto-anth"
+                    v-model="editingProvider.protocol"
+                    type="radio"
+                    value="anthropic"
+                  />
                   <label for="proto-anth">anthropic</label>
                 </div>
               </div>
@@ -343,7 +407,11 @@ onUnmounted(() => {
             </div>
             <div class="mf">
               <label>Base URL</label>
-              <input v-model="editingProvider.base_url" class="f-input" placeholder="https://api.example.com/v1" />
+              <input
+                v-model="editingProvider.base_url"
+                class="f-input"
+                placeholder="https://api.example.com/v1"
+              />
             </div>
 
             <!-- API Keys（先填 key 再填模型） -->
@@ -354,7 +422,12 @@ onUnmounted(() => {
                   <span class="chip-text">{{ maskKey(normalizeKey(k).key) }}</span>
                   <button class="chip-x" @click="modalRemoveKey(ki)">×</button>
                 </span>
-                <input v-model="keyInput" class="chip-field" :placeholder="editingProvider.api_keys.length ? '' : 'API Key，回车添加'" @keydown.enter.prevent="modalAddKey" />
+                <input
+                  v-model="keyInput"
+                  class="chip-field"
+                  :placeholder="editingProvider.api_keys.length ? '' : 'API Key，回车添加'"
+                  @keydown.enter.prevent="modalAddKey"
+                />
               </div>
             </div>
 
@@ -366,14 +439,23 @@ onUnmounted(() => {
                   <span class="chip-text">{{ m }}</span>
                   <button class="chip-x" @click="modalRemoveModel(mi)">×</button>
                 </span>
-                <input v-model="modelInput" class="chip-field" :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'" @keydown.enter.prevent="modalAddModel" />
+                <input
+                  v-model="modelInput"
+                  class="chip-field"
+                  :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'"
+                  @keydown.enter.prevent="modalAddModel"
+                />
               </div>
             </div>
 
             <div class="mf-row">
               <div class="mf">
                 <label>超时（秒）</label>
-                <input v-model.number="editingProvider.timeout_secs" type="number" class="f-input" />
+                <input
+                  v-model.number="editingProvider.timeout_secs"
+                  type="number"
+                  class="f-input"
+                />
               </div>
               <div class="mf">
                 <label>重试次数</label>
@@ -383,10 +465,18 @@ onUnmounted(() => {
           </div>
 
           <div class="modal-footer">
-            <button v-if="modalMode === 'edit'" class="btn btn-secondary danger-btn" @click="deleteFromModal">删除</button>
+            <button
+              v-if="modalMode === 'edit'"
+              class="btn btn-secondary danger-btn"
+              @click="deleteFromModal"
+            >
+              删除
+            </button>
             <div class="footer-right">
               <button class="btn btn-secondary" @click="closeModal">取消</button>
-              <button class="btn btn-primary" @click="submitModal">{{ modalMode === 'add' ? '创建' : '保存' }}</button>
+              <button class="btn btn-primary" @click="submitModal">
+                {{ modalMode === 'add' ? '创建' : '保存' }}
+              </button>
             </div>
           </div>
         </div>
@@ -396,181 +486,471 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.header-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
-.page-title { font-size: 20px; font-weight: 600; color: var(--text-strong); letter-spacing: -.01em; }
-.page-sub { font-size: 12px; color: var(--text-weak); margin-top: 2px; }
-.header-actions { display: flex; align-items: center; gap: 12px; }
-.save-msg { font-size: 12px; color: var(--text-weak); white-space: nowrap; }
-.save-msg.ok { color: var(--green); }
-.btn.sm { padding: 5px 10px; font-size: 12px; }
-.btn.xs { padding: 3px 8px; font-size: 11px; }
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--text-weak);
+  margin-top: 2px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.save-msg {
+  font-size: 12px;
+  color: var(--text-weak);
+  white-space: nowrap;
+}
+.save-msg.ok {
+  color: var(--green);
+}
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn.xs {
+  padding: 3px 8px;
+  font-size: 11px;
+}
 
 /* ---- 卡片网格 ---- */
-.card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.provider-card {
-  background: var(--bg); border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  overflow: hidden; display: flex; flex-direction: column; transition: var(--transition);
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
-.provider-card:hover { border-color: var(--border); }
-.provider-card.off { opacity: .45; }
+.provider-card {
+  background: var(--bg);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+.provider-card:hover {
+  border-color: var(--border);
+}
+.provider-card.off {
+  opacity: 0.45;
+}
 
 /* 协议内联小标签（名称旁） */
 .protocol-tag {
-  font-size: 10px; font-weight: 400; color: var(--text-weak);
-  border: 1px solid var(--border-weak); padding: 1px 6px; border-radius: var(--r-sm);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-weak);
+  border: 1px solid var(--border-weak);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
   margin-left: 8px;
 }
 
 /* 卡片头部 */
 .provider-card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 15px; cursor: pointer; user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  cursor: pointer;
+  user-select: none;
 }
-.provider-card-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.provider-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
 .provider-icon {
-  width: 28px; height: 28px; border-radius: var(--r-sm); border: 1px solid var(--border-weak);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 .provider-name {
-  display: flex; align-items: center; min-width: 0;
-  font-size: 13px; gap: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 13px;
+  gap: 0;
 }
 .provider-name .name-text {
-  font-weight: 500; color: var(--text-strong);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.provider-card-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.provider-card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 
 /* 展开详情区 */
 .provider-card-body {
-  padding: 12px 15px; border-top: 1px solid var(--border-weak);
-  display: flex; flex-direction: column; gap: 9px;
+  padding: 12px 15px;
+  border-top: 1px solid var(--border-weak);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
 }
 .provider-field {
-  display: grid; grid-template-columns: 80px 1fr; gap: 7px; font-size: 12px;
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 7px;
+  font-size: 12px;
   align-items: start;
 }
-.provider-field .f-label { color: var(--text-weak); font-size: 11px; }
-.provider-field .f-value { color: var(--text); word-break: break-all; }
-.provider-field .f-value.mono { font-size: 11px; }
-.models-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.models-tags span {
-  font-size: 10px; padding: 2px 7px; border-radius: var(--r-sm);
-  border: 1px solid var(--border-weak); color: var(--text);
+.provider-field .f-label {
+  color: var(--text-weak);
+  font-size: 11px;
 }
-.muted { color: var(--text-weak); font-style: italic; font-size: 11px; }
+.provider-field .f-value {
+  color: var(--text);
+  word-break: break-all;
+}
+.provider-field .f-value.mono {
+  font-size: 11px;
+}
+.models-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.models-tags span {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak);
+  color: var(--text);
+}
+.muted {
+  color: var(--text-weak);
+  font-style: italic;
+  font-size: 11px;
+}
 
 /* Key 列表 */
-.keys-section { margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--border-weak); }
+.keys-section {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-weak);
+}
 .keys-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 7px;
 }
-.keys-header span { font-size: 10px; color: var(--text-weak); }
-.key-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 5px 9px; border-radius: var(--r-sm);
-  border: 1px solid var(--border-weak); margin-bottom: 4px;
+.keys-header span {
+  font-size: 10px;
+  color: var(--text-weak);
 }
-.key-row .key-value { flex: 1; font-size: 11px; color: var(--text); }
-.key-status { font-size: 9px; padding: 1px 7px; border-radius: var(--r-sm); white-space: nowrap; font-weight: 500; border: 1px solid; }
-.key-status.ok { border-color: var(--green); color: var(--green); }
-.key-status.blacklisted { border-color: var(--red); color: var(--red); }
-.key-status.disabled { border-color: var(--border-weak); color: var(--text-weak); }
+.key-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 9px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak);
+  margin-bottom: 4px;
+}
+.key-row .key-value {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text);
+}
+.key-status {
+  font-size: 9px;
+  padding: 1px 7px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  font-weight: 500;
+  border: 1px solid;
+}
+.key-status.ok {
+  border-color: var(--green);
+  color: var(--green);
+}
+.key-status.blacklisted {
+  border-color: var(--red);
+  color: var(--red);
+}
+.key-status.disabled {
+  border-color: var(--border-weak);
+  color: var(--text-weak);
+}
 
 .empty {
-  grid-column: 1 / -1; text-align: center; padding: 60px;
-  color: var(--text-weak); font-size: 13px;
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px;
+  color: var(--text-weak);
+  font-size: 13px;
 }
 
 /* ---- 弹窗 ---- */
 .modal-overlay {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(31,30,30,.16); backdrop-filter: blur(1.5px);
-  display: flex; align-items: center; justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(31, 30, 30, 0.16);
+  backdrop-filter: blur(1.5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .modal {
-  background: var(--bg); border: 1px solid var(--text-strong); border-radius: var(--r-md);
-  box-shadow: 0 20px 60px rgba(0,0,0,.18);
-  width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--text-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  width: 500px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 .modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 22px; border-bottom: 1px solid var(--border-weak);
-  position: sticky; top: 0; background: var(--bg); z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border-weak);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
 }
-.modal-header h2 { font-size: 15px; font-weight: 600; color: var(--text-strong); }
+.modal-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
 .modal-close {
-  background: var(--bg); border: 1px solid var(--border-weak); width: 26px; height: 26px;
-  border-radius: var(--r-sm); font-size: 13px; cursor: pointer;
-  color: var(--text-weak); line-height: 1; transition: var(--transition);
-  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border-weak);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-weak);
+  line-height: 1;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.modal-close:hover { border-color: var(--text-strong); color: var(--text-strong); }
-.modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
-.mf { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.mf label { font-size: 12px; font-weight: 500; color: var(--text-strong); }
-.mf-row { display: flex; gap: 12px; }
-.mf .f-input, .mf .f-select { width: 100%; max-width: none; }
+.modal-close:hover {
+  border-color: var(--text-strong);
+  color: var(--text-strong);
+}
+.modal-body {
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.mf {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.mf label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.mf-row {
+  display: flex;
+  gap: 12px;
+}
+.mf .f-input,
+.mf .f-select {
+  width: 100%;
+  max-width: none;
+}
 .modal-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 13px 22px; border-top: 1px solid var(--border-weak);
-  position: sticky; bottom: 0; background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 22px;
+  border-top: 1px solid var(--border-weak);
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
 }
-.footer-right { display: flex; gap: 8px; margin-left: auto; }
-.danger-btn { color: var(--red); border-color: var(--border-weak); }
-.danger-btn:hover { background: var(--red); color: var(--text-inverted); border-color: var(--red); }
+.footer-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.danger-btn {
+  color: var(--red);
+  border-color: var(--border-weak);
+}
+.danger-btn:hover {
+  background: var(--red);
+  color: var(--text-inverted);
+  border-color: var(--red);
+}
 
 /* ---- 协议分段控件 ---- */
-.seg { display: flex; border: 1px solid var(--border-weak); border-radius: var(--r-sm); overflow: hidden; background: var(--bg); }
-.seg input { position: absolute; opacity: 0; width: 0; height: 0; }
+.seg {
+  display: flex;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg);
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
 .seg > label {
-  flex: 1; text-align: center; padding: 7px 5px; font-size: 11px; font-weight: 500;
-  color: var(--text-weak); cursor: pointer; transition: var(--transition);
+  flex: 1;
+  text-align: center;
+  padding: 7px 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-weak);
+  cursor: pointer;
+  transition: var(--transition);
   border-right: 1px solid var(--border-weak);
 }
-.seg > label:last-child { border-right: none; }
-.seg > label:hover { background: var(--bg-weak); color: var(--text-strong); }
-.seg input:checked + label { background: var(--bg-strong); color: var(--text-inverted); border-color: var(--bg-strong); }
+.seg > label:last-child {
+  border-right: none;
+}
+.seg > label:hover {
+  background: var(--bg-weak);
+  color: var(--text-strong);
+}
+.seg input:checked + label {
+  background: var(--bg-strong);
+  color: var(--text-inverted);
+  border-color: var(--bg-strong);
+}
 
 /* ---- 输入框 ---- */
 .f-input {
-  background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  padding: 8px 12px; color: var(--text-strong); font-size: 12px; outline: none;
-  font-family: inherit; transition: var(--transition); width: 100%; max-width: 400px;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+  transition: var(--transition);
+  width: 100%;
+  max-width: 400px;
 }
-.f-input:focus { background: var(--bg-interactive-weaker); border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
+.f-input:focus {
+  background: var(--bg-interactive-weaker);
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
 .f-select {
-  background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  padding: 8px 12px; color: var(--text-strong); font-size: 12px; outline: none; cursor: pointer;
-  font-family: inherit; width: 100%; transition: var(--transition);
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  transition: var(--transition);
 }
-.f-select:focus { border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
+.f-select:focus {
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
 
 /* ---- Chip 输入框 ---- */
 .chip-input {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
-  background: var(--bg-weak); border: 1px solid var(--border-weak);
-  border-radius: var(--r-md); padding: 5px 7px; cursor: text;
-  min-height: 34px; transition: var(--transition);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 5px 7px;
+  cursor: text;
+  min-height: 34px;
+  transition: var(--transition);
 }
-.chip-input:focus-within { background: var(--bg-interactive-weaker); border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
+.chip-input:focus-within {
+  background: var(--bg-interactive-weaker);
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
 .chip {
-  display: inline-flex; align-items: center; gap: 3px;
-  background: var(--bg); border: 1px solid var(--border-weak);
-  border-radius: var(--r-sm); padding: 1px 2px 1px 7px; font-size: 11px;
-  white-space: nowrap; cursor: pointer; user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 1px 2px 1px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
 }
-.chip:hover { border-color: var(--border); }
-.chip-text { color: var(--text); font-size: 10px; }
+.chip:hover {
+  border-color: var(--border);
+}
+.chip-text {
+  color: var(--text);
+  font-size: 10px;
+}
 .chip-x {
-  background: none; border: none; color: var(--text-weak); cursor: pointer;
-  font-size: 12px; line-height: 1; padding: 0 2px; transition: var(--transition);
+  background: none;
+  border: none;
+  color: var(--text-weak);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: var(--transition);
 }
-.chip-x:hover { color: var(--red); }
+.chip-x:hover {
+  color: var(--red);
+}
 .chip-field {
-  flex: 1; min-width: 130px; border: none; outline: none; background: transparent;
-  color: var(--text-strong); font-size: 12px; padding: 2px 0; font-family: inherit;
+  flex: 1;
+  min-width: 130px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 12px;
+  padding: 2px 0;
+  font-family: inherit;
 }
 </style>

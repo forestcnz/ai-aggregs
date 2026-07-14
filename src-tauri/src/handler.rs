@@ -12,10 +12,7 @@ use crate::error::AppError;
 use crate::stream;
 
 /// 主代理入口：同时承载三个端点
-pub async fn proxy(
-    State(st): State<AppState>,
-    req: Request,
-) -> Result<Response, AppError> {
+pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response, AppError> {
     // 1. 鉴权
     auth(&st, req.headers())?;
 
@@ -48,7 +45,10 @@ pub async fn proxy(
     let candidates = st
         .route(&model)
         .ok_or_else(|| AppError::ModelNotFound(model.clone()))?;
-    let stream = body.get("stream").and_then(|v| v.as_bool()).unwrap_or(false);
+    let stream = body
+        .get("stream")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     tracing::debug!(
         model = %model,
         candidates = ?candidates.iter().map(|p| &p.name).collect::<Vec<_>>(),

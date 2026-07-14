@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AI聚合网关",
+  "productName": "AI-AGGREGS",
   "version": "0.1.0",
-  "identifier": "com.aiaggregs.app",
+  "identifier": "com.ai.aggregs.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",

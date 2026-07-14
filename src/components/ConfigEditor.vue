@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import {
-  getConfig, saveConfig, enableAutostart, disableAutostart, autostartStatus,
-  type Config,
+  getConfig,
+  saveConfig,
+  enableAutostart,
+  disableAutostart,
+  autostartStatus,
+  type Config
 } from '../api/commands'
 
 const cfg = ref<Config | null>(null)
@@ -43,7 +47,9 @@ async function save() {
   try {
     await saveConfig(cfg.value)
     msg.value = '配置已保存'
-    setTimeout(() => { msg.value = '' }, 3000)
+    setTimeout(() => {
+      msg.value = ''
+    }, 3000)
   } catch (e) {
     msg.value = '保存失败: ' + String(e)
   } finally {
@@ -83,7 +89,10 @@ onMounted(load)
       <div class="row">
         <label>日志级别</label>
         <select v-model="cfg.log.level">
-          <option>info</option><option>debug</option><option>warn</option><option>error</option>
+          <option>info</option>
+          <option>debug</option>
+          <option>warn</option>
+          <option>error</option>
         </select>
       </div>
     </div>
@@ -98,7 +107,12 @@ onMounted(load)
             <span class="chip-text">{{ maskKey(k) }}</span>
             <button class="chip-x" @click="removeKey(ki)">×</button>
           </span>
-          <input v-model="keyInput" class="chip-field" :placeholder="cfg.consumer.api_keys.length ? '' : 'API Key，回车添加'" @keydown.enter.prevent="addKey" />
+          <input
+            v-model="keyInput"
+            class="chip-field"
+            :placeholder="cfg.consumer.api_keys.length ? '' : 'API Key，回车添加'"
+            @keydown.enter.prevent="addKey"
+          />
         </div>
       </div>
       <div class="row">
@@ -106,7 +120,9 @@ onMounted(load)
         <div class="auto-models">
           <div class="model-tags">
             <span v-for="m in cfg.consumer.models" :key="m" class="model-tag">{{ m }}</span>
-            <span v-if="!cfg.consumer.models.length" class="muted">（自动从已启用的提供商聚合）</span>
+            <span v-if="!cfg.consumer.models.length" class="muted"
+              >（自动从已启用的提供商聚合）</span
+            >
           </div>
         </div>
       </div>
@@ -119,7 +135,11 @@ onMounted(load)
         <label>开机自启</label>
         <div class="inline-toggle">
           <label class="toggle">
-            <input type="checkbox" :checked="autoStart" @change="toggleAutostart(($event.target as HTMLInputElement).checked)" />
+            <input
+              type="checkbox"
+              :checked="autoStart"
+              @change="toggleAutostart(($event.target as HTMLInputElement).checked)"
+            />
             <span class="slider"></span>
           </label>
           <span>系统启动时自动运行</span>
@@ -142,76 +162,206 @@ onMounted(load)
 </template>
 
 <style scoped>
-.page-title { font-size: 20px; font-weight: 600; color: var(--text-strong); letter-spacing: -.01em; }
-.page-sub { font-size: 12px; color: var(--text-weak); margin-top: 2px; margin-bottom: 22px; }
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--text-weak);
+  margin-top: 2px;
+  margin-bottom: 22px;
+}
 
 /* 分组 — 1px 描边面板 */
 .group {
-  background: var(--bg); border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  padding: 18px 22px; margin-bottom: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 18px 22px;
+  margin-bottom: 12px;
 }
-.group h3 { font-size: 13px; font-weight: 600; color: var(--text-strong); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-.group h3 .gn { font-size: 9px; color: var(--text-weak); border: 1px solid var(--border-weak); border-radius: var(--r-sm); padding: 1px 5px; }
+.group h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.group h3 .gn {
+  font-size: 9px;
+  color: var(--text-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+}
 .row {
-  display: grid; grid-template-columns: 140px 1fr; gap: 12px;
-  align-items: center; margin-bottom: 11px;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 11px;
 }
-.row:last-child { margin-bottom: 0; }
-.row label { font-size: 12px; color: var(--text); font-weight: 400; }
-.row > input, .row > select {
-  background: var(--bg-weak); border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  padding: 8px 12px; color: var(--text-strong); font-size: 12px; outline: none;
-  font-family: inherit; transition: var(--transition); max-width: 400px;
+.row:last-child {
+  margin-bottom: 0;
 }
-.row > input:focus, .row > select:focus {
-  background: var(--bg-interactive-weaker); border-color: var(--text-strong);
+.row label {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 400;
+}
+.row > input,
+.row > select {
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+  transition: var(--transition);
+  max-width: 400px;
+}
+.row > input:focus,
+.row > select:focus {
+  background: var(--bg-interactive-weaker);
+  border-color: var(--text-strong);
   box-shadow: 0 0 0 3px var(--bg-interactive);
 }
-.inline-toggle { display: flex; align-items: center; gap: 9px; }
-.inline-toggle span { font-size: 12px; color: var(--text); }
-.auto-models { max-width: 500px; }
-.model-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.model-tag {
-  font-size: 10px; padding: 2px 8px; border: 1px solid var(--border-weak);
-  border-radius: var(--r-sm); color: var(--text);
+.inline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
 }
-.muted { font-size: 11px; color: var(--text-weak); font-style: italic; }
-.actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; margin-top: 16px; }
+.inline-toggle span {
+  font-size: 12px;
+  color: var(--text);
+}
+.auto-models {
+  max-width: 500px;
+}
+.model-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.model-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.muted {
+  font-size: 11px;
+  color: var(--text-weak);
+  font-style: italic;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 16px;
+}
 
 /* ---- 保存提示 toast ---- */
 .toast {
-  position: fixed; top: 52px; right: 28px; z-index: 100;
-  padding: 7px 14px; border: 1px solid var(--border-weak); border-radius: var(--r-md);
-  background: var(--bg); color: var(--text);
-  font-size: 12px; font-weight: 500;
+  position: fixed;
+  top: 52px;
+  right: 28px;
+  z-index: 100;
+  padding: 7px 14px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
 }
-.toast.ok { color: var(--green); border-color: var(--green); }
-.toast-enter-active, .toast-leave-active { transition: opacity 160ms ease, transform 160ms ease; }
-.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-6px); }
+.toast.ok {
+  color: var(--green);
+  border-color: var(--green);
+}
+.toast-enter-active,
+.toast-leave-active {
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
 
 /* ---- Chip 输入框（与供应商 API Key 输入框一致） ---- */
 .chip-input {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
-  background: var(--bg-weak); border: 1px solid var(--border-weak);
-  border-radius: var(--r-md); padding: 5px 7px; cursor: text;
-  min-height: 34px; max-width: 400px; transition: var(--transition);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 5px 7px;
+  cursor: text;
+  min-height: 34px;
+  max-width: 400px;
+  transition: var(--transition);
 }
-.chip-input:focus-within { background: var(--bg-interactive-weaker); border-color: var(--text-strong); box-shadow: 0 0 0 3px var(--bg-interactive); }
+.chip-input:focus-within {
+  background: var(--bg-interactive-weaker);
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
 .chip {
-  display: inline-flex; align-items: center; gap: 3px;
-  background: var(--bg); border: 1px solid var(--border-weak);
-  border-radius: var(--r-sm); padding: 1px 2px 1px 7px; font-size: 11px;
-  white-space: nowrap; cursor: pointer; user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 1px 2px 1px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
 }
-.chip:hover { border-color: var(--border); }
-.chip-text { color: var(--text); font-size: 10px; }
+.chip:hover {
+  border-color: var(--border);
+}
+.chip-text {
+  color: var(--text);
+  font-size: 10px;
+}
 .chip-x {
-  background: none; border: none; color: var(--text-weak); cursor: pointer;
-  font-size: 12px; line-height: 1; padding: 0 2px; transition: var(--transition);
+  background: none;
+  border: none;
+  color: var(--text-weak);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: var(--transition);
 }
-.chip-x:hover { color: var(--red); }
+.chip-x:hover {
+  color: var(--red);
+}
 .chip-field {
-  flex: 1; min-width: 130px; border: none; outline: none; background: transparent;
-  color: var(--text-strong); font-size: 12px; padding: 2px 0; font-family: inherit;
+  flex: 1;
+  min-width: 130px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 12px;
+  padding: 2px 0;
+  font-family: inherit;
 }
 </style>

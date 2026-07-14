@@ -4,9 +4,7 @@ use std::collections::HashMap;
 
 use rusqlite::{params, Connection};
 
-use crate::config::{
-    ApiKeyEntry, Config, ConsumerConfig, LogConfig, Protocol, ProviderConfig,
-};
+use crate::config::{ApiKeyEntry, Config, ConsumerConfig, LogConfig, Protocol, ProviderConfig};
 
 /// 打开（或创建）数据库文件
 pub fn open(path: &str) -> anyhow::Result<Connection> {
@@ -59,8 +57,10 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
 // ===================== 加载 =====================
 
 fn get_setting(conn: &Connection, key: &str) -> Option<String> {
-    conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| r.get(0))
-        .ok()
+    conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
+        r.get(0)
+    })
+    .ok()
 }
 
 /// 从数据库加载完整配置
@@ -96,8 +96,17 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
     })?;
 
     for row_result in rows {
-        let (pid, name, protocol, base_url, timeout_secs, max_retries, enabled, reasoning_effort, extra_headers_json) =
-            row_result?;
+        let (
+            pid,
+            name,
+            protocol,
+            base_url,
+            timeout_secs,
+            max_retries,
+            enabled,
+            reasoning_effort,
+            extra_headers_json,
+        ) = row_result?;
 
         // keys
         let mut api_keys = Vec::new();
@@ -178,8 +187,16 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
 
     // 全局设置（不存 consumer_models，运行时动态计算）
     set_setting(&tx, "listen", &cfg.listen)?;
-    set_setting(&tx, "key_blacklist_secs", &cfg.key_blacklist_secs.to_string())?;
-    set_setting(&tx, "consumer_api_keys", &serde_json::to_string(&cfg.consumer.api_keys)?)?;
+    set_setting(
+        &tx,
+        "key_blacklist_secs",
+        &cfg.key_blacklist_secs.to_string(),
+    )?;
+    set_setting(
+        &tx,
+        "consumer_api_keys",
+        &serde_json::to_string(&cfg.consumer.api_keys)?,
+    )?;
     set_setting(&tx, "log_level", &cfg.log.level)?;
 
     for (i, p) in cfg.providers.iter().enumerate() {

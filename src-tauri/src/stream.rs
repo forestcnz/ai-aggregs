@@ -11,9 +11,7 @@ use bytes::{Bytes, BytesMut};
 use serde_json::{json, Value};
 
 use crate::config::Protocol;
-use crate::converter::{
-    map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat,
-};
+use crate::converter::{map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat};
 use crate::error::AppError;
 
 // ===================== 公共入口 =====================
@@ -275,7 +273,9 @@ impl StreamConverter for AnthropicToChatStream {
                         }
                     }
                 }
-                vec![self.chunk(json!({"role":"assistant","content":""}), None).to_string()]
+                vec![self
+                    .chunk(json!({"role":"assistant","content":""}), None)
+                    .to_string()]
             }
             "content_block_start" => {
                 let cb = v.get("content_block").cloned().unwrap_or(json!({}));
@@ -315,14 +315,21 @@ impl StreamConverter for AnthropicToChatStream {
                     "thinking_delta" => {
                         // 思考增量 -> chat 协议的 reasoning_content
                         let text = delta.get("thinking").cloned().unwrap_or(json!(""));
-                        vec![self.chunk(json!({"reasoning_content":text}), None).to_string()]
+                        vec![self
+                            .chunk(json!({"reasoning_content":text}), None)
+                            .to_string()]
                     }
                     "input_json_delta" => {
                         let pj = delta.get("partial_json").cloned().unwrap_or(json!(""));
                         if let Some(idx) = self.cur_tc_index {
-                            vec![self.chunk(json!({
-                                "tool_calls":[{"index":idx,"function":{"arguments":pj}}]
-                            }), None).to_string()]
+                            vec![self
+                                .chunk(
+                                    json!({
+                                        "tool_calls":[{"index":idx,"function":{"arguments":pj}}]
+                                    }),
+                                    None,
+                                )
+                                .to_string()]
                         } else {
                             vec![]
                         }
@@ -343,7 +350,10 @@ impl StreamConverter for AnthropicToChatStream {
                     .unwrap_or("end_turn");
                 let finish = map_stop_reason_anthropic_to_chat(stop_reason);
                 // 末帧 delta 含 content 和 reasoning_content（null），与标准 chat chunk 一致
-                let mut frame = self.chunk(json!({"content":"","reasoning_content":null}), Some(&finish));
+                let mut frame = self.chunk(
+                    json!({"content":"","reasoning_content":null}),
+                    Some(&finish),
+                );
                 if let Some(u) = v.get("usage") {
                     let mut usage = json!({});
                     // input_tokens 优先用 message_delta 自带的，否则用 message_start 捕获的
@@ -359,10 +369,9 @@ impl StreamConverter for AnthropicToChatStream {
                     if let Some(ot) = u.get("output_tokens") {
                         usage["completion_tokens"] = ot.clone();
                     }
-                    if let (Some(a), Some(b)) = (
-                        input_tok,
-                        u.get("output_tokens").and_then(|x| x.as_u64()),
-                    ) {
+                    if let (Some(a), Some(b)) =
+                        (input_tok, u.get("output_tokens").and_then(|x| x.as_u64()))
+                    {
                         usage["total_tokens"] = json!(a + b);
                     }
                     frame["usage"] = usage;
@@ -512,7 +521,8 @@ impl StreamConverter for ChatToAnthropicStream {
                             out.push(input_json_delta_event(bidx, args));
                         }
                     }
-                } else if let Some(args) = tc["function"].get("arguments").and_then(|x| x.as_str()) {
+                } else if let Some(args) = tc["function"].get("arguments").and_then(|x| x.as_str())
+                {
                     if let Some((bidx, _)) = &self.cur_block {
                         out.push(input_json_delta_event(*bidx, args));
                     }
@@ -698,10 +708,7 @@ impl StreamConverter for ResponsesToChatStream {
             "response.output_item.added" => {
                 let item = v.get("item").cloned().unwrap_or(json!({}));
                 if item.get("type").and_then(|x| x.as_str()) == Some("function_call") {
-                    let oi = v
-                        .get("output_index")
-                        .and_then(|x| x.as_u64())
-                        .unwrap_or(0);
+                    let oi = v.get("output_index").and_then(|x| x.as_u64()).unwrap_or(0);
                     let call_id = item.get("call_id").cloned().unwrap_or(json!(""));
                     let name = item.get("name").cloned().unwrap_or(json!(""));
                     let tc_idx = self.next_tc;
@@ -729,10 +736,7 @@ impl StreamConverter for ResponsesToChatStream {
                 }
             }
             "response.function_call_arguments.delta" => {
-                let oi = v
-                    .get("output_index")
-                    .and_then(|x| x.as_u64())
-                    .unwrap_or(0);
+                let oi = v.get("output_index").and_then(|x| x.as_u64()).unwrap_or(0);
                 let d = v.get("delta").and_then(|x| x.as_str()).unwrap_or("");
                 if let Some(&tc_idx) = self.tool_map.get(&oi) {
                     vec![json!({
@@ -955,8 +959,7 @@ impl StreamConverter for ChatToResponsesStream {
                             );
                         }
                     }
-                } else if let Some(args) =
-                    tc["function"].get("arguments").and_then(|x| x.as_str())
+                } else if let Some(args) = tc["function"].get("arguments").and_then(|x| x.as_str())
                 {
                     if let Some(&oi) = self.tool_oi.get(&chat_idx) {
                         out.push(
@@ -1010,5 +1013,3 @@ impl StreamConverter for ChatToResponsesStream {
         .to_string()]
     }
 }
-
-

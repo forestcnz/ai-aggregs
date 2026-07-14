@@ -18,8 +18,10 @@ use tracing_subscriber::EnvFilter;
 // ===================== log4rs 相关 =====================
 
 use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRollerBuilder;
-use log4rs::append::rolling_file::policy::compound::trigger::time::{TimeTrigger, TimeTriggerConfig, TimeTriggerInterval};
 use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
+use log4rs::append::rolling_file::policy::compound::trigger::time::{
+    TimeTrigger, TimeTriggerConfig, TimeTriggerInterval,
+};
 use log4rs::append::rolling_file::policy::compound::trigger::Trigger;
 use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
 use log4rs::append::rolling_file::RollingFileAppender;
@@ -64,18 +66,18 @@ fn init_log4rs(log_dir: &std::path::Path) -> anyhow::Result<()> {
     // 大小触发器：单文件超过 10MB 时滚动
     let size_trigger = SizeTrigger::new(10 * 1024 * 1024);
 
-    let composite = CompositeTrigger { time: time_trigger, size: size_trigger };
+    let composite = CompositeTrigger {
+        time: time_trigger,
+        size: size_trigger,
+    };
 
     // 固定窗口滚动器：最多保留 100 个归档文件，.gz 扩展名自动 gzip 压缩
-    let roller = FixedWindowRollerBuilder::default()
-        .build(&archive_pattern, 100)?;
+    let roller = FixedWindowRollerBuilder::default().build(&archive_pattern, 100)?;
 
     let policy = CompoundPolicy::new(Box::new(composite), Box::new(roller));
 
     // 日志格式：2026-07-14 12:30:45.123 INFO ai_aggregs_lib::handler - 消息内容
-    let encoder = PatternEncoder::new(
-        "{d(%Y-%m-%d %H:%M:%S%.3f)} {l} {t} - {m}{n}",
-    );
+    let encoder = PatternEncoder::new("{d(%Y-%m-%d %H:%M:%S%.3f)} {l} {t} - {m}{n}");
 
     let appender = RollingFileAppender::builder()
         .encoder(Box::new(encoder))
@@ -84,7 +86,11 @@ fn init_log4rs(log_dir: &std::path::Path) -> anyhow::Result<()> {
 
     let config = Config::builder()
         .appender(Appender::builder().build("file", Box::new(appender)))
-        .build(Root::builder().appender("file").build(log::LevelFilter::Trace))?;
+        .build(
+            Root::builder()
+                .appender("file")
+                .build(log::LevelFilter::Trace),
+        )?;
 
     log4rs::init_config(config)?;
     Ok(())
@@ -167,15 +173,17 @@ pub fn set_app_handle(slot: &AppHandleSlot, app: AppHandle) {
 
 /// 清理日志目录：删除超过 max_days 天的文件，且总大小不超过 max_total_bytes
 pub fn purge_old_logs(log_dir: &std::path::Path, max_days: u64, max_total_bytes: u64) {
-    let cutoff = std::time::SystemTime::now()
-        - std::time::Duration::from_secs(max_days * 24 * 60 * 60);
+    let cutoff =
+        std::time::SystemTime::now() - std::time::Duration::from_secs(max_days * 24 * 60 * 60);
 
     let mut files: Vec<(std::path::PathBuf, std::time::SystemTime, u64)> = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(log_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if !path.is_file() { continue; }
+            if !path.is_file() {
+                continue;
+            }
             if let Ok(meta) = entry.metadata() {
                 let modified = meta.modified().unwrap_or(std::time::SystemTime::now());
                 let size = meta.len();
@@ -200,7 +208,9 @@ pub fn purge_old_logs(log_dir: &std::path::Path, max_days: u64, max_total_bytes:
     if total_size > max_total_bytes {
         remaining.sort_by_key(|(_, modified, _)| *modified);
         for (path, _, size) in &remaining {
-            if total_size <= max_total_bytes { break; }
+            if total_size <= max_total_bytes {
+                break;
+            }
             let _ = std::fs::remove_file(path);
             total_size -= *size;
         }
@@ -221,8 +231,7 @@ pub fn install(level: &str, slot: AppHandleSlot, log_dir: std::path::PathBuf) ->
         eprintln!("[log_bridge] log4rs 初始化失败: {e}");
     }
 
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(level));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(level));
     let (reloadable_filter, handle) = tracing_subscriber::reload::Layer::new(filter);
 
     let tauri_layer = TauriLogLayer { slot };
@@ -238,8 +247,8 @@ pub fn install(level: &str, slot: AppHandleSlot, log_dir: std::path::PathBuf) ->
         .try_init();
 
     let setter = Box::new(move |new_level: &str| {
-        let new_filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new(new_level));
+        let new_filter =
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(new_level));
         if let Err(e) = handle.reload(new_filter) {
             eprintln!("[log_bridge] 热更新日志级别失败: {e}");
         } else {

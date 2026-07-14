@@ -40,7 +40,10 @@ async fn cors_middleware(req: Request, next: Next) -> Response {
     let mut resp = next.run(req).await;
     let headers = resp.headers_mut();
     headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-    headers.insert("access-control-allow-headers", HeaderValue::from_static("*"));
+    headers.insert(
+        "access-control-allow-headers",
+        HeaderValue::from_static("*"),
+    );
     headers.insert(
         "access-control-allow-methods",
         HeaderValue::from_static("GET, POST, OPTIONS"),

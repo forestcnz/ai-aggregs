@@ -148,9 +148,9 @@ impl Provider {
         if enabled_idxs.is_empty() {
             return false;
         }
-        enabled_idxs.iter().all(|&i| {
-            map.get(&i).map(|u| *u > now).unwrap_or(false)
-        })
+        enabled_idxs
+            .iter()
+            .all(|&i| map.get(&i).map(|u| *u > now).unwrap_or(false))
     }
 
     /// 组装某个 key 对应的鉴权头（按协议区分）
@@ -229,10 +229,9 @@ impl Provider {
                     req = req.header("accept", "text/event-stream");
                 }
                 for (k, v) in &self.extra_headers {
-                    if let (Ok(name), Ok(val)) = (
-                        HeaderName::try_from(k.as_str()),
-                        HeaderValue::from_str(v),
-                    ) {
+                    if let (Ok(name), Ok(val)) =
+                        (HeaderName::try_from(k.as_str()), HeaderValue::from_str(v))
+                    {
                         req = req.header(name, val);
                     }
                 }
@@ -261,14 +260,20 @@ impl Provider {
                                 provider = %self.name, idx, key = %masked,
                                 "key 429, blacklisted"
                             );
-                            last_err = Some(UpstreamError { status: code, message: text });
+                            last_err = Some(UpstreamError {
+                                status: code,
+                                message: text,
+                            });
                         } else if status.is_client_error() {
                             // 4xx（非 429）是请求本身问题，不拉黑也不切换
                             tracing::warn!(
                                 provider = %self.name, idx, key = %masked, status = code,
                                 "upstream client error, no retry"
                             );
-                            last_err = Some(UpstreamError { status: code, message: text });
+                            last_err = Some(UpstreamError {
+                                status: code,
+                                message: text,
+                            });
                             break;
                         } else {
                             // 5xx：记录错误，继续试下一个 key
@@ -276,7 +281,10 @@ impl Provider {
                                 provider = %self.name, idx, key = %masked, status = code,
                                 "upstream server error, retry next key"
                             );
-                            last_err = Some(UpstreamError { status: code, message: text });
+                            last_err = Some(UpstreamError {
+                                status: code,
+                                message: text,
+                            });
                         }
                     }
                     Err(e) => {
@@ -284,7 +292,10 @@ impl Provider {
                             provider = %self.name, idx, key = %masked, err = %e,
                             "send error, retry next key"
                         );
-                        last_err = Some(UpstreamError { status: 502, message: e.to_string() });
+                        last_err = Some(UpstreamError {
+                            status: 502,
+                            message: e.to_string(),
+                        });
                     }
                 }
             }
@@ -338,6 +349,13 @@ fn mask_key(key: &str) -> String {
         return format!("{}**", &key[..len.min(4)]);
     }
     let head: String = key.chars().take(6).collect();
-    let tail: String = key.chars().rev().take(6).collect::<Vec<_>>().into_iter().rev().collect();
+    let tail: String = key
+        .chars()
+        .rev()
+        .take(6)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
     format!("{head}**{tail}")
 }
