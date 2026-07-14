@@ -193,7 +193,7 @@ body::after{
 .tl-title .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;border:1px solid var(--line-2);background:var(--bg-0)}
 .tl-title .pill .dot{width:6px;height:6px}
 
-.app{display:flex;height:580px}
+.app{display:flex;height:580px;position:relative}
 /* 侧边栏 */
 .sidebar{width:212px;flex-shrink:0;background:var(--bg-2);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px}
 .sb-brand{display:flex;align-items:center;gap:10px;padding:6px 10px 18px}
@@ -318,6 +318,98 @@ body::after{
 .ks.ok{background:rgba(4,120,87,.1);color:var(--emerald);border:1px solid rgba(4,120,87,.24)}
 .ks.bl{background:rgba(190,18,60,.07);color:var(--rose);border:1px solid rgba(190,18,60,.22)}
 .ks.ds{color:var(--text-2);border:1px solid var(--line)}
+
+/* ============================================================
+   提供商添加/编辑弹窗
+   ============================================================ */
+.modal-overlay{
+  position:absolute;inset:0;z-index:50;
+  background:rgba(20,26,31,.32);backdrop-filter:blur(2px);
+  display:none;align-items:center;justify-content:center;
+  animation:overlay-in .2s var(--ease);
+}
+.modal-overlay.show{display:flex}
+@keyframes overlay-in{from{opacity:0}to{opacity:1}}
+.modal{
+  background:var(--bg-0);border:1px solid var(--line-2);border-radius:var(--radius-lg);
+  box-shadow:0 30px 80px -20px rgba(20,26,31,.28), 0 10px 24px -12px rgba(20,26,31,.14);
+  width:520px;max-width:92%;max-height:88%;overflow-y:auto;animation:modal-in .26s var(--ease);
+}
+@keyframes modal-in{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.modal::-webkit-scrollbar{width:6px}
+.modal::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:3px}
+
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 24px;border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:var(--bg-0);z-index:2;
+}
+.modal-header h2{font-family:var(--font-display);font-size:17px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:10px}
+.modal-header h2 .mi{font-family:var(--font-mono);font-size:10px;color:var(--cyan);border:1px solid var(--line-2);border-radius:4px;padding:1px 6px;letter-spacing:.06em}
+.modal-close{
+  background:var(--bg-3);border:1px solid var(--line);width:28px;height:28px;border-radius:var(--radius-sm);
+  font-size:15px;cursor:pointer;color:var(--text-1);line-height:1;transition:var(--t);
+  display:flex;align-items:center;justify-content:center;
+}
+.modal-close:hover{background:var(--bg-4);color:var(--ink)}
+
+.modal-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+.mf{display:flex;flex-direction:column;gap:6px;flex:1}
+.mf label{font-size:12px;font-weight:600;color:var(--text-1);display:flex;align-items:center;gap:6px}
+.mf label .req{color:var(--rose);font-size:10px}
+.mf label .hint{font-family:var(--font-mono);font-size:10px;color:var(--text-2);font-weight:400}
+.mf-row{display:flex;gap:14px}
+.mf .inp,.mf .sel{width:100%;max-width:none}
+
+/* 协议选择 — 分段控件 */
+.seg{display:flex;gap:0;border:1px solid var(--line-2);border-radius:var(--radius-sm);overflow:hidden;background:var(--bg-2)}
+.seg input{position:absolute;opacity:0;width:0;height:0}
+.seg label{
+  flex:1;text-align:center;padding:8px 6px;font-size:12px;font-weight:600;
+  color:var(--text-1);cursor:pointer;transition:var(--t);
+  border-right:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.seg label:last-child{border-right:none}
+.seg label:hover{background:var(--bg-3)}
+.seg input:checked + label{background:var(--cyan);color:#fff;border-color:var(--cyan)}
+.seg label .pdot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.6}
+.seg input:checked + label .pdot{background:#fff;opacity:1}
+
+/* Chip 输入框 */
+.chip-input{
+  display:flex;flex-wrap:wrap;align-items:center;gap:5px;
+  background:var(--bg-2);border:1px solid var(--line-2);
+  border-radius:var(--radius-sm);padding:6px 8px;cursor:text;
+  min-height:38px;transition:var(--t);
+}
+.chip-input:focus-within{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(14,116,144,.14)}
+.chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--bg-3);border:1px solid var(--line-2);
+  border-radius:5px;padding:2px 3px 2px 8px;font-size:12px;
+  white-space:nowrap;user-select:none;
+}
+.chip .ctxt{color:var(--text-1);font-family:var(--font-mono);font-size:11px}
+.chip .cx{
+  background:none;border:none;color:var(--text-2);cursor:pointer;
+  font-size:14px;line-height:1;padding:0 3px;transition:var(--t);
+}
+.chip .cx:hover{color:var(--rose)}
+.chip-field{
+  flex:1;min-width:140px;border:none;outline:none;background:transparent;
+  color:var(--text-0);font-size:13px;padding:3px 0;font-family:var(--font-body);
+}
+.chip-field.mono{font-family:var(--font-mono);font-size:12px}
+.chip-empty{font-size:12px;color:var(--text-2);font-style:italic}
+
+.modal-footer{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:14px 24px;border-top:1px solid var(--line);
+  position:sticky;bottom:0;background:var(--bg-0);
+}
+.footer-right{display:flex;gap:10px;margin-left:auto}
+.danger-btn{color:var(--rose);border-color:rgba(190,18,60,.3)}
+.danger-btn:hover{background:rgba(190,18,60,.08);color:var(--rose);border-color:rgba(190,18,60,.4)}
 
 /* ============================================================
    页面：聊天
@@ -678,7 +770,7 @@ body::after{
                 </div>
                 <div style="display:flex;gap:10px;align-items:center">
                   <span class="chip" style="color:var(--emerald);border-color:rgba(4,120,87,.26)">已保存</span>
-                  <button class="btn btn-cyan btn-sm">+ 添加提供商</button>
+                  <button class="btn btn-cyan btn-sm" id="btn-add-provider">+ 添加提供商</button>
                 </div>
               </div>
 
@@ -762,6 +854,97 @@ body::after{
                     <div class="keys-sec">
                       <div class="kh">API KEYS (1)</div>
                       <div class="key-row"><label class="toggle"><input type="checkbox"><span class="sl"></span></label><span class="kv">azure**c7D2</span><span class="ks ds">已禁用</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 添加 / 编辑提供商 弹窗 -->
+              <div class="modal-overlay" id="provider-modal">
+                <div class="modal">
+                  <div class="modal-header">
+                    <h2><span class="mi">ADD</span>添加提供商</h2>
+                    <button class="modal-close" id="modal-close">✕</button>
+                  </div>
+
+                  <div class="modal-body">
+                    <!-- 名称 -->
+                    <div class="mf">
+                      <label>名称 <span class="req">必填</span></label>
+                      <input class="inp" placeholder="如 openai、anthropic、glm" value="deepseek">
+                    </div>
+
+                    <!-- 协议分段控件 + 思考强度 -->
+                    <div class="mf-row">
+                      <div class="mf">
+                        <label>协议 <span class="hint">决定请求路径</span></label>
+                        <div class="seg">
+                          <input type="radio" name="proto" id="p-chat" checked>
+                          <label for="p-chat"><span class="pdot"></span>chat</label>
+                          <input type="radio" name="proto" id="p-resp">
+                          <label for="p-resp"><span class="pdot"></span>responses</label>
+                          <input type="radio" name="proto" id="p-anth">
+                          <label for="p-anth"><span class="pdot"></span>anthropic</label>
+                        </div>
+                      </div>
+                      <div class="mf">
+                        <label>思考强度</label>
+                        <select class="sel">
+                          <option value="">无</option>
+                          <option>max</option>
+                          <option>xhigh</option>
+                          <option>high</option>
+                          <option selected>medium</option>
+                          <option>low</option>
+                          <option>minimal</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- Base URL -->
+                    <div class="mf">
+                      <label>Base URL <span class="req">必填</span></label>
+                      <input class="inp mono" placeholder="https://api.example.com/v1" value="https://api.deepseek.com/v1">
+                    </div>
+
+                    <!-- API Keys -->
+                    <div class="mf">
+                      <label>API Keys <span class="hint">回车添加，可填多把用于轮询</span></label>
+                      <div class="chip-input">
+                        <span class="chip"><span class="ctxt">sk-ds**7QxZ</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">sk-ds**3KdW</span><button class="cx">×</button></span>
+                        <input class="chip-field mono" placeholder="API Key，回车添加">
+                      </div>
+                    </div>
+
+                    <!-- 模型 -->
+                    <div class="mf">
+                      <label>模型 <span class="hint">回车添加</span></label>
+                      <div class="chip-input">
+                        <span class="chip"><span class="ctxt">deepseek-chat</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">deepseek-reasoner</span><button class="cx">×</button></span>
+                        <input class="chip-field" placeholder="模型名，回车添加">
+                      </div>
+                    </div>
+
+                    <!-- 超时 / 重试 -->
+                    <div class="mf-row">
+                      <div class="mf">
+                        <label>超时（秒）</label>
+                        <input class="inp mono" type="number" value="300">
+                      </div>
+                      <div class="mf">
+                        <label>重试次数</label>
+                        <input class="inp mono" type="number" value="2">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="modal-footer">
+                    <button class="btn btn-ghost danger-btn">删除</button>
+                    <div class="footer-right">
+                      <button class="btn btn-ghost" id="modal-cancel">取消</button>
+                      <button class="btn btn-cyan">创建</button>
                     </div>
                   </div>
                 </div>
@@ -861,6 +1044,42 @@ nav.addEventListener('click', e => {
   const tab = item.dataset.tab;
   nav.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n === item));
   document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+});
+
+// 提供商添加/编辑弹窗交互
+const modal = document.getElementById('provider-modal');
+const btnAdd = document.getElementById('btn-add-provider');
+const btnClose = document.getElementById('modal-close');
+const btnCancel = document.getElementById('modal-cancel');
+function openModal(){ modal.classList.add('show'); }
+function closeModal(){ modal.classList.remove('show'); }
+btnAdd.addEventListener('click', openModal);
+btnClose.addEventListener('click', closeModal);
+btnCancel.addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+// ESC 关闭弹窗
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// Chip 输入框：回车添加 / 点 × 删除
+document.querySelectorAll('.chip-input').forEach(ci => {
+  const input = ci.querySelector('.chip-field');
+  if (input) {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.value.trim()) {
+        e.preventDefault();
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.innerHTML = `<span class="ctxt">${e.target.value.trim()}</span><button class="cx">×</button>`;
+        chip.querySelector('.cx').addEventListener('click', () => chip.remove());
+        ci.insertBefore(chip, input);
+        e.target.value = '';
+      }
+    });
+  }
+});
+document.querySelectorAll('.chip .cx').forEach(x => {
+  x.addEventListener('click', () => x.closest('.chip').remove());
 });
 </script>
 </body>
