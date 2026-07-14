@@ -405,7 +405,26 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let log_slot = log_bridge::create_slot();
-    let log_level_setter = log_bridge::install("info", log_slot.clone());
+
+    // 日志目录：可执行文件所在目录下的 ./logs/
+    let log_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("logs");
+    let _ = std::fs::create_dir_all(&log_dir);
+    let log_level_setter = log_bridge::install("info", log_slot.clone(), log_dir.clone());
+    // 启动时清理超过 30 天或总大小超 10GB 的旧日志
+    log_bridge::purge_old_logs(&log_dir, 30, 10 * 1024 * 1024 * 1024);
+    // 每天定时清理一次
+    let purge_dir = log_dir.clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(24 * 60 * 60)).await;
+            log_bridge::purge_old_logs(&purge_dir, 30, 10 * 1024 * 1024 * 1024);
+        }
+    });
+    tracing::info!("日志系统启动，文件日志写入 ./logs/ 目录，按天+按大小(10MB)双滚动，gzip 归档，保留 30 天，总大小上限 1GB");
 
     // 数据库文件：可执行文件所在目录下的 ./data/config.db
     let db_dir = std::env::current_exe()

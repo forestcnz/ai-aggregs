@@ -29,7 +29,9 @@ tokio-stream = "0.1"
 bytes = "1"
 # 日志
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
+log = "0.4"
+log4rs = { version = "1", default-features = false, features = ["all_components", "gzip"] }
 # 错误处理
 anyhow = "1"
 thiserror = "1"
