@@ -14,6 +14,7 @@ export function useChat(props: { status: GatewayStatus }) {
   const config = ref<Config | null>(null)
   const protocol = ref<ChatProtocol>('chat')
   const selectedModel = ref('')
+  const selectedKey = ref('')
   const input = ref('')
   const sending = ref(false)
   const dialogMsg = ref('')
@@ -33,11 +34,12 @@ export function useChat(props: { status: GatewayStatus }) {
 
   // ---- 计算属性 ----
   const models = computed(() => config.value?.consumer.models ?? [])
+  const apiKeys = computed(() => config.value?.consumer.api_keys ?? [])
   const gatewayUrl = computed(() => {
     if (!props.status.running || !props.status.listen_addr) return ''
     return `http://${props.status.listen_addr}`
   })
-  const apiKey = computed(() => config.value?.consumer.api_keys?.[0] ?? '')
+  const apiKey = computed(() => selectedKey.value)
 
   // ---- 生命周期 ----
   onMounted(async () => {
@@ -45,6 +47,9 @@ export function useChat(props: { status: GatewayStatus }) {
       config.value = await getConfig()
       if (models.value.length > 0) {
         selectedModel.value = models.value[0]
+      }
+      if (apiKeys.value.length > 0) {
+        selectedKey.value = apiKeys.value[0]
       }
     } catch (e) {
       console.error('加载配置失败', e)
@@ -245,6 +250,10 @@ export function useChat(props: { status: GatewayStatus }) {
       showDialog('请先选择模型')
       return
     }
+    if (!selectedKey.value) {
+      showDialog('请先选择 API Key')
+      return
+    }
 
     // 加入用户消息
     messages.value.push({ role: 'user', content: text, reasoning: '', thinking: false })
@@ -353,9 +362,15 @@ export function useChat(props: { status: GatewayStatus }) {
     }
   }
 
+  // ---- 工具：掩码显示 key ----
+  function maskKey(k: string): string {
+    if (k.length <= 8) return k
+    return k.slice(0, 4) + '...' + k.slice(-4)
+  }
+
   return {
-    protocol, selectedModel, input, sending, dialogMsg,
-    messages, scrollEl, textareaRef, models,
+    protocol, selectedModel, selectedKey, input, sending, dialogMsg,
+    messages, scrollEl, textareaRef, models, apiKeys, maskKey,
     closeDialog, send, stop, clearChat, onKeydown
   }
 }

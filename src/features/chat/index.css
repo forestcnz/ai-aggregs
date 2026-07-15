@@ -49,6 +49,23 @@
   border-color: var(--text-strong);
   box-shadow: 0 0 0 3px var(--bg-interactive);
 }
+.key-select {
+  padding: 6px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak);
+  background: var(--bg-weak);
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-strong);
+  min-width: 150px;
+  cursor: pointer;
+  transition: var(--transition);
+  outline: none;
+}
+.key-select:focus {
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
 .btn.sm {
   padding: 5px 10px;
   font-size: 12px;
