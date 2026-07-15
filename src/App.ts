@@ -9,7 +9,9 @@ import {
 } from './api/commands'
 
 export function useApp() {
-  const activeTab = ref<'dashboard' | 'providers' | 'chat' | 'usage' | 'settings'>('dashboard')
+  const activeTab = ref<'dashboard' | 'providers' | 'chat' | 'usage' | 'provider-usage' | 'settings'>(
+    'dashboard',
+  )
   const status = ref<GatewayStatus>({ running: false, listen_addr: '' })
   const isMaximized = ref(false)
   let unlistenStatus: (() => void) | null = null

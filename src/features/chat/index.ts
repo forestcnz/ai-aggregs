@@ -33,7 +33,9 @@ export function useChat(props: { status: GatewayStatus }) {
   }
 
   // ---- 计算属性 ----
-  const models = computed(() => config.value?.consumer.models ?? [])
+  const models = computed(() =>
+    [...(config.value?.consumer.models ?? [])].sort((a, b) => a.localeCompare(b)),
+  )
   const apiKeys = computed(() => config.value?.consumer.api_keys ?? [])
   const gatewayUrl = computed(() => {
     if (!props.status.running || !props.status.listen_addr) return ''

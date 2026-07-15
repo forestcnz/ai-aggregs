@@ -31,6 +31,7 @@ pub struct KeyStatus {
 }
 
 pub struct Provider {
+    pub id: i64,
     pub name: String,
     pub protocol: Protocol,
     pub base_url: String,
@@ -52,6 +53,7 @@ impl Provider {
             .pool_idle_timeout(Duration::from_secs(90))
             .build()?;
         Ok(Self {
+            id: cfg.id,
             name: cfg.name.clone(),
             protocol: cfg.protocol,
             base_url: cfg.base_url.trim_end_matches('/').to_string(),
@@ -156,7 +158,7 @@ impl Provider {
         endpoint: &str,
         body: &serde_json::Value,
         stream: bool,
-    ) -> Result<reqwest::Response, UpstreamError> {
+    ) -> Result<(reqwest::Response, String), UpstreamError> {
         let url = format!("{}{}", self.base_url, endpoint);
         let send_body: serde_json::Value = if let Some(eff) = &self.reasoning_effort {
             let mut b = body.clone();
@@ -215,7 +217,7 @@ impl Provider {
                             status = %r.status(),
                             "upstream ok"
                         );
-                        return Ok(r);
+                        return Ok((r, key.to_string()));
                     }
                     Ok(r) => {
                         let status = r.status();

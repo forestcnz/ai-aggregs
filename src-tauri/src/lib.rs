@@ -117,6 +117,7 @@ pub fn run() {
             disable_autostart,
             autostart_status,
             get_usage,
+            get_provider_usage,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

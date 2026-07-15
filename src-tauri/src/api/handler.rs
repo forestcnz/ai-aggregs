@@ -83,7 +83,7 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
             "proxy: sending to provider"
         );
         match provider.send(endpoint, &send_body, stream).await {
-            Ok(resp) => {
+            Ok((resp, provider_key)) => {
                 tracing::debug!(
                     provider = %provider.name,
                     status = %resp.status(),
@@ -98,6 +98,8 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                     UsageCtx {
                         consumer_key: consumer_key.clone(),
                         model: model.clone(),
+                        provider_id: provider.id,
+                        provider_key,
                         db: st.db.clone(),
                     },
                 )

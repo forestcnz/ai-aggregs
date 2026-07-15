@@ -83,6 +83,9 @@ pub struct Config {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ProviderConfig {
+    /// 数据库行 ID（仅后端使用，前端只读）
+    #[serde(default)]
+    pub id: i64,
     pub name: String,
     pub protocol: Protocol,
     pub base_url: String,

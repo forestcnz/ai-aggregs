@@ -18,8 +18,8 @@ const {
     <!-- 标题栏 -->
     <div class="header-row">
       <div>
-        <h1 class="page-title">提供商管理</h1>
-        <p class="page-sub">管理上游 API 提供商及密钥</p>
+        <h1 class="page-title">供应商管理</h1>
+        <p class="page-sub">管理上游 API 供应商及密钥</p>
       </div>
       <div class="header-actions">
         <span v-if="msg" class="save-msg" :class="{ ok: msg.includes('已保存') }">{{ msg }}</span>

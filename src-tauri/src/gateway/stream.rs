@@ -19,6 +19,8 @@ use crate::infra::error::AppError;
 pub struct UsageCtx {
     pub consumer_key: String,
     pub model: String,
+    pub provider_id: i64,
+    pub provider_key: String,
     pub db: Arc<Mutex<rusqlite::Connection>>,
 }
 
@@ -29,6 +31,15 @@ impl UsageCtx {
         }
         if let Ok(conn) = self.db.lock() {
             let _ = db::record_usage(&conn, &self.consumer_key, &self.model, input, output, total);
+            let _ = db::record_provider_usage(
+                &conn,
+                self.provider_id,
+                &self.provider_key,
+                &self.model,
+                input,
+                output,
+                total,
+            );
         }
     }
 }

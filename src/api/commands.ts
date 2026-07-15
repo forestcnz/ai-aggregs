@@ -22,6 +22,7 @@ export type ApiKeyEntry = { key: string; enabled: boolean } | string
 
 /** 提供商配置 */
 export interface ProviderConfig {
+  id: number
   name: string
   protocol: Protocol
   base_url: string
@@ -146,6 +147,18 @@ export const autostartStatus = () => invoke<boolean>('autostart_status')
  */
 export const getUsage = (consumerKey: string | null, days: number | null) =>
   invoke<UsageSummary>('get_usage', { consumerKey, days })
+
+/**
+ * 查询供应商用量统计。
+ * @param providerId 供应商 ID，null 查全部
+ * @param providerKey 指定 key，null 查全部
+ * @param days 时间范围天数，null 查全部
+ */
+export const getProviderUsage = (
+  providerId: number | null,
+  providerKey: string | null,
+  days: number | null,
+) => invoke<UsageSummary>('get_provider_usage', { providerId, providerKey, days })
 
 // ===================== 事件监听 =====================
 

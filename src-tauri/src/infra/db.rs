@@ -60,6 +60,20 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
         );
         CREATE INDEX IF NOT EXISTS idx_usage_key     ON usage_logs(consumer_key);
         CREATE INDEX IF NOT EXISTS idx_usage_created  ON usage_logs(created_at);
+
+        CREATE TABLE IF NOT EXISTS provider_usage_logs (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            provider_id     INTEGER NOT NULL DEFAULT 0,
+            provider_key    TEXT    NOT NULL DEFAULT '',
+            model           TEXT    NOT NULL,
+            input_tokens    INTEGER NOT NULL DEFAULT 0,
+            output_tokens   INTEGER NOT NULL DEFAULT 0,
+            total_tokens    INTEGER NOT NULL DEFAULT 0,
+            created_at      INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_pusage_name   ON provider_usage_logs(provider_id);
+        CREATE INDEX IF NOT EXISTS idx_pusage_key     ON provider_usage_logs(provider_id, provider_key);
+        CREATE INDEX IF NOT EXISTS idx_pusage_created ON provider_usage_logs(created_at);
         "#,
     )?;
     Ok(())
@@ -146,6 +160,7 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             serde_json::from_str(&extra_headers_json).unwrap_or_default();
 
         providers.push(ProviderConfig {
+            id: pid,
             name,
             protocol: Protocol::from_str(&protocol),
             base_url,
@@ -183,10 +198,6 @@ fn set_setting(conn: &Connection, key: &str, value: &str) -> anyhow::Result<()> 
 pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
     let tx = conn.unchecked_transaction()?;
 
-    tx.execute("DELETE FROM provider_keys", [])?;
-    tx.execute("DELETE FROM provider_models", [])?;
-    tx.execute("DELETE FROM providers", [])?;
-
     set_setting(&tx, "listen", &cfg.listen)?;
     set_setting(
         &tx,
@@ -200,24 +211,52 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
     )?;
     set_setting(&tx, "log_level", &cfg.log.level)?;
 
+    // upsert 每个 provider：id>0 走 UPDATE（保留原 ID），id=0 走 INSERT（新建）
+    let mut seen_ids: Vec<i64> = Vec::new();
     for (i, p) in cfg.providers.iter().enumerate() {
-        tx.execute(
-            "INSERT INTO providers
-                (name, protocol, base_url, timeout_secs, max_retries, enabled, reasoning_effort, extra_headers, sort_order)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                p.name,
-                p.protocol.as_str(),
-                p.base_url,
-                p.timeout_secs,
-                p.max_retries,
-                p.enabled as i64,
-                p.reasoning_effort,
-                serde_json::to_string(&p.extra_headers)?,
-                i as i64,
-            ],
-        )?;
-        let pid = tx.last_insert_rowid();
+        let pid = if p.id > 0 {
+            tx.execute(
+                "UPDATE providers SET name=?2, protocol=?3, base_url=?4, timeout_secs=?5,
+                 max_retries=?6, enabled=?7, reasoning_effort=?8, extra_headers=?9, sort_order=?10
+                 WHERE id=?1",
+                params![
+                    p.id,
+                    p.name,
+                    p.protocol.as_str(),
+                    p.base_url,
+                    p.timeout_secs,
+                    p.max_retries,
+                    p.enabled as i64,
+                    p.reasoning_effort,
+                    serde_json::to_string(&p.extra_headers)?,
+                    i as i64,
+                ],
+            )?;
+            p.id
+        } else {
+            tx.execute(
+                "INSERT INTO providers
+                    (name, protocol, base_url, timeout_secs, max_retries, enabled, reasoning_effort, extra_headers, sort_order)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    p.name,
+                    p.protocol.as_str(),
+                    p.base_url,
+                    p.timeout_secs,
+                    p.max_retries,
+                    p.enabled as i64,
+                    p.reasoning_effort,
+                    serde_json::to_string(&p.extra_headers)?,
+                    i as i64,
+                ],
+            )?;
+            tx.last_insert_rowid()
+        };
+        seen_ids.push(pid);
+
+        // 清理该 provider 的 key/model 后重新插入
+        tx.execute("DELETE FROM provider_keys WHERE provider_id = ?1", [pid])?;
+        tx.execute("DELETE FROM provider_models WHERE provider_id = ?1", [pid])?;
 
         for (ki, entry) in p.api_keys.iter().enumerate() {
             let (key, enabled) = match entry {
@@ -236,6 +275,19 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                 params![pid, m, mi as i64],
             )?;
         }
+    }
+
+    // 删除配置中已不存在的 providers（级联删除 key/model）
+    if seen_ids.is_empty() {
+        tx.execute("DELETE FROM providers", [])?;
+    } else {
+        let placeholders = seen_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!("DELETE FROM providers WHERE id NOT IN ({placeholders})");
+        let params: Vec<&dyn rusqlite::ToSql> = seen_ids
+            .iter()
+            .map(|id| id as &dyn rusqlite::ToSql)
+            .collect();
+        tx.execute(&sql, params.as_slice())?;
     }
 
     tx.commit()?;
@@ -275,10 +327,11 @@ pub fn record_usage(
     Ok(())
 }
 
-/// 按模型聚合查询用量；consumer_key=None 查全部，since=0 查全部时间
+/// 按模型聚合查询用量。
+/// consumer_keys 为空 = 不过滤；调用方应从当前 config 解析出实际 key 列表传入。
 pub fn query_usage(
     conn: &Connection,
-    consumer_key: Option<&str>,
+    consumer_keys: &[String],
     since: i64,
 ) -> anyhow::Result<Vec<UsageRow>> {
     fn map_row(r: &rusqlite::Row) -> rusqlite::Result<UsageRow> {
@@ -290,24 +343,113 @@ pub fn query_usage(
             total_tokens: r.get::<_, i64>(4)? as u64,
         })
     }
-    let rows = if let Some(key) = consumer_key {
-        let mut stmt = conn.prepare(
-            "SELECT model, COUNT(*),
-                    COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(total_tokens),0)
-             FROM usage_logs WHERE created_at >= ?1 AND consumer_key = ?2
-             GROUP BY model ORDER BY SUM(total_tokens) DESC",
-        )?;
-        let iter = stmt.query_map(params![since, key], map_row)?;
-        iter.collect::<rusqlite::Result<Vec<_>>>()?
-    } else {
-        let mut stmt = conn.prepare(
-            "SELECT model, COUNT(*),
-                    COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(total_tokens),0)
-             FROM usage_logs WHERE created_at >= ?1
-             GROUP BY model ORDER BY SUM(total_tokens) DESC",
-        )?;
-        let iter = stmt.query_map(params![since], map_row)?;
-        iter.collect::<rusqlite::Result<Vec<_>>>()?
-    };
-    Ok(rows)
+
+    if consumer_keys.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let placeholders: Vec<String> = (0..consumer_keys.len())
+        .map(|i| format!("?{}", i + 2))
+        .collect();
+    let sql = format!(
+        "SELECT model, COUNT(*),
+                COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(total_tokens),0)
+         FROM usage_logs WHERE created_at >= ?1 AND consumer_key IN ({})
+         GROUP BY model ORDER BY SUM(total_tokens) DESC",
+        placeholders.join(",")
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let binds: Vec<&dyn rusqlite::ToSql> = std::iter::once(&since as &dyn rusqlite::ToSql)
+        .chain(consumer_keys.iter().map(|k| k as &dyn rusqlite::ToSql))
+        .collect();
+    let iter = stmt.query_map(binds.as_slice(), map_row)?;
+    Ok(iter.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+// ===================== 供应商用量统计 =====================
+
+/// 记录一次请求的供应商侧 token 用量（独立表）
+pub fn record_provider_usage(
+    conn: &Connection,
+    provider_id: i64,
+    provider_key: &str,
+    model: &str,
+    input_tokens: u64,
+    output_tokens: u64,
+    total_tokens: u64,
+) -> anyhow::Result<()> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0) as i64;
+    conn.execute(
+        "INSERT INTO provider_usage_logs (provider_id, provider_key, model, input_tokens, output_tokens, total_tokens, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![provider_id, provider_key, model, input_tokens, output_tokens, total_tokens, now],
+    )?;
+    Ok(())
+}
+
+/// 按模型聚合查询供应商用量。
+/// provider_ids 为空 = 不过滤供应商；provider_keys 为空 = 不过滤 key。
+/// 调用方应从当前 config 解析出实际的 id/key 列表传入。
+pub fn query_provider_usage(
+    conn: &Connection,
+    provider_ids: &[i64],
+    provider_keys: &[String],
+    since: i64,
+) -> anyhow::Result<Vec<UsageRow>> {
+    fn map_row(r: &rusqlite::Row) -> rusqlite::Result<UsageRow> {
+        Ok(UsageRow {
+            model: r.get(0)?,
+            requests: r.get::<_, i64>(1)? as u64,
+            input_tokens: r.get::<_, i64>(2)? as u64,
+            output_tokens: r.get::<_, i64>(3)? as u64,
+            total_tokens: r.get::<_, i64>(4)? as u64,
+        })
+    }
+
+    // 动态构建 WHERE 条件
+    let mut conditions = vec!["created_at >= ?1".to_string()];
+    let mut binds: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(since)];
+    let mut idx = 2usize;
+
+    if !provider_ids.is_empty() {
+        let placeholders: Vec<String> = provider_ids
+            .iter()
+            .map(|id| {
+                let p = format!("?{idx}");
+                binds.push(Box::new(*id));
+                idx += 1;
+                p
+            })
+            .collect();
+        conditions.push(format!("provider_id IN ({})", placeholders.join(",")));
+    }
+
+    if !provider_keys.is_empty() {
+        let placeholders: Vec<String> = provider_keys
+            .iter()
+            .map(|k| {
+                let p = format!("?{idx}");
+                binds.push(Box::new(k.clone()));
+                idx += 1;
+                p
+            })
+            .collect();
+        conditions.push(format!("provider_key IN ({})", placeholders.join(",")));
+    }
+
+    let sql = format!(
+        "SELECT model, COUNT(*),
+                COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(total_tokens),0)
+         FROM provider_usage_logs WHERE {}
+         GROUP BY model ORDER BY SUM(total_tokens) DESC",
+        conditions.join(" AND ")
+    );
+
+    let refs: Vec<&dyn rusqlite::ToSql> = binds.iter().map(|b| b.as_ref()).collect();
+    let mut stmt = conn.prepare(&sql)?;
+    let iter = stmt.query_map(refs.as_slice(), map_row)?;
+    Ok(iter.collect::<rusqlite::Result<Vec<_>>>()?)
 }

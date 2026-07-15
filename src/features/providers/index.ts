@@ -29,6 +29,7 @@ export function useProviderList() {
 
   function blankProvider(): ProviderConfig {
     return {
+      id: 0,
       name: '',
       protocol: 'chat',
       base_url: '',
