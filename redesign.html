@@ -141,18 +141,24 @@ body{
 /* ============================================================
    Logo 系统
    ============================================================ */
-.logo-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:0;border:1px solid var(--border-weak);border-radius:var(--r-md);overflow:hidden}
-.logo-card{padding:28px;display:flex;flex-direction:column;gap:12px;min-height:180px;border-right:1px solid var(--border-weak)}
-.logo-card:last-child{border-right:none}
-.logo-card .label{font-size:11px;color:var(--text-weak);letter-spacing:.04em}
-.logo-card .stage{flex:1;display:flex;align-items:center;justify-content:center}
-.brand-lockup{display:flex;align-items:center;gap:12px}
-.brand-lockup .wm{font-weight:700;font-size:22px;color:var(--text-strong);letter-spacing:-.01em}
-.brand-lockup .wm .a{color:var(--text-weak)}
+.logo-candidates{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border-weak);border-radius:var(--r-md);overflow:hidden}
+.lc{display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px 16px;border-right:1px solid var(--border-weak);border-bottom:1px solid var(--border-weak);text-align:center}
+.lc:nth-child(4n){border-right:none}
+.lc:nth-last-child(-n+4){border-bottom:none}
+.lc-stage{width:88px;height:88px;border:1px solid var(--border-weak);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--bg-weak)}
+.lc-meta{display:flex;flex-direction:column;gap:4px}
+.lc-tag{font-size:9px;letter-spacing:.12em;color:var(--text-weak);font-weight:600}
+.lc-name{font-size:13px;font-weight:600;color:var(--text-strong)}
+.lc-desc{font-size:10px;color:var(--text-weak);line-height:1.5}
 
 .logo-sizes{display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-top:16px;padding:20px 24px;border:1px solid var(--border-weak);border-radius:var(--r-md)}
 .logo-sizes .sz{display:flex;flex-direction:column;align-items:center;gap:7px}
 .logo-sizes .sz span{font-size:10px;color:var(--text-weak)}
+.logo-inv{display:flex;align-items:center;gap:18px;margin-top:12px;padding:18px 24px;background:var(--bg-strong);border-radius:var(--r-md)}
+.logo-inv-stage{flex-shrink:0;display:flex;align-items:center;gap:18px}
+.logo-inv-meta{display:flex;flex-direction:column;gap:3px}
+.logo-inv-meta b{font-size:11px;color:var(--text-inverted);font-weight:500}
+.logo-inv-meta span{font-size:10px;color:var(--text-weaker)}
 
 /* ============================================================
    设计系统
@@ -406,9 +412,12 @@ body{
   .footer{padding:24px}
   .hero h1{font-size:22px}
   .hero p{max-width:100%;font-size:15px;line-height:180%}
-  .logo-grid{grid-template-columns:1fr}
-  .logo-card{border-right:none;border-bottom:1px solid var(--border-weak)}
-  .logo-card:last-child{border-bottom:none}
+  .logo-candidates{grid-template-columns:1fr 1fr}
+  .lc{border-right:1px solid var(--border-weak);border-bottom:1px solid var(--border-weak)}
+  .lc:nth-child(4n){border-right:1px solid var(--border-weak)}
+  .lc:nth-child(2n){border-right:none}
+  .lc:nth-last-child(-n+4){border-bottom:1px solid var(--border-weak)}
+  .lc:nth-last-child(-n+2){border-bottom:none}
   .dsystem{grid-template-columns:1fr}
   .panel{border-right:none;border-bottom:1px solid var(--border-weak)}
   .panel:last-child{border-bottom:none}
@@ -437,13 +446,68 @@ body{
 <!-- Logo 定义 — 线条方头，opencode 风 -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
+    <!-- 主 Logo · 四凸饱满 — 四圆弧凸起 + 三数据方块（定稿 PRIMARY） -->
     <symbol id="ico" viewBox="0 0 64 64">
-      <!-- 三流汇聚 · 纯线条 · 方头 -->
-      <path d="M5 19 C 21 19, 25 31, 33 32" fill="none" stroke="#1f1e1e" stroke-width="2.4" stroke-linecap="square"/>
-      <path d="M5 32 L 33 32" fill="none" stroke="#999898" stroke-width="2.4" stroke-linecap="square"/>
-      <path d="M5 45 C 21 45, 25 33, 33 32" fill="none" stroke="#1f1e1e" stroke-width="2.4" stroke-linecap="square"/>
-      <path d="M33 32 L 59 32" fill="none" stroke="#1f1e1e" stroke-width="2.6" stroke-linecap="square"/>
-      <rect x="29" y="28" width="8" height="8" rx="1" transform="rotate(45 33 32)" fill="none" stroke="#1f1e1e" stroke-width="2.2"/>
+      <path d="M10 40 A7 7 0 0 1 19 30 A9 9 0 0 1 32 26 A9 9 0 0 1 45 30 A7 7 0 0 1 54 40 L16 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 反白版 — 用于深色背景（托盘 / 深色按钮） -->
+    <symbol id="ico-inv" viewBox="0 0 64 64">
+      <path d="M10 40 A7 7 0 0 1 19 30 A9 9 0 0 1 32 26 A9 9 0 0 1 45 30 A7 7 0 0 1 54 40 L16 40" fill="none" stroke="#fcfafa" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#fcfafa"/>
+      <rect x="29" y="46" width="6" height="6" fill="#fcfafa"/>
+      <rect x="37" y="46" width="6" height="6" fill="#fcfafa"/>
+    </symbol>
+    <!-- 01 · 两凸扁平 — 只两个凸起，更扁更克制 -->
+    <symbol id="logo-2" viewBox="0 0 64 64">
+      <path d="M14 40 A10 10 0 0 1 32 30 A10 10 0 0 1 50 40 L20 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 02 · 四凸饱满 — 四个凸起，更蓬松 -->
+    <symbol id="logo-3" viewBox="0 0 64 64">
+      <path d="M10 40 A7 7 0 0 1 19 30 A9 9 0 0 1 32 26 A9 9 0 0 1 45 30 A7 7 0 0 1 54 40 L16 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 03 · 单穹顶 — 一个大圆顶，极简 -->
+    <symbol id="logo-4" viewBox="0 0 64 64">
+      <path d="M12 40 A20 20 0 0 1 52 40 L18 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 04 · 回钩收笔 — 三凸 + 末端向内回钩，书法感 -->
+    <symbol id="logo-5" viewBox="0 0 64 64">
+      <path d="M12 40 A8 8 0 0 1 22 28 A13 13 0 0 1 42 28 A8 8 0 0 1 52 40 L18 40 L23 35" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 05 · 闭合轮廓 — 底部完全闭合，不开放留口 -->
+    <symbol id="logo-6" viewBox="0 0 64 64">
+      <path d="M12 40 A8 8 0 0 1 22 28 A13 13 0 0 1 42 28 A8 8 0 0 1 52 40 Z" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 06 · 不对称 — 凸起左大右小，打破对称更有机 -->
+    <symbol id="logo-7" viewBox="0 0 64 64">
+      <path d="M12 40 A11 11 0 0 1 25 28 A12 12 0 0 1 43 30 A7 7 0 0 1 52 40 L18 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 07 · 虚线笔触 — 云用虚线勾勒，数字/数据感 -->
+    <symbol id="logo-8" viewBox="0 0 64 64">
+      <path d="M12 40 A8 8 0 0 1 22 28 A13 13 0 0 1 42 28 A8 8 0 0 1 52 40 L18 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="4 2.5"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
     </symbol>
     <symbol id="ic-dash" viewBox="0 0 14 14">
       <rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
@@ -501,21 +565,41 @@ body{
   <section class="section">
     <div class="section-head">
       <span class="kicker">01 · 标识</span>
-      <h2>Logo — 三流汇聚，一端输出</h2>
-      <p>三条输入线（黑 / 灰 / 黑，象征多个提供商与三种协议）在菱形网关节点处汇聚为一条输出线。纯线条勾勒，方头描边，无填充。</p>
+      <h2>Logo — 云的形态 · 八种延伸</h2>
+      <p>固定下方三个数据方块，仅从「云本身」延伸：凸起数量、扁平度、闭合方式、笔触、对称性。共基准一版 + 七种云形变化。选定后统一应用并补反白版。</p>
     </div>
-    <div class="logo-grid">
-      <div class="logo-card">
-        <span class="label">PRIMARY · 品牌横排</span>
-        <div class="stage"><div class="brand-lockup"><svg width="48" height="48"><use href="#ico"/></svg><span class="wm">ai<span class="a">·</span>aggregs</span></div></div>
+    <div class="logo-candidates">
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#ico"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag">BASE · 基准</span><span class="lc-name">三凸开放</span><span class="lc-desc">三圆弧凸起，底部留口。</span></div>
       </div>
-      <div class="logo-card">
-        <span class="label">图标</span>
-        <div class="stage"><svg width="68" height="68"><use href="#ico"/></svg></div>
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#logo-2"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag">01</span><span class="lc-name">两凸扁平</span><span class="lc-desc">只两凸起，更扁更克制。</span></div>
       </div>
-      <div class="logo-card">
-        <span class="label">单色</span>
-        <div class="stage" style="color:var(--text-strong)"><svg width="68" height="68"><use href="#ico"/></svg></div>
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#logo-3"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag" style="color:var(--green)">02 · 已选定</span><span class="lc-name">四凸饱满</span><span class="lc-desc">四个凸起，更蓬松。</span></div>
+      </div>
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#logo-4"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag">03</span><span class="lc-name">单穹顶</span><span class="lc-desc">一个大圆顶，极简。</span></div>
+      </div>
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#logo-5"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag">04</span><span class="lc-name">回钩收笔</span><span class="lc-desc">末端向内回钩，书法感。</span></div>
+      </div>
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#logo-6"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag">05</span><span class="lc-name">闭合轮廓</span><span class="lc-desc">底部完全闭合不留口。</span></div>
+      </div>
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#logo-7"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag">06</span><span class="lc-name">不对称</span><span class="lc-desc">凸起左大右小，更有机。</span></div>
+      </div>
+      <div class="lc">
+        <div class="lc-stage"><svg width="64" height="64"><use href="#logo-8"/></svg></div>
+        <div class="lc-meta"><span class="lc-tag">07</span><span class="lc-name">虚线笔触</span><span class="lc-desc">云用虚线勾勒，数据感。</span></div>
       </div>
     </div>
     <div class="logo-sizes">
@@ -524,6 +608,14 @@ body{
       <div class="sz"><svg width="24" height="24"><use href="#ico"/></svg><span>24 · 托盘</span></div>
       <div class="sz"><svg width="16" height="16"><use href="#ico"/></svg><span>16 · Favicon</span></div>
       <div class="sz"><svg width="12" height="12"><use href="#ico"/></svg><span>12 · 最小</span></div>
+    </div>
+    <div class="logo-inv">
+      <div class="logo-inv-stage">
+        <svg width="56" height="56"><use href="#ico-inv"/></svg>
+        <svg width="24" height="24"><use href="#ico-inv"/></svg>
+        <svg width="16" height="16"><use href="#ico-inv"/></svg>
+      </div>
+      <div class="logo-inv-meta"><b>反白版</b><span>用于深色背景 · 托盘 / 深色按钮 / 启动图</span></div>
     </div>
   </section>
 
@@ -576,7 +668,7 @@ body{
     </div>
     <div class="window">
       <div class="titlebar">
-        <div class="tl-left">AI 聚合网关</div>
+        <div class="tl-left"><svg width="16" height="16" style="vertical-align:-3px;margin-right:7px"><use href="#ico"/></svg>AI 聚合网关</div>
         <div class="tl-center"><span class="tl-pill"><span class="dot on"></span><span class="ptext">运行中</span><span class="paddr">127.0.0.1:8000</span></span></div>
         <div class="tl-ctrl">
           <button class="win-btn" title="最小化"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" stroke-width="1"/></svg></button>
