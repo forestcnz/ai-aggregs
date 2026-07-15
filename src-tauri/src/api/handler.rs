@@ -100,7 +100,7 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                     "proxy: upstream send failed"
                 );
                 last_err = Some(AppError::UpstreamStatus(status, e.message));
-                if status >= 400 && status < 500 && status != 429 {
+                if (400..500).contains(&status) && status != 429 {
                     break;
                 }
                 tracing::warn!(

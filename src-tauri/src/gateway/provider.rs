@@ -38,8 +38,6 @@ pub struct Provider {
     pub max_retries: u32,
     pub extra_headers: Vec<(String, String)>,
     pub reasoning_effort: Option<String>,
-    #[allow(dead_code)]
-    pub enabled: bool,
     keys: Vec<ApiKeyEntry>,
     blacklist: Mutex<HashMap<usize, Instant>>,
     blacklist_disabled_until: Mutex<Option<Instant>>,
@@ -65,7 +63,6 @@ impl Provider {
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
             reasoning_effort: cfg.reasoning_effort.clone(),
-            enabled: cfg.enabled,
             keys: cfg.api_keys.clone(),
             blacklist: Mutex::new(HashMap::new()),
             blacklist_disabled_until: Mutex::new(None),
@@ -102,10 +99,7 @@ impl Provider {
 
     fn is_blacklisted(&self, idx: usize, now: Instant) -> bool {
         let map = self.blacklist.lock().unwrap();
-        match map.get(&idx) {
-            Some(until) if *until > now => true,
-            _ => false,
-        }
+        matches!(map.get(&idx), Some(until) if *until > now)
     }
 
     fn blacklist_key(&self, idx: usize, now: Instant) {

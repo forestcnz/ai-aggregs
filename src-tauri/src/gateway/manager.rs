@@ -86,6 +86,7 @@ pub async fn stop_gateway_inner(app: &tauri::AppHandle) -> Result<(), IpcError> 
     Ok(())
 }
 
+#[allow(clippy::drop_non_drop)]
 pub async fn rebuild_if_running(app: &tauri::AppHandle) -> Result<(), IpcError> {
     let ctrl = app.state::<AppCtrl>();
     let running = ctrl.server.lock().unwrap().is_some();

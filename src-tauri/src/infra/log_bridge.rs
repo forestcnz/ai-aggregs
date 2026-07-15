@@ -263,7 +263,7 @@ impl MessageCollector {
             self.result.push(' ');
         }
         self.result.push_str(name);
-        self.result.push_str("=");
+        self.result.push('=');
         self.result.push_str(value);
     }
 }

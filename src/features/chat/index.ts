@@ -354,7 +354,7 @@ export function useChat(props: { status: GatewayStatus }) {
   }
 
   return {
-    config, protocol, selectedModel, input, sending, dialogMsg,
+    protocol, selectedModel, input, sending, dialogMsg,
     messages, scrollEl, textareaRef, models,
     closeDialog, send, stop, clearChat, onKeydown
   }

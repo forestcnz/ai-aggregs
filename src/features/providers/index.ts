@@ -5,7 +5,6 @@ import {
   runtimeStatus,
   toggleProvider,
   toggleKey,
-  normalizeKey,
   type Config,
   type ProviderConfig,
   type ProviderRuntime
@@ -15,7 +14,6 @@ export function useProviderList() {
   const config = ref<Config | null>(null)
   const runtimeMap = ref<Map<string, ProviderRuntime>>(new Map())
   const loading = ref(false)
-  const saving = ref(false)
   const msg = ref('')
   let timer: ReturnType<typeof setInterval> | null = null
 
@@ -70,15 +68,12 @@ export function useProviderList() {
 
   async function save() {
     if (!config.value) return
-    saving.value = true
     try {
       await saveConfig(config.value)
       await refreshRuntime()
       showMsg('已保存')
     } catch (e) {
       showMsg('保存失败: ' + String(e))
-    } finally {
-      saving.value = false
     }
   }
 
@@ -253,12 +248,11 @@ export function useProviderList() {
   })
 
   return {
-    config, runtimeMap, loading, saving, msg,
-    modalMode, editingProvider, editingIdx, modelInput, keyInput,
+    config, loading, msg,
+    modalMode, editingProvider, modelInput, keyInput,
     onToggleProvider, onToggleKey,
     openAdd, openEdit, closeModal, submitModal, deleteFromModal,
     modalAddModel, modalRemoveModel, modalAddKey, modalRemoveKey,
-    getRuntime, keyRuntime, maskKey, iconFor, keyReleaseTime, fmtTime,
-    normalizeKey
+    getRuntime, keyRuntime, maskKey, iconFor, keyReleaseTime, fmtTime
   }
 }

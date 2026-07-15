@@ -36,12 +36,12 @@ pub async fn save_config(app: tauri::AppHandle, mut cfg: Config) -> Result<(), I
 
 #[tauri::command]
 pub async fn start_gateway(app: tauri::AppHandle) -> Result<String, IpcError> {
-    start_gateway_inner(&app).await.map_err(IpcError::from)
+    start_gateway_inner(&app).await
 }
 
 #[tauri::command]
 pub async fn stop_gateway(app: tauri::AppHandle) -> Result<(), IpcError> {
-    stop_gateway_inner(&app).await.map_err(IpcError::from)
+    stop_gateway_inner(&app).await
 }
 
 #[tauri::command]
