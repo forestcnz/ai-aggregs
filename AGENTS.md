@@ -7,6 +7,18 @@ AI API 聚合网关桌面应用。Tauri v2 + Vue 3 + Rust/Axum，同一进程内
 - **JS → Bun**，勿用 npm/yarn/pnpm
 - **Rust → Cargo** (`src-tauri/`)
 
+## 禁止执行
+
+AI 不得执行以下命令（耗时长、会破坏缓存或启动 GUI 进程，不适用于自动化工作流）：
+
+| 命令 | 原因 |
+|------|------|
+| `cargo clean` | 删除构建缓存，导致后续编译极慢 |
+| `bun run tauri dev` | 启动完整 Tauri 窗口（GUI），阻塞终端 |
+| `bun run tauri build` | 打包完整安装包，耗时极长 |
+
+如需验证改动，使用 `cargo check`、`cargo clippy`、`bun run build` 等轻量命令替代。
+
 ## 关键命令
 
 | 用途 | 命令 | 说明 |
@@ -37,6 +49,8 @@ src/
 │   ├── dashboard/        ← 网关状态（仪表盘）
 │   ├── providers/        ← 提供商管理
 │   ├── chat/             ← 聊天
+│   ├── usage/            ← consumer 用量统计
+│   ├── provider-usage/   ← 供应商用量统计
 │   └── settings/         ← 设置
 ```
 
@@ -58,7 +72,7 @@ src/
 
 ### 模块布局
 
-- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 11 个 IPC 命令 + 2 个事件
+- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 13 个 IPC 命令 + 2 个事件
 - `api/commands.rs` — 所有 `#[tauri::command]` 函数
 - `api/handler.rs` — Axum HTTP 请求处理（鉴权、model 路由、协议判定、failover）
 - `api/router.rs` — Axum 路由表 + CORS
