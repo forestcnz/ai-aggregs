@@ -84,6 +84,24 @@ export interface LogEntry {
   ts: number
 }
 
+/** 单个模型的聚合用量行 */
+export interface UsageModelRow {
+  model: string
+  requests: number
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+}
+
+/** 用量统计汇总（含各模型明细 + 总计） */
+export interface UsageSummary {
+  models: UsageModelRow[]
+  total_requests: number
+  total_input_tokens: number
+  total_output_tokens: number
+  total_tokens: number
+}
+
 // ===================== 命令封装 =====================
 
 /** 获取当前配置（返回时自动同步 consumer.models） */
@@ -120,6 +138,14 @@ export const disableAutostart = () => invoke<void>('disable_autostart')
 
 /** 查询开机自启状态 */
 export const autostartStatus = () => invoke<boolean>('autostart_status')
+
+/**
+ * 查询用量统计。
+ * @param consumerKey 指定 consumer key，null 查全部
+ * @param days 时间范围天数，null 查全部
+ */
+export const getUsage = (consumerKey: string | null, days: number | null) =>
+  invoke<UsageSummary>('get_usage', { consumerKey, days })
 
 // ===================== 事件监听 =====================
 

@@ -4,6 +4,7 @@ import GatewayStatusView from './features/dashboard/index.vue'
 import ProviderList from './features/providers/index.vue'
 import ConfigEditor from './features/settings/index.vue'
 import ChatView from './features/chat/index.vue'
+import UsageView from './features/usage/index.vue'
 
 const { activeTab, status, isMaximized, logs, refreshStatus, minimize, toggleMaximize, closeWindow } = useApp()
 </script>
@@ -99,6 +100,7 @@ const { activeTab, status, isMaximized, logs, refreshStatus, minimize, toggleMax
             { id: 'dashboard', label: '网关状态' },
             { id: 'providers', label: '提供商' },
             { id: 'chat', label: '聊天' },
+            { id: 'usage', label: '用量统计' },
             { id: 'settings', label: '设置' }
           ]"
           :key="tab.id"
@@ -177,6 +179,12 @@ const { activeTab, status, isMaximized, logs, refreshStatus, minimize, toggleMax
               stroke-linecap="square"
             />
           </svg>
+          <svg v-else-if="tab.id === 'usage'" class="nav-icon" viewBox="0 0 14 14" fill="none">
+            <line x1="2.5" y1="11.5" x2="2.5" y2="8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" />
+            <line x1="6" y1="11.5" x2="6" y2="4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" />
+            <line x1="9.5" y1="11.5" x2="9.5" y2="6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" />
+            <line x1="1.5" y1="12.5" x2="12.5" y2="12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="square" />
+          </svg>
           <svg v-else class="nav-icon" viewBox="0 0 14 14" fill="none">
             <circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3" />
             <path
@@ -206,6 +214,7 @@ const { activeTab, status, isMaximized, logs, refreshStatus, minimize, toggleMax
         />
         <ProviderList v-else-if="activeTab === 'providers'" :gateway-running="status.running" />
         <ChatView v-else-if="activeTab === 'chat'" :status="status" />
+        <UsageView v-else-if="activeTab === 'usage'" :status="status" />
         <ConfigEditor v-else />
       </main>
     </div>

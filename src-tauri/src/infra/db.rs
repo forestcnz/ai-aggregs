@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use rusqlite::{params, Connection};
+use serde::Serialize;
 
 use crate::config::types::{
     ApiKeyEntry, Config, ConsumerConfig, LogConfig, Protocol, ProviderConfig,
@@ -47,6 +48,18 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
             model       TEXT NOT NULL,
             sort_order  INTEGER NOT NULL DEFAULT 0
         );
+
+        CREATE TABLE IF NOT EXISTS usage_logs (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            consumer_key    TEXT    NOT NULL DEFAULT '',
+            model           TEXT    NOT NULL,
+            input_tokens    INTEGER NOT NULL DEFAULT 0,
+            output_tokens   INTEGER NOT NULL DEFAULT 0,
+            total_tokens    INTEGER NOT NULL DEFAULT 0,
+            created_at      INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_usage_key     ON usage_logs(consumer_key);
+        CREATE INDEX IF NOT EXISTS idx_usage_created  ON usage_logs(created_at);
         "#,
     )?;
     Ok(())
@@ -227,4 +240,74 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
 
     tx.commit()?;
     Ok(())
+}
+
+// ===================== 用量统计 =====================
+
+/// 单个模型的聚合用量行
+#[derive(Debug, Serialize)]
+pub struct UsageRow {
+    pub model: String,
+    pub requests: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub total_tokens: u64,
+}
+
+/// 记录一次请求的 token 用量
+pub fn record_usage(
+    conn: &Connection,
+    consumer_key: &str,
+    model: &str,
+    input_tokens: u64,
+    output_tokens: u64,
+    total_tokens: u64,
+) -> anyhow::Result<()> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0) as i64;
+    conn.execute(
+        "INSERT INTO usage_logs (consumer_key, model, input_tokens, output_tokens, total_tokens, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![consumer_key, model, input_tokens, output_tokens, total_tokens, now],
+    )?;
+    Ok(())
+}
+
+/// 按模型聚合查询用量；consumer_key=None 查全部，since=0 查全部时间
+pub fn query_usage(
+    conn: &Connection,
+    consumer_key: Option<&str>,
+    since: i64,
+) -> anyhow::Result<Vec<UsageRow>> {
+    fn map_row(r: &rusqlite::Row) -> rusqlite::Result<UsageRow> {
+        Ok(UsageRow {
+            model: r.get(0)?,
+            requests: r.get::<_, i64>(1)? as u64,
+            input_tokens: r.get::<_, i64>(2)? as u64,
+            output_tokens: r.get::<_, i64>(3)? as u64,
+            total_tokens: r.get::<_, i64>(4)? as u64,
+        })
+    }
+    let rows = if let Some(key) = consumer_key {
+        let mut stmt = conn.prepare(
+            "SELECT model, COUNT(*),
+                    COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(total_tokens),0)
+             FROM usage_logs WHERE created_at >= ?1 AND consumer_key = ?2
+             GROUP BY model ORDER BY SUM(total_tokens) DESC",
+        )?;
+        let iter = stmt.query_map(params![since, key], map_row)?;
+        iter.collect::<rusqlite::Result<Vec<_>>>()?
+    } else {
+        let mut stmt = conn.prepare(
+            "SELECT model, COUNT(*),
+                    COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COALESCE(SUM(total_tokens),0)
+             FROM usage_logs WHERE created_at >= ?1
+             GROUP BY model ORDER BY SUM(total_tokens) DESC",
+        )?;
+        let iter = stmt.query_map(params![since], map_row)?;
+        iter.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    Ok(rows)
 }

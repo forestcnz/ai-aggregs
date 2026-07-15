@@ -14,7 +14,7 @@ pub struct ServerHandle {
 
 pub struct AppCtrl {
     pub config: Mutex<Config>,
-    pub db: Mutex<rusqlite::Connection>,
+    pub db: Arc<Mutex<rusqlite::Connection>>,
     pub server: Mutex<Option<ServerHandle>>,
     pub listen_addr: Mutex<String>,
     pub providers: Mutex<Vec<Arc<Provider>>>,
@@ -62,10 +62,15 @@ pub struct AppState {
     pub consumer: Consumer,
     pub providers: Arc<Vec<Arc<Provider>>>,
     pub model_map: Arc<HashMap<String, Vec<usize>>>,
+    pub db: Arc<Mutex<rusqlite::Connection>>,
 }
 
 impl AppState {
-    pub fn build(cfg: &Config, providers: Vec<Arc<Provider>>) -> anyhow::Result<Self> {
+    pub fn build(
+        cfg: &Config,
+        providers: Vec<Arc<Provider>>,
+        db: Arc<Mutex<rusqlite::Connection>>,
+    ) -> anyhow::Result<Self> {
         let mut map: HashMap<String, Vec<usize>> = HashMap::new();
         for (i, p) in providers.iter().enumerate() {
             for m in &p.models {
@@ -79,6 +84,7 @@ impl AppState {
             },
             providers: Arc::new(providers),
             model_map: Arc::new(map),
+            db,
         })
     }
 
@@ -89,4 +95,26 @@ impl AppState {
         }
         Some(idxs.iter().map(|i| self.providers[*i].clone()).collect())
     }
+}
+
+// ===================== 用量统计 IPC 返回类型 =====================
+
+/// 单个模型的聚合用量
+#[derive(Serialize)]
+pub struct UsageModelRow {
+    pub model: String,
+    pub requests: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub total_tokens: u64,
+}
+
+/// 用量统计汇总（含各模型明细 + 总计）
+#[derive(Serialize)]
+pub struct UsageSummary {
+    pub models: Vec<UsageModelRow>,
+    pub total_requests: u64,
+    pub total_input_tokens: u64,
+    pub total_output_tokens: u64,
+    pub total_tokens: u64,
 }

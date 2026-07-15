@@ -1,0 +1,106 @@
+<script setup lang="ts">
+import { useUsage } from './index'
+import { type GatewayStatus } from '../../api/commands'
+
+defineProps<{ status: GatewayStatus }>()
+
+const { config, summary, selectedKey, selectedDays, loading, loadUsage, fmtNum, maskKey, colorForModel } =
+  useUsage()
+</script>
+
+<template>
+  <div class="usage-root">
+    <h1 class="page-title">用量统计</h1>
+    <p class="page-sub">Consumer API Key 各模型 Token 使用量</p>
+
+    <!-- 筛选栏 -->
+    <div class="usage-filter">
+      <div class="uf-item">
+        <span class="uf-label">Consumer Key</span>
+        <select v-model="selectedKey" class="select">
+          <option value="all">全部 Keys</option>
+          <option
+            v-for="key in config?.consumer.api_keys ?? []"
+            :key="key"
+            :value="key"
+          >
+            {{ maskKey(key) }}
+          </option>
+        </select>
+      </div>
+      <div class="uf-item">
+        <span class="uf-label">时间范围</span>
+        <div class="seg">
+          <input id="r-1d" v-model.number="selectedDays" type="radio" :value="1" />
+          <label for="r-1d">今天</label>
+          <input id="r-7d" v-model.number="selectedDays" type="radio" :value="7" />
+          <label for="r-7d">7 天</label>
+          <input id="r-30d" v-model.number="selectedDays" type="radio" :value="30" />
+          <label for="r-30d">30 天</label>
+          <input id="r-all" v-model.number="selectedDays" type="radio" :value="0" />
+          <label for="r-all">全部</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 汇总卡片 -->
+    <div class="stats">
+      <div class="stat-card">
+        <span class="label">总请求数</span>
+        <span class="value mono">{{ summary ? fmtNum(summary.total_requests) : '—' }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="label">总 Token</span>
+        <span class="value mono">{{ summary ? fmtNum(summary.total_tokens) : '—' }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="label">输入 Token</span>
+        <span class="value mono">{{ summary ? fmtNum(summary.total_input_tokens) : '—' }}</span>
+      </div>
+      <div class="stat-card">
+        <span class="label">输出 Token</span>
+        <span class="value mono">{{ summary ? fmtNum(summary.total_output_tokens) : '—' }}</span>
+      </div>
+    </div>
+
+    <!-- 模型明细 -->
+    <div class="usage-head">
+      <h3>模型明细 <span class="ct">{{ summary?.models.length ?? 0 }} 个模型</span></h3>
+      <button class="btn btn-secondary sm" :disabled="loading" @click="loadUsage">
+        {{ loading ? '加载中...' : '刷新' }}
+      </button>
+    </div>
+
+    <!-- 空状态 -->
+    <div v-if="summary && summary.models.length === 0" class="usage-empty">暂无使用记录</div>
+
+    <!-- 明细表 -->
+    <div v-else-if="summary" class="usage-table">
+      <div class="usage-thead">
+        <span>模型</span>
+        <span class="num">占比</span>
+        <span class="num">请求数</span>
+        <span class="num">输入</span>
+        <span class="num">输出</span>
+        <span class="num">合计</span>
+      </div>
+      <div
+        v-for="(m, i) in summary.models"
+        :key="m.model"
+        class="urow"
+      >
+        <span class="mdl">
+          <span class="mdot" :style="{ background: colorForModel(i) }"></span>
+          {{ m.model }}
+        </span>
+        <span class="num">{{ ((m.total_tokens / (summary?.total_tokens || 1)) * 100).toFixed(0) }}%</span>
+        <span class="num">{{ m.requests }}</span>
+        <span class="num">{{ fmtNum(m.input_tokens) }}</span>
+        <span class="num">{{ fmtNum(m.output_tokens) }}</span>
+        <span class="num total">{{ fmtNum(m.total_tokens) }}</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style src="./index.css" scoped></style>

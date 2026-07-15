@@ -7,11 +7,11 @@ use serde_json::{json, Value};
 use crate::config::state::AppState;
 use crate::config::types::Protocol;
 use crate::gateway::converter;
-use crate::gateway::stream;
+use crate::gateway::stream::{self, UsageCtx};
 use crate::infra::error::AppError;
 
 pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response, AppError> {
-    auth(&st, req.headers())?;
+    let consumer_key = auth(&st, req.headers())?;
 
     let c_proto = proto_from_path(req.uri().path());
     let req_method = req.method().clone();
@@ -89,7 +89,19 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                     status = %resp.status(),
                     "proxy: upstream responded"
                 );
-                return build_response(resp, p_proto, c_proto, need_convert, stream).await;
+                return build_response(
+                    resp,
+                    p_proto,
+                    c_proto,
+                    need_convert,
+                    stream,
+                    UsageCtx {
+                        consumer_key: consumer_key.clone(),
+                        model: model.clone(),
+                        db: st.db.clone(),
+                    },
+                )
+                .await;
             }
             Err(e) => {
                 let status = e.status;
@@ -121,6 +133,7 @@ async fn build_response(
     c_proto: Protocol,
     need_convert: bool,
     stream: bool,
+    ctx: UsageCtx,
 ) -> Result<Response, AppError> {
     tracing::debug!(
         p_proto = ?p_proto,
@@ -132,9 +145,9 @@ async fn build_response(
     );
     if stream {
         if need_convert {
-            Ok(stream::stream_convert(resp, p_proto, c_proto).await?)
+            Ok(stream::stream_convert(resp, p_proto, c_proto, ctx).await?)
         } else {
-            Ok(stream::stream_passthrough(resp))
+            Ok(stream::stream_passthrough(resp, ctx))
         }
     } else {
         let status = resp.status();
@@ -149,6 +162,10 @@ async fn build_response(
         } else {
             val
         };
+        // 记录 token 用量
+        if let Some((input, output, total)) = stream::extract_usage(&out) {
+            ctx.record(input, output, total);
+        }
         Ok((status, Json(out)).into_response())
     }
 }
@@ -181,7 +198,8 @@ fn truncate_json(v: &Value, max: usize) -> String {
     }
 }
 
-fn auth(st: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
+/// 鉴权，返回 consumer 提交的 key（用于用量统计）
+fn auth(st: &AppState, headers: &HeaderMap) -> Result<String, AppError> {
     let bearer = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
@@ -189,7 +207,7 @@ fn auth(st: &AppState, headers: &HeaderMap) -> Result<(), AppError> {
     let xkey = headers.get("x-api-key").and_then(|v| v.to_str().ok());
     let presented = bearer.or(xkey).unwrap_or("");
     if st.consumer.check_key(presented) {
-        Ok(())
+        Ok(presented.to_string())
     } else {
         Err(AppError::Unauthorized)
     }

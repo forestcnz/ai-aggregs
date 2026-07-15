@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use axum::body::Body;
 use axum::response::Response;
@@ -9,12 +10,118 @@ use crate::config::types::Protocol;
 use crate::gateway::converter::{
     map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat,
 };
+use crate::infra::db;
 use crate::infra::error::AppError;
+
+// ===================== 用量统计 =====================
+
+/// 流式/非流式请求的用量记录上下文
+pub struct UsageCtx {
+    pub consumer_key: String,
+    pub model: String,
+    pub db: Arc<Mutex<rusqlite::Connection>>,
+}
+
+impl UsageCtx {
+    pub fn record(&self, input: u64, output: u64, total: u64) {
+        if input == 0 && output == 0 {
+            return;
+        }
+        if let Ok(conn) = self.db.lock() {
+            let _ = db::record_usage(&conn, &self.consumer_key, &self.model, input, output, total);
+        }
+    }
+}
+
+/// 从任意 JSON 值中提取 token 用量（兼容 Chat / Anthropic / Responses 三种格式）。
+/// 返回 (input, output, total)。
+pub fn extract_usage(v: &Value) -> Option<(u64, u64, u64)> {
+    // Chat 风格：usage.prompt_tokens / completion_tokens / total_tokens
+    if let Some(u) = v.get("usage") {
+        if let Some(pt) = u.get("prompt_tokens").and_then(|x| x.as_u64()) {
+            let ct = u
+                .get("completion_tokens")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
+            let tt = u
+                .get("total_tokens")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(pt + ct);
+            return Some((pt, ct, tt));
+        }
+        // Anthropic / Responses 风格：usage.input_tokens / output_tokens
+        if let Some(it) = u.get("input_tokens").and_then(|x| x.as_u64()) {
+            let ot = u.get("output_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+            return Some((it, ot, it + ot));
+        }
+    }
+    // Responses completed 事件：response.usage.input_tokens
+    if let Some(u) = v.get("response").and_then(|r| r.get("usage")) {
+        if let Some(it) = u.get("input_tokens").and_then(|x| x.as_u64()) {
+            let ot = u.get("output_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+            return Some((it, ot, it + ot));
+        }
+    }
+    None
+}
+
+/// 从单个 SSE payload 字符串中嗅探用量，更新 last_usage
+fn sniff_usage(payload: &str, last_usage: &mut Option<(u64, u64, u64)>) {
+    if payload == "[DONE]" {
+        return;
+    }
+    if let Ok(v) = serde_json::from_str::<Value>(payload) {
+        if let Some(u) = extract_usage(&v) {
+            *last_usage = Some(u);
+        }
+    }
+}
 
 // ===================== 公共入口 =====================
 
-pub fn stream_passthrough(resp: reqwest::Response) -> Response {
-    let body = Body::from_stream(resp.bytes_stream());
+pub fn stream_passthrough(resp: reqwest::Response, ctx: UsageCtx) -> Response {
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(64);
+
+    tokio::spawn(async move {
+        use futures::StreamExt;
+        let mut stream = resp.bytes_stream();
+        let mut buf = BytesMut::new();
+        let mut last_usage: Option<(u64, u64, u64)> = None;
+
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(c) => {
+                    // 嗅探 SSE data 行中的 usage 字段
+                    buf.extend_from_slice(&c);
+                    loop {
+                        let Some(nl) = buf.iter().position(|b| *b == b'\n') else {
+                            break;
+                        };
+                        let line_bytes = buf.split_to(nl + 1);
+                        let s = String::from_utf8_lossy(&line_bytes);
+                        let s = s.trim();
+                        if let Some(data) = s.strip_prefix("data:").map(str::trim) {
+                            sniff_usage(data, &mut last_usage);
+                        }
+                    }
+                    // 转发原始字节给客户端
+                    if tx.send(Ok(c)).await.is_err() {
+                        return;
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(err = ?e, "upstream stream read error (passthrough)");
+                    return;
+                }
+            }
+        }
+
+        if let Some((i, o, t)) = last_usage {
+            ctx.record(i, o, t);
+        }
+    });
+
+    let body = Body::from_stream(tokio_stream::wrappers::ReceiverStream::new(rx));
     sse_response(body)
 }
 
@@ -22,6 +129,7 @@ pub async fn stream_convert(
     resp: reqwest::Response,
     src: Protocol,
     dst: Protocol,
+    ctx: UsageCtx,
 ) -> Result<Response, AppError> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(64);
     let mut conv = make_converter(src, dst);
@@ -32,6 +140,7 @@ pub async fn stream_convert(
         let mut cur_event: Option<String> = None;
         let mut cur_data = String::new();
         let mut stream = resp.bytes_stream();
+        let mut last_usage: Option<(u64, u64, u64)> = None;
 
         while let Some(chunk) = stream.next().await {
             let chunk = match chunk {
@@ -60,6 +169,7 @@ pub async fn stream_convert(
                     if !cur_data.is_empty() {
                         let payloads = conv.on_event(cur_event.as_deref(), &cur_data);
                         for p in payloads {
+                            sniff_usage(&p, &mut last_usage);
                             let line = make_sse_line(&p);
                             if tx.send(Ok(line.into_bytes().into())).await.is_err() {
                                 return;
@@ -83,13 +193,19 @@ pub async fn stream_convert(
 
         if !cur_data.is_empty() {
             for p in conv.on_event(cur_event.as_deref(), &cur_data) {
+                sniff_usage(&p, &mut last_usage);
                 let line = make_sse_line(&p);
                 let _ = tx.send(Ok(line.into_bytes().into())).await;
             }
         }
         for p in conv.on_done() {
+            sniff_usage(&p, &mut last_usage);
             let line = make_sse_line(&p);
             let _ = tx.send(Ok(line.into_bytes().into())).await;
+        }
+
+        if let Some((i, o, t)) = last_usage {
+            ctx.record(i, o, t);
         }
     });
 

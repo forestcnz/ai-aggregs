@@ -1,7 +1,7 @@
 use tauri::Manager;
 use tauri_plugin_autostart::ManagerExt;
 
-use crate::config::state::{AppCtrl, GatewayStatus, ProviderRuntime};
+use crate::config::state::{AppCtrl, GatewayStatus, ProviderRuntime, UsageModelRow, UsageSummary};
 use crate::config::types::Config;
 use crate::gateway::manager::{
     rebuild_if_running, start_gateway_inner, stop_gateway_inner, sync_consumer_models,
@@ -147,4 +147,48 @@ pub fn disable_autostart(app: tauri::AppHandle) -> Result<(), IpcError> {
 #[tauri::command]
 pub fn autostart_status(app: tauri::AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+/// 查询用量统计。consumer_key=None 查全部 key，days=None 查全部时间
+#[tauri::command]
+pub fn get_usage(
+    app: tauri::AppHandle,
+    consumer_key: Option<String>,
+    days: Option<u32>,
+) -> UsageSummary {
+    let ctrl = app.state::<AppCtrl>();
+    let conn = ctrl.db.lock().unwrap();
+
+    let since = days
+        .map(|d| {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0) as i64;
+            now - (d as i64 * 86400)
+        })
+        .unwrap_or(0);
+
+    let rows = db::query_usage(&conn, consumer_key.as_deref(), since).unwrap_or_default();
+    let total_requests: u64 = rows.iter().map(|r| r.requests).sum();
+    let total_input: u64 = rows.iter().map(|r| r.input_tokens).sum();
+    let total_output: u64 = rows.iter().map(|r| r.output_tokens).sum();
+    let total_tokens: u64 = rows.iter().map(|r| r.total_tokens).sum();
+
+    UsageSummary {
+        models: rows
+            .into_iter()
+            .map(|r| UsageModelRow {
+                model: r.model,
+                requests: r.requests,
+                input_tokens: r.input_tokens,
+                output_tokens: r.output_tokens,
+                total_tokens: r.total_tokens,
+            })
+            .collect(),
+        total_requests,
+        total_input_tokens: total_input,
+        total_output_tokens: total_output,
+        total_tokens,
+    }
 }

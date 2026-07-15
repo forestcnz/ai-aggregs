@@ -76,7 +76,7 @@ pub fn run() {
         ))
         .manage(AppCtrl {
             config: Mutex::new(cfg),
-            db: Mutex::new(conn),
+            db: std::sync::Arc::new(Mutex::new(conn)),
             server: Mutex::new(None),
             listen_addr: Mutex::new(String::new()),
             providers: Mutex::new(Vec::new()),
@@ -116,6 +116,7 @@ pub fn run() {
             enable_autostart,
             disable_autostart,
             autostart_status,
+            get_usage,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
