@@ -1,9 +1,15 @@
 import { ref, nextTick, onMounted, computed } from 'vue'
 import { getConfig, type GatewayStatus, type Config } from '../../api/commands'
 
+type ChatProtocol = 'chat' | 'responses' | 'anthropic'
+
+// 模块作用域：跨聊天页实例共享，切页保持上次选择（纯内存，重启应用重置）
+const lastProtocol = ref<ChatProtocol>('chat')
+const lastModel = ref('')
+const lastKey = ref('')
+
 export function useChat(props: { status: GatewayStatus }) {
   // ---- 协议类型 ----
-  type ChatProtocol = 'chat' | 'responses' | 'anthropic'
   const PROTOCOL_ENDPOINT: Record<ChatProtocol, string> = {
     chat: '/v1/chat/completions',
     responses: '/v1/responses',
@@ -12,9 +18,9 @@ export function useChat(props: { status: GatewayStatus }) {
 
   // ---- 状态 ----
   const config = ref<Config | null>(null)
-  const protocol = ref<ChatProtocol>('chat')
-  const selectedModel = ref('')
-  const selectedKey = ref('')
+  const protocol = lastProtocol
+  const selectedModel = lastModel
+  const selectedKey = lastKey
   const input = ref('')
   const sending = ref(false)
   const dialogMsg = ref('')
@@ -47,10 +53,11 @@ export function useChat(props: { status: GatewayStatus }) {
   onMounted(async () => {
     try {
       config.value = await getConfig()
-      if (models.value.length > 0) {
+      // 保持上次选择；仅当为空或已不在列表时回退到首项
+      if (models.value.length > 0 && !models.value.includes(selectedModel.value)) {
         selectedModel.value = models.value[0]
       }
-      if (apiKeys.value.length > 0) {
+      if (apiKeys.value.length > 0 && !apiKeys.value.includes(selectedKey.value)) {
         selectedKey.value = apiKeys.value[0]
       }
     } catch (e) {
