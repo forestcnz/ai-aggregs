@@ -25,17 +25,11 @@
   gap: 8px;
   padding-left: 12px;
 }
-.titlebar-logo {
-  flex-shrink: 0;
-}
 .titlebar-brand {
   font-weight: 600;
   font-size: 12px;
   color: var(--text-strong);
   letter-spacing: -0.01em;
-}
-.titlebar-brand .dim {
-  color: var(--text-weak);
 }
 
 .titlebar-center {

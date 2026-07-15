@@ -16,8 +16,6 @@ pub enum AppError {
     UpstreamStatus(u16, String),
     #[error("bad request: {0}")]
     BadRequest(String),
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
 }
 
 impl IntoResponse for AppError {
@@ -31,7 +29,6 @@ impl IntoResponse for AppError {
                 let code = StatusCode::from_u16(*s).unwrap_or(StatusCode::BAD_GATEWAY);
                 (code, self.to_string())
             }
-            AppError::Other(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
         };
         (
             code,
@@ -40,12 +37,6 @@ impl IntoResponse for AppError {
             })),
         )
             .into_response()
-    }
-}
-
-impl From<reqwest::Error> for AppError {
-    fn from(e: reqwest::Error) -> Self {
-        AppError::Upstream(e.to_string())
     }
 }
 
@@ -75,11 +66,5 @@ impl std::error::Error for IpcError {}
 impl From<anyhow::Error> for IpcError {
     fn from(e: anyhow::Error) -> Self {
         IpcError(e.to_string())
-    }
-}
-
-impl From<String> for IpcError {
-    fn from(s: String) -> Self {
-        IpcError(s)
     }
 }
