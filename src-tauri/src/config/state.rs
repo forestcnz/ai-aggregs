@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 
-use crate::config::types::Config;
+use crate::config::types::{Config, Protocol};
 use crate::gateway::provider::{KeyStatus, Provider};
 use crate::infra::log_bridge::LogLevelSetter;
 
@@ -63,6 +63,8 @@ pub struct AppState {
     pub providers: Arc<Vec<Arc<Provider>>>,
     pub model_map: Arc<HashMap<String, Vec<usize>>>,
     pub db: Arc<Mutex<rusqlite::Connection>>,
+    /// model -> 上次成功的 provider id，下次路由时优先
+    pub last_provider: Arc<Mutex<HashMap<String, i64>>>,
 }
 
 impl AppState {
@@ -85,15 +87,38 @@ impl AppState {
             providers: Arc::new(providers),
             model_map: Arc::new(map),
             db,
+            last_provider: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
-    pub fn route(&self, model: &str) -> Option<Vec<Arc<Provider>>> {
+    pub fn route(&self, model: &str, c_proto: Protocol) -> Option<Vec<Arc<Provider>>> {
         let idxs = self.model_map.get(model)?;
         if idxs.is_empty() {
             return None;
         }
-        Some(idxs.iter().map(|i| self.providers[*i].clone()).collect())
+        // 上次成功的 provider id
+        let last_id = self.last_provider.lock().unwrap().get(model).copied();
+
+        // 四级优先：协议匹配+上次使用 > 协议匹配+其他 > 协议不匹配+上次使用 > 协议不匹配+其他
+        let mut a = Vec::new(); // 协议匹配 + 上次使用
+        let mut b = Vec::new(); // 协议匹配 + 其他
+        let mut c = Vec::new(); // 协议不匹配 + 上次使用
+        let mut d = Vec::new(); // 协议不匹配 + 其他
+        for &i in idxs {
+            let proto_match = self.providers[i].protocol == c_proto;
+            let is_last = last_id == Some(self.providers[i].id);
+            match (proto_match, is_last) {
+                (true, true) => a.push(i),
+                (true, false) => b.push(i),
+                (false, true) => c.push(i),
+                (false, false) => d.push(i),
+            }
+        }
+        let mut ordered = a;
+        ordered.extend(b);
+        ordered.extend(c);
+        ordered.extend(d);
+        Some(ordered.into_iter().map(|i| self.providers[i].clone()).collect())
     }
 }
 

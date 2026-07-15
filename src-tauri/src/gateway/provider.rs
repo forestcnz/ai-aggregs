@@ -44,6 +44,8 @@ pub struct Provider {
     blacklist_disabled_until: Mutex<Option<Instant>>,
     blacklist_secs: u64,
     client: reqwest::Client,
+    /// 上次成功使用的密钥索引，下次优先尝试
+    last_key_idx: Mutex<Option<usize>>,
 }
 
 impl Provider {
@@ -70,6 +72,7 @@ impl Provider {
             blacklist_disabled_until: Mutex::new(None),
             blacklist_secs,
             client,
+            last_key_idx: Mutex::new(None),
         })
     }
 
@@ -171,12 +174,22 @@ impl Provider {
         let total = ((self.max_retries as usize) + 1).min(enabled_count.max(1));
         let mut last_err: Option<UpstreamError> = None;
 
+        // 构建密钥尝试顺序：上次成功的密钥优先，其余按原序
+        let last = *self.last_key_idx.lock().unwrap();
+        let mut order: Vec<usize> = (0..self.keys.len()).collect();
+        if let Some(li) = last {
+            if li < self.keys.len() {
+                order.retain(|&i| i != li);
+                order.insert(0, li);
+            }
+        }
+
         loop {
             let now = Instant::now();
             let disabled = self.is_blacklist_disabled(now);
             let mut tried = 0usize;
 
-            for idx in 0..self.keys.len() {
+            for &idx in &order {
                 if tried >= total {
                     break;
                 }
@@ -210,6 +223,7 @@ impl Provider {
 
                 match req.send().await {
                     Ok(r) if r.status().is_success() => {
+                        *self.last_key_idx.lock().unwrap() = Some(idx);
                         tracing::info!(
                             provider = %self.name,
                             idx,

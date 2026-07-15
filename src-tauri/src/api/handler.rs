@@ -37,7 +37,7 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
     );
 
     let candidates = st
-        .route(&model)
+        .route(&model, c_proto)
         .ok_or_else(|| AppError::ModelNotFound(model.clone()))?;
     let stream = body
         .get("stream")
@@ -84,6 +84,11 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
         );
         match provider.send(endpoint, &send_body, stream).await {
             Ok((resp, provider_key)) => {
+                // 记录该模型上次成功的供应商，下次路由优先使用
+                st.last_provider
+                    .lock()
+                    .unwrap()
+                    .insert(model.clone(), provider.id);
                 tracing::debug!(
                     provider = %provider.name,
                     status = %resp.status(),
