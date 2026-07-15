@@ -18,8 +18,10 @@ const protocol = ref<ChatProtocol>('chat')
 const selectedModel = ref('')
 const input = ref('')
 const sending = ref(false)
+const dialogMsg = ref('')
 const messages = ref<ChatMsg[]>([])
 const scrollEl = ref<HTMLElement | null>(null)
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
 // 当前请求的 AbortController（用于中止流式请求）
 let abortCtrl: AbortController | null = null
 
@@ -52,6 +54,13 @@ onMounted(async () => {
 })
 
 // ---- 工具函数 ----
+function showDialog(msg: string) {
+  dialogMsg.value = msg
+}
+function closeDialog() {
+  dialogMsg.value = ''
+  nextTick(() => textareaRef.value?.focus())
+}
 async function scrollToBottom() {
   await nextTick()
   if (scrollEl.value) {
@@ -231,11 +240,11 @@ async function send() {
 
   // 前置检查
   if (!gatewayUrl.value) {
-    alert('网关未运行，请先在「网关状态」页启动网关')
+    showDialog('网关未运行，请先在「网关状态」页启动网关')
     return
   }
   if (!selectedModel.value) {
-    alert('请先选择模型')
+    showDialog('请先选择模型')
     return
   }
 
@@ -420,9 +429,18 @@ function onKeydown(e: KeyboardEvent) {
       </div>
     </div>
 
+    <!-- 弹窗 -->
+    <div v-if="dialogMsg" class="dialog-overlay" @click.self="closeDialog">
+      <div class="dialog-box">
+        <p class="dialog-text">{{ dialogMsg }}</p>
+        <button class="btn btn-primary" @click="closeDialog">确定</button>
+      </div>
+    </div>
+
     <!-- 输入区 -->
     <div class="input-area">
       <textarea
+        ref="textareaRef"
         v-model="input"
         class="input-box"
         placeholder="输入消息，Enter 发送，Shift+Enter 换行"
@@ -433,7 +451,6 @@ function onKeydown(e: KeyboardEvent) {
       <button
         v-if="!sending"
         class="btn btn-primary send-btn"
-        :disabled="!input.trim() || sending || !status.running || !selectedModel"
         @click="send"
       >
         发送
@@ -508,6 +525,32 @@ function onKeydown(e: KeyboardEvent) {
   color: var(--text-weak);
   font-size: 12px;
   margin-bottom: 14px;
+}
+
+/* 弹窗 */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.dialog-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 28px 32px 22px;
+  min-width: 300px;
+  max-width: 420px;
+  text-align: center;
+}
+.dialog-text {
+  font-size: 14px;
+  color: var(--text-strong);
+  margin-bottom: 20px;
+  line-height: 1.6;
 }
 
 /* 消息列表 */

@@ -23,6 +23,9 @@ let unlistenLog: (() => void) | null = null
 // 日志状态提升到 App 层级，避免切换页面时组件卸载导致日志丢失
 const logs = ref<LogEntry[]>([])
 
+// 禁用浏览器右键菜单
+const preventCtx = (e: MouseEvent) => e.preventDefault()
+
 const appWindow = getCurrentWindow()
 
 async function refreshStatus() {
@@ -53,6 +56,8 @@ async function closeWindow() {
 } // 触发 close_requested → 隐藏到托盘
 
 onMounted(async () => {
+  document.addEventListener('contextmenu', preventCtx)
+
   await refreshStatus()
   await checkMaximized()
   unlistenStatus = await onGatewayStateChanged((running) => {
@@ -68,6 +73,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  document.removeEventListener('contextmenu', preventCtx)
   unlistenStatus?.()
   unlistenResize?.()
   unlistenLog?.()

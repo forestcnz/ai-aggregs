@@ -46,10 +46,10 @@ body {
   line-height: 1.55;
 }
 
-/* 文本选区高亮 — 淡黄绿 */
+/* 文本选区高亮 — 蓝色 */
 ::selection {
-  background: var(--bg-interactive);
-  color: var(--text-strong);
+  background: #4a90d9;
+  color: #fff;
 }
 
 /* 滚动条 — 极简细线 */
