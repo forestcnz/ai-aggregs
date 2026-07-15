@@ -18,8 +18,8 @@
   --bg-weak-hover:#efeded;
   --bg-strong:#1f1e1e;
   --bg-strong-hover:#2b2a29;
-  --bg-interactive:#e9f08a;
-  --bg-interactive-weaker:#f0f5d8;
+  --bg-interactive:transparent;       /* 交互高亮 · 已禁用 */
+  --bg-interactive-weaker:transparent;/* 聚焦输入框底色 · 已禁用 */
   --text:#646363;
   --text-weak:#999898;
   --text-weaker:#d1cfcb;
@@ -29,8 +29,10 @@
   --border-weak:rgba(8,8,8,0.12);
   --icon:#8c8b8b;
   --green:#03b000;
+  --red:#c00;                        /* 错误/停止 */
   --r-sm:4px;
   --r-md:6px;
+  --r-lg:8px;
   --t:160ms cubic-bezier(.4,0,.2,1);
   --font: "IBM Plex Mono","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
 }
@@ -47,7 +49,7 @@ body{
   font-size:15px;
 }
 
-::selection{background:var(--bg-interactive);color:var(--text-strong)}
+::selection{background:#4a90d9;color:#fff}
 
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
@@ -97,10 +99,15 @@ body{
 }
 .btn-ghost:hover{background:var(--bg-weak)}
 .btn-danger{
-  background:var(--bg);color:var(--text-strong);
+  background:var(--bg);color:var(--red);
   border:1px solid var(--border-weak);
 }
-.btn-danger:hover{background:var(--bg-weak)}
+.btn-danger:hover{background:var(--red);color:var(--text-inverted);border-color:var(--red)}
+/* 停止按钮 — 描边红色 */
+.btn-stop{
+  background:var(--bg);color:var(--red);border:1px solid var(--red);
+}
+.btn-stop:hover{background:var(--red);color:var(--text-inverted)}
 
 /* Toggle — opencode 风（小、方） */
 .toggle{position:relative;width:32px;height:18px;flex-shrink:0;cursor:pointer;display:inline-block}
@@ -172,20 +179,24 @@ body{
 /* ============================================================
    应用窗口 Mockup
    ============================================================ */
-.window{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--bg)}
-.titlebar{height:36px;border-bottom:1px solid var(--border-weak);display:flex;align-items:center;padding:0 14px;gap:10px;background:var(--bg-weak)}
-.tl-dots{display:flex;gap:6px}
-.tl-dots i{width:10px;height:10px;border-radius:50%;background:var(--border)}
-.tl-title{flex:1;text-align:center;font-size:10px;color:var(--text-weak);letter-spacing:.04em}
-.tl-title .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--border-weak);border-radius:var(--r-sm);background:var(--bg)}
-.tl-title .pill .dot{width:5px;height:5px}
+.window{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--bg);position:relative}
+.titlebar{position:relative;height:36px;border-bottom:1px solid var(--border-weak);display:flex;align-items:center;justify-content:space-between;background:var(--bg);user-select:none}
+.tl-left{padding-left:12px;font-weight:600;font-size:12px;color:var(--text-strong);letter-spacing:-.01em}
+.tl-center{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center}
+.tl-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border:1px solid var(--border-weak);border-radius:var(--r-sm);background:var(--bg);font-size:10px;color:var(--text-weak)}
+.tl-pill .dot{width:5px;height:5px;border-radius:50%}
+.tl-pill .dot.on{background:var(--green)}
+.tl-pill .dot.off{background:var(--text-weaker)}
+.tl-pill .ptext{color:var(--text)}
+.tl-pill .paddr{color:var(--text-weak)}
+.tl-ctrl{display:flex;align-items:center}
+.win-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;cursor:pointer;color:var(--text-weak);transition:var(--t);font-family:var(--font)}
+.win-btn:hover{background:var(--bg-weak);color:var(--text-strong)}
+.win-close:hover{background:var(--red);color:var(--text-inverted)}
 
 .app{display:flex;height:540px;position:relative}
 /* 侧边栏 */
-.sidebar{width:196px;flex-shrink:0;border-right:1px solid var(--border-weak);display:flex;flex-direction:column;padding:14px 12px;background:var(--bg)}
-.sb-brand{display:flex;align-items:center;gap:9px;padding:4px 8px 16px}
-.sb-brand .wm{font-weight:600;font-size:13px;color:var(--text-strong)}
-.sb-brand .wm .a{color:var(--text-weak)}
+.sidebar{width:200px;flex-shrink:0;border-right:1px solid var(--border-weak);display:flex;flex-direction:column;padding:14px 12px;background:var(--bg)}
 .sb-nav{display:flex;flex-direction:column;gap:2px}
 .nav-item{
   display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);
@@ -197,7 +208,6 @@ body{
 .nav-item .ic{width:14px;height:14px;flex-shrink:0}
 .sb-spacer{flex:1}
 .sb-foot{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-weak);padding:10px 10px;border-top:1px solid var(--border-weak);margin:0 -12px -14px}
-.sb-foot code{font-size:10px;color:var(--text)}
 
 /* 内容区 */
 .content{flex:1;overflow-y:auto;padding:24px 28px;background:var(--bg)}
@@ -208,7 +218,7 @@ body{
 .page-sub{font-size:12px;color:var(--text-weak);margin-top:2px;margin-bottom:22px}
 
 /* 网关状态 */
-.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid var(--border-weak);border-radius:var(--r-md);margin-bottom:16px;overflow:hidden}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border-weak);border-radius:var(--r-md);margin-bottom:16px;overflow:hidden}
 .stat{padding:14px 16px;border-right:1px solid var(--border-weak)}
 .stat:last-child{border-right:none}
 .stat .lab{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-weak)}
@@ -301,6 +311,8 @@ body{
 .chip .cx{background:none;border:none;color:var(--text-weak);cursor:pointer;font-size:12px;line-height:1;padding:0 2px;transition:var(--t)}
 .chip .cx:hover{color:#c00}
 .chip-field{flex:1;min-width:130px;border:none;outline:none;background:transparent;color:var(--text-strong);font-size:12px;padding:2px 0;font-family:var(--font)}
+/* 设置页 chip 输入框限宽（与真实应用一致） */
+.row .chip-input{max-width:400px}
 
 .modal-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 22px;border-top:1px solid var(--border-weak);position:sticky;bottom:0;background:var(--bg)}
 .footer-right{display:flex;gap:8px;margin-left:auto}
@@ -350,6 +362,10 @@ body{
 .mtags span{font-size:10px;padding:2px 8px;border:1px solid var(--border-weak);border-radius:var(--r-sm);color:var(--text)}
 .mtags .auto{color:var(--text-weak);font-style:italic;font-size:11px;border:none;padding:0}
 .actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:16px}
+
+/* 保存提示 toast */
+.toast{position:absolute;top:52px;right:28px;z-index:100;padding:7px 14px;border:1px solid var(--border-weak);border-radius:var(--r-md);background:var(--bg);color:var(--text);font-size:12px;font-weight:500}
+.toast.ok{color:var(--green);border-color:var(--green)}
 
 /* 页面切换 */
 .tabpane{display:none}
@@ -486,18 +502,19 @@ body{
           <div class="sw"><div class="blk" style="background:#fcfafa"></div><div class="meta"><b>bg</b><span>#FCFAFA</span></div></div>
           <div class="sw"><div class="blk" style="background:#f7f6f6"></div><div class="meta"><b>bg-weak</b><span>#F7F6F6</span></div></div>
           <div class="sw"><div class="blk" style="background:#efeded"></div><div class="meta"><b>hover</b><span>#EFEDED</span></div></div>
-          <div class="sw"><div class="blk" style="background:#e9f08a"></div><div class="meta"><b>focus</b><span>#E9F08A</span></div></div>
           <div class="sw"><div class="blk" style="background:#1f1e1e"></div><div class="meta"><b>strong</b><span>#1F1E1E</span></div></div>
           <div class="sw"><div class="blk" style="background:#646363"></div><div class="meta"><b>text</b><span>#646363</span></div></div>
           <div class="sw"><div class="blk" style="background:#d1cfcb"></div><div class="meta"><b>border</b><span>#D1CFCB</span></div></div>
           <div class="sw"><div class="blk" style="background:#03b000"></div><div class="meta"><b>green</b><span>#03B000</span></div></div>
+          <div class="sw"><div class="blk" style="background:#c00"></div><div class="meta"><b>red</b><span>#CC0000</span></div></div>
         </div>
         <p style="font-size:11px;color:var(--text-weak);margin-top:12px;line-height:200%">
           strong → 按钮 / 强调 / 激活态<br>
           text → 正文 / 次级<br>
           border → 分隔线 (rgba 8,8,8,.12)<br>
-          focus → 输入聚焦光晕 (淡黄绿)<br>
-          green → 仅成功状态
+          green → 仅成功状态（运行中）<br>
+          red → 错误 / 停止 / 删除<br>
+          selection → 蓝色 #4A90D9（聚焦光晕已禁用）
         </p>
       </div>
       <div class="panel">
@@ -505,7 +522,7 @@ body{
         <div class="typespec">
           <div class="tspec"><div class="role">PRIMARY · 全站</div><div class="sample">IBM Plex Mono</div><div class="info">等宽 — 标题、正文、按钮、数据统一字体</div></div>
           <div class="tspec"><div class="role">WEIGHTS</div><div class="sample" style="font-size:16px">300 · 400 · 450 · 500 · 600 · 700</div><div class="info">标题 700 / 强调 500 / 正文 400</div></div>
-          <div class="tspec"><div class="role">METRICS</div><div class="sample" style="font-size:16px">line-height 200% · radius 4-6px</div><div class="info">行高宽裕 · 圆角方直</div></div>
+          <div class="tspec"><div class="role">METRICS</div><div class="sample" style="font-size:16px">line-height 200% · radius 4-8px</div><div class="info">行高宽裕 · 圆角方直</div></div>
         </div>
       </div>
     </div>
@@ -516,17 +533,20 @@ body{
     <div class="section-head">
       <span class="kicker">03 · 界面</span>
       <h2>应用窗口 — 四个页面</h2>
-      <p>完整桌面应用预览。点击左侧导航切换页面，所有界面复刻 opencode.ai 美学：暖白底、等宽字、1px 分隔、近黑按钮、极简无彩。</p>
+      <p>完整桌面应用预览。点击左侧导航切换页面，所有界面复刻 opencode.ai 美学：暖白底、等宽字、1px 分隔、近黑按钮、极简无彩。选区高亮蓝色，聚焦仅描边近黑（已禁用淡黄绿光晕）。</p>
     </div>
     <div class="window">
       <div class="titlebar">
-        <div class="tl-dots"><i></i><i></i><i></i></div>
-        <div class="tl-title"><span class="pill"><span class="dot on"></span>ai-aggregs — 127.0.0.1:8000</span></div>
-        <div style="width:50px"></div>
+        <div class="tl-left">AI 聚合网关</div>
+        <div class="tl-center"><span class="tl-pill"><span class="dot on"></span><span class="ptext">运行中</span><span class="paddr">127.0.0.1:8000</span></span></div>
+        <div class="tl-ctrl">
+          <button class="win-btn" title="最小化"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" stroke-width="1"/></svg></button>
+          <button class="win-btn" title="最大化"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1"/></svg></button>
+          <button class="win-btn win-close" title="关闭"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1"/><line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1"/></svg></button>
+        </div>
       </div>
       <div class="app">
         <nav class="sidebar">
-          <div class="sb-brand"><svg width="22" height="22"><use href="#ico"/></svg><span class="wm">ai<span class="a">·</span>aggregs</span></div>
           <div class="sb-nav" id="nav">
             <a class="nav-item active" data-tab="dashboard"><svg class="ic"><use href="#ic-dash"/></svg>网关状态</a>
             <a class="nav-item" data-tab="providers"><svg class="ic"><use href="#ic-prov"/></svg>提供商</a>
@@ -534,7 +554,7 @@ body{
             <a class="nav-item" data-tab="settings"><svg class="ic"><use href="#ic-set"/></svg>设置</a>
           </div>
           <div class="sb-spacer"></div>
-          <div class="sb-foot"><span class="dot on"></span>运行中 <code>:8000</code></div>
+          <div class="sb-foot"><span class="dot on"></span>运行中</div>
         </nav>
         <main class="content">
 
@@ -545,25 +565,24 @@ body{
             <div class="stats">
               <div class="stat"><div class="lab">网关</div><div class="val run">运行中</div></div>
               <div class="stat"><div class="lab">监听地址</div><div class="val mono">127.0.0.1:8000</div></div>
-              <div class="stat"><div class="lab">活跃提供商</div><div class="val">3 / 3</div></div>
             </div>
             <div class="ctrl">
-              <div class="ctrl-info"><span class="badge run"><span class="dot on"></span>运行中</span><span class="addr">http://127.0.0.1:8000</span></div>
-              <button class="btn btn-danger">停止网关</button>
+              <div class="ctrl-info"><span class="badge run"><span class="dot on"></span>运行中</span></div>
+              <button class="btn btn-stop">停止网关</button>
             </div>
             <div>
-              <div class="log-head"><h3>运行日志 <span class="ct">128 条</span></h3><button class="btn btn-ghost btn-sm">清除</button></div>
+              <div class="log-head"><h3>运行日志</h3><button class="btn btn-ghost btn-sm">清除</button></div>
               <div class="log-panel">
-                <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Gateway listening on http://127.0.0.1:8000</span></div>
-                <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Provider "openai" ready · chat · 3 keys, 5 models</span></div>
-                <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Provider "anthropic" ready · anthropic · 2 keys, 4 models</span></div>
-                <div class="log-line"><span class="ts">14:02:11</span><span class="lv info">INFO</span><span class="ms">Provider "glm" ready · chat · 1 key, 3 models</span></div>
-                <div class="log-line"><span class="ts">14:02:34</span><span class="lv info">INFO</span><span class="ms">POST /v1/chat/completions → openai · 200 · 842ms</span></div>
-                <div class="log-line"><span class="ts">14:03:02</span><span class="lv warn">WARN</span><span class="ms">openai key#2 blacklisted (429) · release in 600s</span></div>
-                <div class="log-line"><span class="ts">14:03:02</span><span class="lv info">INFO</span><span class="ms">failover → openai key#3 · retrying</span></div>
-                <div class="log-line"><span class="ts">14:03:04</span><span class="lv info">INFO</span><span class="ms">POST /v1/messages → anthropic · 200 · 1.2s</span></div>
-                <div class="log-line"><span class="ts">14:03:21</span><span class="lv dbg">DBG</span><span class="ms">consumer models synced: 12 models from 3 providers</span></div>
-                <div class="log-line"><span class="ts">14:04:18</span><span class="lv info">INFO</span><span class="ms">POST /v1/responses → glm · 200 · 643ms</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:02:11.342</span><span class="lv info">INFO</span><span class="ms">Gateway listening on http://127.0.0.1:8000</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:02:11.358</span><span class="lv info">INFO</span><span class="ms">Provider "openai" ready · chat · 3 keys, 5 models</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:02:11.360</span><span class="lv info">INFO</span><span class="ms">Provider "anthropic" ready · anthropic · 2 keys, 4 models</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:02:11.361</span><span class="lv info">INFO</span><span class="ms">Provider "glm" ready · chat · 1 key, 3 models</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:02:34.109</span><span class="lv info">INFO</span><span class="ms">POST /v1/chat/completions → openai · 200 · 842ms</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:03:02.714</span><span class="lv warn">WARN</span><span class="ms">openai key#2 blacklisted (429) · release in 600s</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:03:02.715</span><span class="lv info">INFO</span><span class="ms">failover → openai key#3 · retrying</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:03:04.221</span><span class="lv info">INFO</span><span class="ms">POST /v1/messages → anthropic · 200 · 1.2s</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:03:21.503</span><span class="lv dbg">DEBUG</span><span class="ms">consumer models synced: 12 models from 3 providers</span></div>
+                <div class="log-line"><span class="ts">2026-07-15 14:04:18.067</span><span class="lv info">INFO</span><span class="ms">POST /v1/responses → glm · 200 · 643ms</span></div>
               </div>
             </div>
           </div>
@@ -583,11 +602,12 @@ body{
                 <div class="pc-body">
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://api.openai.com/v1</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>gpt-4o-mini</span><span>o1</span><span>o3-mini</span><span>gpt-4.1</span></div></span></div>
+                  <div class="pf"><span class="fl">Reasoning</span><span class="fv">medium</span></div>
                   <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
                   <div class="keys-sec">
                     <div class="kh">API KEYS (3)</div>
                     <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**7QxZ</span><span class="ks ok">正常</span></div>
-                    <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**3KdW</span><span class="ks bl">限流 · 14:23:09</span></div>
+                    <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**3KdW</span><span class="ks bl">2026/07/15 14:23:09</span></div>
                     <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**9BnL</span><span class="ks ok">正常</span></div>
                   </div>
                 </div>
@@ -598,6 +618,7 @@ body{
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://api.anthropic.com</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>claude-3-5-sonnet</span><span>claude-3-opus</span><span>claude-3-haiku</span><span>claude-sonnet-4</span></div></span></div>
                   <div class="pf"><span class="fl">Reasoning</span><span class="fv">无</span></div>
+                  <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
                   <div class="keys-sec">
                     <div class="kh">API KEYS (2)</div>
                     <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-ant**4MnK</span><span class="ks ok">正常</span></div>
@@ -610,6 +631,7 @@ body{
                 <div class="pc-body">
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://open.bigmodel.cn/api/paas/v4</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>glm-4-plus</span><span>glm-4-air</span><span>glm-4-flash</span></div></span></div>
+                  <div class="pf"><span class="fl">Reasoning</span><span class="fv">无</span></div>
                   <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
                   <div class="keys-sec">
                     <div class="kh">API KEYS (1)</div>
@@ -622,6 +644,7 @@ body{
                 <div class="pc-body">
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://my-azure.openai.azure.com</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>o1</span></div></span></div>
+                  <div class="pf"><span class="fl">Reasoning</span><span class="fv">high</span></div>
                   <div class="pf"><span class="fl">超时</span><span class="fv">120s</span></div>
                   <div class="keys-sec">
                     <div class="kh">API KEYS (1)</div>
@@ -635,25 +658,25 @@ body{
             <div class="modal-overlay" id="provider-modal">
               <div class="modal">
                 <div class="modal-header">
-                  <h2><span class="mi">ADD</span>添加提供商</h2>
+                  <h2>添加提供商</h2>
                   <button class="modal-close" id="modal-close">✕</button>
                 </div>
                 <div class="modal-body">
-                  <div class="mf"><label>名称 <span class="req">必填</span></label><input class="inp" placeholder="如 openai、anthropic、glm" value="deepseek"></div>
+                  <div class="mf"><label>名称</label><input class="inp" placeholder="如 glm" value="deepseek"></div>
                   <div class="mf-row">
                     <div class="mf">
-                      <label>协议 <span class="hint">决定请求路径</span></label>
+                      <label>协议</label>
                       <div class="seg">
-                        <input type="radio" name="proto" id="p-chat" checked><label for="p-chat"><span class="pdot"></span>chat</label>
-                        <input type="radio" name="proto" id="p-resp"><label for="p-resp"><span class="pdot"></span>responses</label>
-                        <input type="radio" name="proto" id="p-anth"><label for="p-anth"><span class="pdot"></span>anthropic</label>
+                        <input type="radio" name="proto" id="p-chat" checked><label for="p-chat">chat</label>
+                        <input type="radio" name="proto" id="p-resp"><label for="p-resp">responses</label>
+                        <input type="radio" name="proto" id="p-anth"><label for="p-anth">anthropic</label>
                       </div>
                     </div>
                     <div class="mf"><label>思考强度</label><select class="sel"><option value="">无</option><option>max</option><option>xhigh</option><option>high</option><option selected>medium</option><option>low</option><option>minimal</option></select></div>
                   </div>
-                  <div class="mf"><label>Base URL <span class="req">必填</span></label><input class="inp" placeholder="https://api.example.com/v1" value="https://api.deepseek.com/v1"></div>
-                  <div class="mf"><label>API Keys <span class="hint">回车添加，可多把轮询</span></label><div class="chip-input"><span class="chip"><span class="ctxt">sk-ds**7QxZ</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">sk-ds**3KdW</span><button class="cx">×</button></span><input class="chip-field" placeholder="API Key，回车添加"></div></div>
-                  <div class="mf"><label>模型 <span class="hint">回车添加</span></label><div class="chip-input"><span class="chip"><span class="ctxt">deepseek-chat</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">deepseek-reasoner</span><button class="cx">×</button></span><input class="chip-field" placeholder="模型名，回车添加"></div></div>
+                  <div class="mf"><label>Base URL</label><input class="inp" placeholder="https://api.example.com/v1" value="https://api.deepseek.com/v1"></div>
+                  <div class="mf"><label>API Keys</label><div class="chip-input"><span class="chip"><span class="ctxt">sk-ds**7QxZ</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">sk-ds**3KdW</span><button class="cx">×</button></span><input class="chip-field" placeholder="API Key，回车添加"></div></div>
+                  <div class="mf"><label>模型</label><div class="chip-input"><span class="chip"><span class="ctxt">deepseek-chat</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">deepseek-reasoner</span><button class="cx">×</button></span><input class="chip-field" placeholder="模型名，回车添加"></div></div>
                   <div class="mf-row">
                     <div class="mf"><label>超时（秒）</label><input class="inp" type="number" value="300"></div>
                     <div class="mf"><label>重试次数</label><input class="inp" type="number" value="2"></div>
@@ -673,6 +696,7 @@ body{
               <div class="chat-head">
                 <select class="sel"><option>Chat</option><option>Responses</option><option>Anthropic</option></select>
                 <select class="sel" style="min-width:190px"><option>claude-3-5-sonnet</option><option>gpt-4o</option><option>glm-4-plus</option></select>
+                <select class="sel" style="min-width:140px"><option>sk-co...0001</option><option>sk-co...0002</option></select>
                 <button class="btn btn-ghost btn-sm">清空</button>
               </div>
               <div class="msgs">
@@ -710,17 +734,17 @@ body{
             </div>
             <div class="group">
               <h3><span class="gn">02</span>Consumer</h3>
-              <div class="row"><label>API Keys</label><input class="inp" value="sk-consumer-001, sk-consumer-002"></div>
+              <div class="row"><label>API Keys</label><div class="chip-input"><span class="chip"><span class="ctxt">sk-con...0001</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">sk-con...0002</span><button class="cx">×</button></span><input class="chip-field" placeholder="API Key，回车添加"></div></div>
               <div class="row"><label>Models</label><div class="mtags"><span>gpt-4o</span><span>gpt-4o-mini</span><span>o1</span><span>claude-3-5-sonnet</span><span>claude-sonnet-4</span><span>glm-4-plus</span><span class="auto">（自动从已启用提供商聚合）</span></div></div>
             </div>
             <div class="group">
               <h3><span class="gn">03</span>系统</h3>
-              <div class="row"><label>开机自启</label><div class="inline-tg"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span>系统启动时自动运行（最小化到托盘）</span></div></div>
+              <div class="row"><label>开机自启</label><div class="inline-tg"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span>系统启动时自动运行</span></div></div>
             </div>
             <div class="actions">
-              <span class="badge run"><span class="dot on"></span>配置已保存</span>
               <button class="btn">保存配置</button>
             </div>
+            <div class="toast ok">配置已保存</div>
           </div>
 
         </main>
