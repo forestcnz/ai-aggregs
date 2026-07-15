@@ -20,9 +20,11 @@ const {
           <option value="anthropic">Anthropic</option>
         </select>
         <select v-model="selectedModel" class="model-select" :disabled="sending">
+          <option v-if="models.length === 0" value="" disabled>无可用模型</option>
           <option v-for="m in models" :key="m" :value="m">{{ m }}</option>
         </select>
         <select v-model="selectedKey" class="key-select" :disabled="sending">
+          <option v-if="apiKeys.length === 0" value="" disabled>未配置 Key</option>
           <option v-for="k in apiKeys" :key="k" :value="k">{{ maskKey(k) }}</option>
         </select>
         <button
