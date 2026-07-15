@@ -170,6 +170,7 @@ impl Provider {
         } else {
             body.clone()
         };
+        tracing::debug!(provider = %self.name, url = %url, body = %send_body, "→ 上游请求");
         let enabled_count = self.keys.iter().filter(|e| e.enabled()).count();
         let total = ((self.max_retries as usize) + 1).min(enabled_count.max(1));
         let mut last_err: Option<UpstreamError> = None;

@@ -68,6 +68,9 @@ pub fn run() {
     });
     tracing::info!(db = %db_path_str, providers = cfg.providers.len(), "配置已加载");
 
+    // 应用配置中的日志级别（install 时用 info 占位，这里纠正为用户配置值）
+    log_level_setter.set(&cfg.log.level);
+
     // ---- Tauri 应用构建 ----
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

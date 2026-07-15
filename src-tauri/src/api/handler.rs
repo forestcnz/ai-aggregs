@@ -31,9 +31,9 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
         path = %req_path,
         model = %model,
         consumer_proto = ?c_proto,
-        body_len = bytes.len(),
         stream = %body.get("stream").map(|v| v.to_string()).unwrap_or_default(),
-        "proxy: request entry"
+        body = %body,
+        "← 下游请求"
     );
 
     let candidates = st

@@ -459,8 +459,6 @@ impl StreamConverter for AnthropicToChatStream {
                         .or(self.input_tokens);
                     if let Some(it) = input_tok {
                         usage["prompt_tokens"] = json!(it);
-                    } else if self.input_tokens.is_some() {
-                        usage["prompt_tokens"] = json!(self.input_tokens.unwrap());
                     }
                     if let Some(ot) = u.get("output_tokens") {
                         usage["completion_tokens"] = ot.clone();
@@ -471,8 +469,7 @@ impl StreamConverter for AnthropicToChatStream {
                         usage["total_tokens"] = json!(a + b);
                     }
                     frame["usage"] = usage;
-                } else if self.input_tokens.is_some() {
-                    let it = self.input_tokens.unwrap();
+                } else if let Some(it) = self.input_tokens {
                     frame["usage"] = json!({"prompt_tokens": it});
                 }
                 vec![frame.to_string()]
