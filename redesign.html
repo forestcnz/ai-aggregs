@@ -370,8 +370,8 @@ body{
 /* 用量统计 */
 .usage-filter{display:flex;align-items:center;gap:22px;margin-bottom:18px;flex-wrap:wrap}
 .uf-item{display:flex;align-items:center;gap:8px}
-#usage-range{flex-shrink:0;white-space:nowrap}
-#usage-range label{flex:0 0 auto;padding:7px 12px}
+.usage-filter .seg{flex-shrink:0;white-space:nowrap}
+.usage-filter .seg label{flex:0 0 auto;padding:7px 12px}
 .uf-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-weak);white-space:nowrap}
 .usage-stats{grid-template-columns:repeat(4,1fr)}
 .usage-head{display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px}
@@ -469,6 +469,12 @@ body{
       <line x1="9.5" y1="11.5" x2="9.5" y2="6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"/>
       <line x1="1.5" y1="12.5" x2="12.5" y2="12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="square"/>
     </symbol>
+    <symbol id="ic-pstat" viewBox="0 0 14 14">
+      <rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="3.5" x2="12.5" y2="3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="square"/>
+      <line x1="3.5" y1="8" x2="3.5" y2="12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="square"/>
+      <rect x="7" y="7" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -565,7 +571,7 @@ body{
   <section class="section">
     <div class="section-head">
       <span class="kicker">03 · 界面</span>
-      <h2>应用窗口 — 五个页面</h2>
+      <h2>应用窗口 — 六个页面</h2>
       <p>完整桌面应用预览。点击左侧导航切换页面，所有界面复刻 opencode.ai 美学：暖白底、等宽字、1px 分隔、近黑按钮、极简无彩。选区高亮蓝色，聚焦仅描边近黑（已禁用淡黄绿光晕）。</p>
     </div>
     <div class="window">
@@ -585,6 +591,7 @@ body{
             <a class="nav-item" data-tab="providers"><svg class="ic"><use href="#ic-prov"/></svg>提供商</a>
             <a class="nav-item" data-tab="chat"><svg class="ic"><use href="#ic-chat"/></svg>聊天</a>
             <a class="nav-item" data-tab="usage"><svg class="ic"><use href="#ic-stat"/></svg>用量统计</a>
+            <a class="nav-item" data-tab="provider-usage"><svg class="ic"><use href="#ic-pstat"/></svg>供量统计</a>
             <a class="nav-item" data-tab="settings"><svg class="ic"><use href="#ic-set"/></svg>设置</a>
           </div>
           <div class="sb-spacer"></div>
@@ -809,6 +816,65 @@ body{
             <div class="usage-empty" id="usage-empty" style="display:none">该 Key 暂无使用记录</div>
           </div>
 
+          <!-- 供量统计 -->
+          <div class="tabpane" data-pane="provider-usage">
+            <div class="page-title">供量统计</div>
+            <div class="page-sub">Provider API Key 各模型 Token 使用量</div>
+
+            <!-- 筛选栏 -->
+            <div class="usage-filter">
+              <div class="uf-item">
+                <span class="uf-label">供应商</span>
+                <select class="sel" id="pu-provider">
+                  <option value="all">全部</option>
+                  <option value="openai">openai</option>
+                  <option value="anthropic">anthropic</option>
+                  <option value="glm">glm</option>
+                </select>
+              </div>
+              <div class="uf-item">
+                <span class="uf-label">API Key</span>
+                <select class="sel" id="pu-key">
+                  <option value="all">全部 Keys</option>
+                </select>
+              </div>
+              <div class="uf-item">
+                <span class="uf-label">时间范围</span>
+                <div class="seg" id="pu-range">
+                  <input type="radio" name="prange" id="pr-today"><label for="pr-today">今天</label>
+                  <input type="radio" name="prange" id="pr-7d" checked><label for="pr-7d">7 天</label>
+                  <input type="radio" name="prange" id="pr-30d"><label for="pr-30d">30 天</label>
+                  <input type="radio" name="prange" id="pr-all"><label for="pr-all">全部</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 汇总 -->
+            <div class="stats usage-stats" id="pu-summary">
+              <div class="stat"><div class="lab">总请求数</div><div class="val mono" id="pu-req">—</div></div>
+              <div class="stat"><div class="lab">总 Token</div><div class="val mono" id="pu-total">—</div></div>
+              <div class="stat"><div class="lab">输入 Token</div><div class="val mono" id="pu-input">—</div></div>
+              <div class="stat"><div class="lab">输出 Token</div><div class="val mono" id="pu-output">—</div></div>
+            </div>
+
+            <!-- 模型明细 -->
+            <div class="usage-head">
+              <h3>模型明细 <span class="ct" id="pu-model-count"></span></h3>
+            </div>
+            <div class="usage-table">
+              <div class="usage-thead">
+                <span>模型</span>
+                <span class="num">占比</span>
+                <span class="num">请求数</span>
+                <span class="num">输入</span>
+                <span class="num">输出</span>
+                <span class="num">合计</span>
+              </div>
+              <div id="pu-rows"></div>
+            </div>
+            <div class="usage-empty" id="pu-empty" style="display:none">该 Key 暂无使用记录</div>
+          </div>
+
           <!-- 设置 -->
           <div class="tabpane" data-pane="settings">
             <div class="page-title">设置</div><div class="page-sub">网关全局配置</div>
@@ -918,6 +984,90 @@ const usageData = {
     ],
   },
 };
+/* Provider 维度演示数据，key 格式: "provider" 或 "provider/keyMask" */
+const providerUsageData = {
+  all: {
+    summary: { requests: 698, total: 1356000, input: 1053000, output: 303000 },
+    models: [
+      { name: 'gpt-4o',            requests: 176, input: 352000, output: 115000, total: 467000 },
+      { name: 'claude-3-5-sonnet', requests: 89,  input: 210000, output: 67000,  total: 277000 },
+      { name: 'o1',                requests: 12,  input: 145000, output: 18000,  total: 163000 },
+      { name: 'gpt-4o-mini',       requests: 320, input: 156000, output: 42000,  total: 198000 },
+      { name: 'claude-sonnet-4',   requests: 45,  input: 102000, output: 38000,  total: 140000 },
+      { name: 'glm-4-plus',        requests: 56,  input: 88000,  output: 23000,  total: 111000 },
+    ],
+  },
+  openai: {
+    summary: { requests: 508, total: 828000, input: 653000, output: 175000 },
+    models: [
+      { name: 'gpt-4o',      requests: 176, input: 352000, output: 115000, total: 467000 },
+      { name: 'o1',          requests: 12,  input: 145000, output: 18000,  total: 163000 },
+      { name: 'gpt-4o-mini', requests: 320, input: 156000, output: 42000,  total: 198000 },
+    ],
+  },
+  'openai/sk-prj**7QxZ': {
+    summary: { requests: 320, total: 500000, input: 395000, output: 105000 },
+    models: [
+      { name: 'gpt-4o',      requests: 110, input: 220000, output: 72000, total: 292000 },
+      { name: 'o1',          requests: 8,   input: 95000,  output: 12000, total: 107000 },
+      { name: 'gpt-4o-mini', requests: 202, input: 80000,  output: 21000, total: 101000 },
+    ],
+  },
+  'openai/sk-prj**3KdW': {
+    summary: { requests: 98, total: 150000, input: 120000, output: 30000 },
+    models: [
+      { name: 'gpt-4o',      requests: 35, input: 70000, output: 23000, total: 93000 },
+      { name: 'gpt-4o-mini', requests: 63, input: 50000, output: 7000,  total: 57000 },
+    ],
+  },
+  'openai/sk-prj**9BnL': {
+    summary: { requests: 90, total: 178000, input: 138000, output: 40000 },
+    models: [
+      { name: 'gpt-4o',      requests: 31, input: 62000, output: 20000, total: 82000 },
+      { name: 'o1',          requests: 4,  input: 50000, output: 6000,  total: 56000 },
+      { name: 'gpt-4o-mini', requests: 55, input: 26000, output: 14000, total: 40000 },
+    ],
+  },
+  anthropic: {
+    summary: { requests: 134, total: 417000, input: 312000, output: 105000 },
+    models: [
+      { name: 'claude-3-5-sonnet', requests: 89, input: 210000, output: 67000, total: 277000 },
+      { name: 'claude-sonnet-4',   requests: 45, input: 102000, output: 38000, total: 140000 },
+    ],
+  },
+  'anthropic/sk-ant**4MnK': {
+    summary: { requests: 88, total: 270000, input: 202000, output: 68000 },
+    models: [
+      { name: 'claude-3-5-sonnet', requests: 58, input: 137000, output: 44000, total: 181000 },
+      { name: 'claude-sonnet-4',   requests: 30, input: 65000,  output: 24000, total: 89000 },
+    ],
+  },
+  'anthropic/sk-ant**8RtQ': {
+    summary: { requests: 46, total: 147000, input: 110000, output: 37000 },
+    models: [
+      { name: 'claude-3-5-sonnet', requests: 31, input: 73000, output: 23000, total: 96000 },
+      { name: 'claude-sonnet-4',   requests: 15, input: 37000, output: 14000, total: 51000 },
+    ],
+  },
+  glm: {
+    summary: { requests: 56, total: 111000, input: 88000, output: 23000 },
+    models: [
+      { name: 'glm-4-plus', requests: 56, input: 88000, output: 23000, total: 111000 },
+    ],
+  },
+  'glm/xxxxxxxx**f2a1': {
+    summary: { requests: 56, total: 111000, input: 88000, output: 23000 },
+    models: [
+      { name: 'glm-4-plus', requests: 56, input: 88000, output: 23000, total: 111000 },
+    ],
+  },
+};
+/* 各供应商的 key 列表（用于联动下拉） */
+const providerKeys = {
+  openai:    ['sk-prj**7QxZ', 'sk-prj**3KdW', 'sk-prj**9BnL'],
+  anthropic: ['sk-ant**4MnK', 'sk-ant**8RtQ'],
+  glm:       ['xxxxxxxx**f2a1'],
+};
 const modelColors = {
   'gpt-4o': '#1f1e1e',
   'gpt-4o-mini': '#8c8b8b',
@@ -958,6 +1108,51 @@ function renderUsage(key) {
 }
 renderUsage('all');
 document.getElementById('usage-key').addEventListener('change', e => renderUsage(e.target.value));
+
+/* 供量统计 — 渲染 + 联动 */
+function renderProviderUsage() {
+  const provider = document.getElementById('pu-provider').value;
+  const key = document.getElementById('pu-key').value;
+  const dataKey = key === 'all' ? provider : provider + '/' + key;
+  const d = providerUsageData[dataKey] || providerUsageData[provider] || providerUsageData.all;
+  document.getElementById('pu-req').textContent = fmtNum(d.summary.requests);
+  document.getElementById('pu-total').textContent = fmtNum(d.summary.total);
+  document.getElementById('pu-input').textContent = fmtNum(d.summary.input);
+  document.getElementById('pu-output').textContent = fmtNum(d.summary.output);
+  document.getElementById('pu-model-count').textContent = d.models.length + ' 个模型';
+  const rowsEl = document.getElementById('pu-rows');
+  const emptyEl = document.getElementById('pu-empty');
+  if (!d.models.length) { rowsEl.innerHTML = ''; emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  rowsEl.innerHTML = d.models.map(m => {
+    const pct = (m.total / d.summary.total * 100).toFixed(0);
+    const color = modelColors[m.name] || '#1f1e1e';
+    return '<div class="urow">'
+      + '<span class="mdl"><span class="mdot" style="background:' + color + '"></span>' + m.name + '</span>'
+      + '<span class="num">' + pct + '%</span>'
+      + '<span class="num">' + m.requests + '</span>'
+      + '<span class="num">' + fmtNum(m.input) + '</span>'
+      + '<span class="num">' + fmtNum(m.output) + '</span>'
+      + '<span class="num total">' + fmtNum(m.total) + '</span>'
+      + '</div>';
+  }).join('');
+}
+/* 供应商切换时联动 key 下拉 */
+document.getElementById('pu-provider').addEventListener('change', e => {
+  const keySel = document.getElementById('pu-key');
+  const p = e.target.value;
+  keySel.innerHTML = '<option value="all">全部 Keys</option>';
+  if (p !== 'all' && providerKeys[p]) {
+    providerKeys[p].forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k; opt.textContent = k;
+      keySel.appendChild(opt);
+    });
+  }
+  renderProviderUsage();
+});
+document.getElementById('pu-key').addEventListener('change', renderProviderUsage);
+renderProviderUsage();
 </script>
 </body>
 </html>
