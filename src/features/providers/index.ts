@@ -146,6 +146,12 @@ export function useProviderList() {
     modalMode.value = null
   }
 
+  function onDocumentKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && modalMode.value) {
+      closeModal()
+    }
+  }
+
   function submitModal() {
     const p = editingProvider.value
     if (!p.name.trim() || !p.base_url.trim()) {
@@ -239,9 +245,11 @@ export function useProviderList() {
   onMounted(() => {
     refresh()
     timer = setInterval(refreshRuntime, 5000)
+    document.addEventListener('keydown', onDocumentKeydown)
   })
   onUnmounted(() => {
     if (timer) clearInterval(timer)
+    document.removeEventListener('keydown', onDocumentKeydown)
   })
 
   return {
