@@ -79,7 +79,7 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn get_setting(conn: &Connection, key: &str) -> Option<String> {
+pub fn get_setting(conn: &Connection, key: &str) -> Option<String> {
     conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
         r.get(0)
     })
@@ -92,6 +92,7 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(600);
     let log_level = get_setting(conn, "log_level").unwrap_or_else(|| "info".into());
+    let auto_start_gateway = get_setting(conn, "auto_start_gateway").map(|v| v == "1").unwrap_or(false);
 
     let consumer_api_keys: Vec<String> = get_setting(conn, "consumer_api_keys")
         .and_then(|v| serde_json::from_str(&v).ok())
@@ -183,10 +184,11 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
         },
         log: LogConfig { level: log_level },
         key_blacklist_secs,
+        auto_start_gateway,
     })
 }
 
-fn set_setting(conn: &Connection, key: &str, value: &str) -> anyhow::Result<()> {
+pub fn set_setting(conn: &Connection, key: &str, value: &str) -> anyhow::Result<()> {
     conn.execute(
         "INSERT INTO settings (key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = ?2",
@@ -210,6 +212,11 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
         &serde_json::to_string(&cfg.consumer.api_keys)?,
     )?;
     set_setting(&tx, "log_level", &cfg.log.level)?;
+    set_setting(
+        &tx,
+        "auto_start_gateway",
+        if cfg.auto_start_gateway { "1" } else { "0" },
+    )?;
 
     // upsert 每个 provider：id>0 走 UPDATE（保留原 ID），id=0 走 INSERT（新建）
     let mut seen_ids: Vec<i64> = Vec::new();

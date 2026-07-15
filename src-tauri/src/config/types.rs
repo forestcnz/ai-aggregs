@@ -79,6 +79,9 @@ pub struct Config {
     pub log: LogConfig,
     #[serde(default = "default_blacklist_secs")]
     pub key_blacklist_secs: u64,
+    /// 启动应用时是否恢复上次网关运行状态（需配合运行状态记录）
+    #[serde(default)]
+    pub auto_start_gateway: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -145,5 +148,6 @@ pub fn default_config() -> Config {
             level: "info".into(),
         },
         key_blacklist_secs: 600,
+        auto_start_gateway: false,
     }
 }

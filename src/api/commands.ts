@@ -48,6 +48,8 @@ export interface Config {
   log: { level: string }
   /** key 429 后加入黑名单的时长（秒），默认 600 */
   key_blacklist_secs: number
+  /** 启动应用时是否恢复上次网关运行状态 */
+  auto_start_gateway: boolean
 }
 
 /** 网关运行状态 */

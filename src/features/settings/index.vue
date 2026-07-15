@@ -29,6 +29,16 @@ const { cfg, saving, autoStart, msg, keyInput, addKey, removeKey, maskKey, save,
           <option>error</option>
         </select>
       </div>
+      <div class="row">
+        <label>网关自动恢复</label>
+        <div class="inline-toggle">
+          <label class="toggle">
+            <input v-model="cfg.auto_start_gateway" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+          <span>启动应用时恢复上次网关状态</span>
+        </div>
+      </div>
     </div>
 
     <!-- Consumer -->

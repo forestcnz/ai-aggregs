@@ -7,6 +7,7 @@ use crate::api::router;
 use crate::config::state::{AppCtrl, AppState, ServerHandle};
 use crate::config::types::Config;
 use crate::gateway::provider::Provider;
+use crate::infra::db;
 use crate::infra::error::IpcError;
 use crate::infra::tray::update_tray;
 
@@ -71,6 +72,7 @@ pub async fn start_gateway_inner(app: &tauri::AppHandle) -> Result<String, IpcEr
 
     tracing::info!(addr = %addr, "网关已启动");
     update_tray(app, true);
+    let _ = db::set_setting(&ctrl.db.lock().unwrap(), "gateway_running", "1");
     Ok(addr)
 }
 
@@ -82,6 +84,7 @@ pub async fn stop_gateway_inner(app: &tauri::AppHandle) -> Result<(), IpcError> 
         shutdown_server(h).await;
     }
     *ctrl.providers.lock().unwrap() = Vec::new();
+    let _ = db::set_setting(&ctrl.db.lock().unwrap(), "gateway_running", "0");
     tracing::info!("网关已停止");
     update_tray(app, false);
     Ok(())
