@@ -138,7 +138,7 @@ fn default_true() -> bool {
 
 pub fn default_config() -> Config {
     Config {
-        listen: "127.0.0.1:8000".into(),
+        listen: "127.0.0.1:8849".into(),
         providers: vec![],
         consumer: ConsumerConfig {
             api_keys: vec![],

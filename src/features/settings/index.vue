@@ -14,7 +14,7 @@ const { cfg, saving, autoStart, msg, keyInput, addKey, removeKey, maskKey, save,
       <h3><span class="gn">01</span>通用</h3>
       <div class="row">
         <label>监听地址</label>
-        <input v-model="cfg.listen" type="text" placeholder="127.0.0.1:8000" />
+        <input v-model="cfg.listen" type="text" placeholder="127.0.0.1:8849" />
       </div>
       <div class="row">
         <label>Key 黑名单时长(秒)</label>

@@ -87,7 +87,7 @@ pub fn get_setting(conn: &Connection, key: &str) -> Option<String> {
 }
 
 pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
-    let listen = get_setting(conn, "listen").unwrap_or_else(|| "127.0.0.1:8000".into());
+    let listen = get_setting(conn, "listen").unwrap_or_else(|| "127.0.0.1:8849".into());
     let key_blacklist_secs: u64 = get_setting(conn, "key_blacklist_secs")
         .and_then(|v| v.parse().ok())
         .unwrap_or(600);
