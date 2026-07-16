@@ -72,6 +72,11 @@ pub fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
                 });
             }
             "quit" => {
+                // 先销毁主窗口，让 WebView2 在进程退出前完整卸载窗口类，
+                // 缓解 Windows 退出日志：Failed to unregister class Chrome_WidgetWin_0. Error = 1412
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.destroy();
+                }
                 app.exit(0);
             }
             _ => {}
