@@ -1,6 +1,8 @@
 use tauri::Manager;
 use tauri_plugin_autostart::ManagerExt;
 
+use std::collections::HashMap;
+
 use crate::config::state::{AppCtrl, GatewayStatus, ProviderRuntime, UsageModelRow, UsageSummary};
 use crate::config::types::Config;
 use crate::gateway::manager::{
@@ -150,6 +152,15 @@ pub fn disable_autostart(app: tauri::AppHandle) -> Result<(), IpcError> {
 #[tauri::command]
 pub fn autostart_status(app: tauri::AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+/// 查询各别名上次成功响应的实际模型（内存记录，进程退出即失）。
+/// 返回 别名 → 实际模型 的映射，供前端高亮当前命中的后端模型。
+#[tauri::command]
+pub fn last_used_models(app: tauri::AppHandle) -> HashMap<String, String> {
+    let ctrl = app.state::<AppCtrl>();
+    let map = ctrl.last_model.lock().unwrap().clone();
+    map
 }
 
 /// 按自然日计算 since 时间戳。

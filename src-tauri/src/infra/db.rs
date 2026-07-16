@@ -4,7 +4,7 @@ use rusqlite::{params, Connection};
 use serde::Serialize;
 
 use crate::config::types::{
-    ApiKeyEntry, Config, ConsumerConfig, LogConfig, Protocol, ProviderConfig,
+    ApiKeyEntry, Config, ConsumerConfig, LogConfig, ModelMapping, Protocol, ProviderConfig,
 };
 
 pub fn open(path: &str) -> anyhow::Result<Connection> {
@@ -91,9 +91,15 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(600);
     let log_level = get_setting(conn, "log_level").unwrap_or_else(|| "info".into());
-    let auto_start_gateway = get_setting(conn, "auto_start_gateway").map(|v| v == "1").unwrap_or(false);
+    let auto_start_gateway = get_setting(conn, "auto_start_gateway")
+        .map(|v| v == "1")
+        .unwrap_or(false);
 
     let consumer_api_keys: Vec<String> = get_setting(conn, "consumer_api_keys")
+        .and_then(|v| serde_json::from_str(&v).ok())
+        .unwrap_or_default();
+
+    let model_mappings: Vec<ModelMapping> = get_setting(conn, "model_mappings")
         .and_then(|v| serde_json::from_str(&v).ok())
         .unwrap_or_default();
 
@@ -181,6 +187,7 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
         log: LogConfig { level: log_level },
         key_blacklist_secs,
         auto_start_gateway,
+        model_mappings,
     })
 }
 
@@ -212,6 +219,11 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
         &tx,
         "auto_start_gateway",
         if cfg.auto_start_gateway { "1" } else { "0" },
+    )?;
+    set_setting(
+        &tx,
+        "model_mappings",
+        &serde_json::to_string(&cfg.model_mappings)?,
     )?;
 
     // upsert 每个 provider：id>0 走 UPDATE（保留原 ID），id=0 走 INSERT（新建）

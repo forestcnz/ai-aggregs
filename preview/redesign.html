@@ -369,6 +369,31 @@ body{
 .mtags .auto{color:var(--text-weak);font-style:italic;font-size:11px;border:none;padding:0}
 .actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:16px}
 
+/* 模型映射 — 别名模型(单个) → 实际后端池(多个) */
+.map-desc{font-size:11px;color:var(--text-weak);line-height:1.8;margin:-2px 0 14px}
+.map-desc b{color:var(--text);font-weight:500}
+.map-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.map-rule{border:1px solid var(--border-weak);border-radius:var(--r-md);padding:13px 14px;background:var(--bg);transition:var(--t)}
+.map-rule:hover{border-color:var(--border)}
+.map-rule.off{opacity:.5}
+.map-rule-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px}
+.rh-left{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-weak)}
+.rh-left b{color:var(--text-strong);font-weight:600;font-size:12px}
+.map-rule-actions{display:flex;align-items:center;gap:10px}
+.map-rule-body{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.map-side{display:flex;flex-direction:column;gap:6px;min-width:0}
+.mside-lab{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-weak)}
+.map-alias{flex:0 0 200px}
+.map-alias .inp{width:100%;max-width:none}
+.map-arrow{display:flex;align-items:center;justify-content:center;padding-bottom:7px;color:var(--text-strong)}
+.map-arrow .arr{font-size:18px;line-height:1;font-weight:400}
+.map-pool{flex:1 1 240px}
+.map-pool .chip-input{max-width:none}
+.map-warn{display:none;align-items:center;gap:6px;margin-top:10px;font-size:10px;color:#c00;border:1px solid rgba(204,0,0,.28);background:rgba(204,0,0,.035);border-radius:var(--r-sm);padding:5px 9px;line-height:1.5}
+.map-warn .wic{flex-shrink:0;font-size:11px}
+.map-add-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.map-add-row .hint{font-size:10px;color:var(--text-weak)}
+
 /* 保存提示 toast */
 .toast{position:absolute;top:52px;right:28px;z-index:100;padding:7px 14px;border:1px solid var(--border-weak);border-radius:var(--r-md);background:var(--bg);color:var(--text);font-size:12px;font-weight:500}
 .toast.ok{color:var(--green);border-color:var(--green)}
@@ -426,6 +451,9 @@ body{
   .stat:last-child{border-bottom:none}
   .pc-grid{grid-template-columns:1fr}
   .row{grid-template-columns:1fr;gap:5px}
+  .map-rule-body{flex-direction:column;align-items:stretch;gap:10px}
+  .map-arrow{transform:rotate(90deg);padding:2px 0;align-self:center}
+  .map-alias,.map-pool{flex:1 1 100%}
   .swatches{grid-template-columns:repeat(2,1fr)}
   .usage-stats{grid-template-columns:1fr 1fr}
   .usage-filter{flex-direction:column;align-items:flex-start;gap:10px}
@@ -736,7 +764,7 @@ body{
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://api.openai.com/v1</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>gpt-4o-mini</span><span>o1</span><span>o3-mini</span><span>gpt-4.1</span></div></span></div>
                   <div class="pf"><span class="fl">Reasoning</span><span class="fv">medium</span></div>
-                  <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
+                  <div class="pf"><span class="fl">超时</span><span class="fv">3000s</span></div>
                   <div class="keys-sec">
                     <div class="kh">API KEYS (3)</div>
                     <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-prj**7QxZ</span><span class="ks ok">正常</span></div>
@@ -751,7 +779,7 @@ body{
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://api.anthropic.com</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>claude-3-5-sonnet</span><span>claude-3-opus</span><span>claude-3-haiku</span><span>claude-sonnet-4</span></div></span></div>
                   <div class="pf"><span class="fl">Reasoning</span><span class="fv">无</span></div>
-                  <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
+                  <div class="pf"><span class="fl">超时</span><span class="fv">3000s</span></div>
                   <div class="keys-sec">
                     <div class="kh">API KEYS (2)</div>
                     <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">sk-ant**4MnK</span><span class="ks ok">正常</span></div>
@@ -765,7 +793,7 @@ body{
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://open.bigmodel.cn/api/paas/v4</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>glm-4-plus</span><span>glm-4-air</span><span>glm-4-flash</span></div></span></div>
                   <div class="pf"><span class="fl">Reasoning</span><span class="fv">无</span></div>
-                  <div class="pf"><span class="fl">超时</span><span class="fv">300s</span></div>
+                  <div class="pf"><span class="fl">超时</span><span class="fv">3000s</span></div>
                   <div class="keys-sec">
                     <div class="kh">API KEYS (1)</div>
                     <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">xxxxxxxx**f2a1</span><span class="ks ok">正常</span></div>
@@ -811,8 +839,7 @@ body{
                   <div class="mf"><label>API Keys</label><div class="chip-input"><span class="chip"><span class="ctxt">sk-ds**7QxZ</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">sk-ds**3KdW</span><button class="cx">×</button></span><input class="chip-field" placeholder="API Key，回车添加"></div></div>
                   <div class="mf"><label>模型</label><div class="chip-input"><span class="chip"><span class="ctxt">deepseek-chat</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">deepseek-reasoner</span><button class="cx">×</button></span><input class="chip-field" placeholder="模型名，回车添加"></div></div>
                   <div class="mf-row">
-                    <div class="mf"><label>超时（秒）</label><input class="inp" type="number" value="300"></div>
-                    <div class="mf"><label>重试次数</label><input class="inp" type="number" value="2"></div>
+                    <div class="mf"><label>超时（秒）</label><input class="inp" type="number" value="3000"></div>
                   </div>
                 </div>
                 <div class="modal-footer">
@@ -982,7 +1009,99 @@ body{
               <div class="row"><label>Models</label><div class="mtags"><span>gpt-4o</span><span>gpt-4o-mini</span><span>o1</span><span>claude-3-5-sonnet</span><span>claude-sonnet-4</span><span>glm-4-plus</span><span class="auto">（自动从已启用提供商聚合）</span></div></div>
             </div>
             <div class="group">
-              <h3><span class="gn">03</span>系统</h3>
+              <h3><span class="gn">03</span>模型映射</h3>
+              <div class="map-desc">用户请求「<b>别名模型</b>」时，重定向到一组「<b>实际后端模型</b>」（负载均衡 / 故障转移）。一个别名可映射多个后端，多个别名也可共享同一后端。</div>
+              <div class="map-list" id="map-list">
+
+                <div class="map-rule" data-rule>
+                  <div class="map-rule-head">
+                    <div class="rh-left"><span class="dot ink"></span><b>映射规则 01</b></div>
+                    <div class="map-rule-actions">
+                      <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                      <button class="btn btn-ghost btn-sm map-del">删除</button>
+                    </div>
+                  </div>
+                  <div class="map-rule-body">
+                    <div class="map-side map-alias">
+                      <span class="mside-lab">请求模型（别名）</span>
+                      <input class="inp" value="A1">
+                    </div>
+                    <div class="map-arrow"><span class="arr">→</span></div>
+                    <div class="map-side map-pool">
+                      <span class="mside-lab">实际模型（后端池）</span>
+                      <div class="chip-input">
+                        <span class="chip"><span class="ctxt">b</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">c</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">d</span><button class="cx">×</button></span>
+                        <input class="chip-field" placeholder="实际模型名，回车添加">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="map-warn" data-warn><span class="wic">⚠</span><span data-warn-msg></span></div>
+                </div>
+
+                <div class="map-rule" data-rule>
+                  <div class="map-rule-head">
+                    <div class="rh-left"><span class="dot ink"></span><b>映射规则 02</b></div>
+                    <div class="map-rule-actions">
+                      <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                      <button class="btn btn-ghost btn-sm map-del">删除</button>
+                    </div>
+                  </div>
+                  <div class="map-rule-body">
+                    <div class="map-side map-alias">
+                      <span class="mside-lab">请求模型（别名）</span>
+                      <input class="inp" value="A2">
+                    </div>
+                    <div class="map-arrow"><span class="arr">→</span></div>
+                    <div class="map-side map-pool">
+                      <span class="mside-lab">实际模型（后端池）</span>
+                      <div class="chip-input">
+                        <span class="chip"><span class="ctxt">c</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">d</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">e</span><button class="cx">×</button></span>
+                        <input class="chip-field" placeholder="实际模型名，回车添加">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="map-warn" data-warn><span class="wic">⚠</span><span data-warn-msg></span></div>
+                </div>
+
+                <div class="map-rule" data-rule>
+                  <div class="map-rule-head">
+                    <div class="rh-left"><span class="dot ink"></span><b>映射规则 03</b></div>
+                    <div class="map-rule-actions">
+                      <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                      <button class="btn btn-ghost btn-sm map-del">删除</button>
+                    </div>
+                  </div>
+                  <div class="map-rule-body">
+                    <div class="map-side map-alias">
+                      <span class="mside-lab">请求模型（别名）</span>
+                      <input class="inp" value="gpt-4">
+                    </div>
+                    <div class="map-arrow"><span class="arr">→</span></div>
+                    <div class="map-side map-pool">
+                      <span class="mside-lab">实际模型（后端池）</span>
+                      <div class="chip-input">
+                        <span class="chip"><span class="ctxt">gpt-4o</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">gpt-4-turbo</span><button class="cx">×</button></span>
+                        <span class="chip"><span class="ctxt">gpt-4-0613</span><button class="cx">×</button></span>
+                        <input class="chip-field" placeholder="实际模型名，回车添加">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="map-warn" data-warn><span class="wic">⚠</span><span data-warn-msg></span></div>
+                </div>
+
+              </div>
+              <div class="map-add-row">
+                <button class="btn btn-ghost btn-sm" id="map-add">+ 添加映射规则</button>
+                <span class="hint">同名源模型被多条规则匹配时，仅首条生效</span>
+              </div>
+            </div>
+            <div class="group">
+              <h3><span class="gn">04</span>系统</h3>
               <div class="row"><label>开机自启</label><div class="inline-tg"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span>系统启动时自动运行</span></div></div>
             </div>
             <div class="actions">
@@ -1245,6 +1364,58 @@ document.getElementById('pu-provider').addEventListener('change', e => {
 });
 document.getElementById('pu-key').addEventListener('change', renderProviderUsage);
 renderProviderUsage();
+
+/* 模型映射 — 别名(单个) → 实际后端池(多个)；别名重复检测 + 增删规则 */
+(function(){
+  const list = document.getElementById('map-list');
+  if(!list) return;
+  function aliasOf(rule){ const i = rule.querySelector('.map-alias .inp'); return i ? i.value.trim() : ''; }
+  function poolNames(rule){ return Array.from(rule.querySelectorAll('.map-pool .chip .ctxt')).map(c=>c.textContent.trim()).filter(Boolean); }
+  /* 重算：别名若被多条规则重复定义 → 提示冲突（仅首条生效） */
+  function recompute(){
+    const cnt = {};
+    list.querySelectorAll('[data-rule]').forEach(r=>{ const a = aliasOf(r); if(a) cnt[a]=(cnt[a]||0)+1; });
+    list.querySelectorAll('[data-rule]').forEach(rule=>{
+      const a = aliasOf(rule); const dup = a && cnt[a] > 1;
+      const warn = rule.querySelector('[data-warn]'); const msg = rule.querySelector('[data-warn-msg]');
+      if(!warn) return;
+      const txt = dup ? '别名「'+a+'」在多条规则中重复定义，仅首条生效' : '';
+      const disp = dup ? 'flex' : 'none';
+      if(warn.style.display !== disp) warn.style.display = disp;
+      if(msg && msg.textContent !== txt) msg.textContent = txt;   /* 避免触发观察器死循环 */
+    });
+  }
+  /* 后端池 chip 增删 — 捕获阶段接管，避免与全局 chip 处理重复触发 */
+  list.addEventListener('keydown', e=>{
+    const field = e.target.closest('.map-pool .chip-field'); if(!field) return;
+    if(e.key==='Enter' && field.value.trim()){
+      e.preventDefault(); e.stopPropagation();
+      const ci = field.closest('.chip-input');
+      const chip = document.createElement('span'); chip.className='chip';
+      chip.innerHTML = '<span class="ctxt">'+field.value.trim()+'</span><button class="cx">×</button>';
+      ci.insertBefore(chip, field); field.value='';
+    }
+  }, true);
+  list.addEventListener('click', e=>{
+    const x = e.target.closest('.map-pool .chip .cx');
+    if(x){ e.stopPropagation(); x.closest('.chip').remove(); return; }
+    if(e.target.closest('.map-del') && list.querySelectorAll('[data-rule]').length > 1){
+      e.target.closest('[data-rule]').remove();
+    }
+  }, true);
+  list.addEventListener('input', e=>{ if(e.target.closest('.map-alias')) recompute(); });
+  new MutationObserver(recompute).observe(list, {childList:true, subtree:true, characterData:true});
+  const addBtn = document.getElementById('map-add');
+  if(addBtn) addBtn.addEventListener('click', ()=>{
+    const clone = list.querySelector('[data-rule]').cloneNode(true);
+    clone.querySelectorAll('.chip').forEach(c=>c.remove());
+    const inp = clone.querySelector('.map-alias .inp'); if(inp) inp.value='';
+    const warn = clone.querySelector('[data-warn]'); if(warn) warn.style.display='none';
+    list.appendChild(clone); recompute();
+    clone.scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+  recompute();
+})();
 </script>
 </body>
 </html>

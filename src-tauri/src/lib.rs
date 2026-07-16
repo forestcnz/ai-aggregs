@@ -93,6 +93,7 @@ pub fn run() {
             listen_addr: Mutex::new(String::new()),
             providers: Mutex::new(Vec::new()),
             log_level_setter,
+            last_model: std::sync::Arc::new(Mutex::new(std::collections::HashMap::new())),
         })
         .setup(move |app| {
             log_bridge::set_app_handle(&log_slot, app.handle().clone());
@@ -149,6 +150,7 @@ pub fn run() {
             autostart_status,
             get_usage,
             get_provider_usage,
+            last_used_models,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

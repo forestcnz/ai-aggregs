@@ -43,10 +43,11 @@ pub async fn start_gateway_inner(app: &tauri::AppHandle) -> Result<String, IpcEr
         }
     }
 
-    let cfg = ctrl.config.lock().unwrap().clone();
+    let mut cfg = ctrl.config.lock().unwrap().clone();
+    sync_consumer_models(&mut cfg);
     let providers = build_providers(&cfg)?;
     let db = ctrl.db.clone();
-    let app_state = AppState::build(&cfg, providers.clone(), db)?;
+    let app_state = AppState::build(&cfg, providers.clone(), db, ctrl.last_model.clone())?;
     let app_router = router::build(app_state);
 
     let listener = tokio::net::TcpListener::bind(&cfg.listen)
@@ -115,6 +116,15 @@ pub fn compute_consumer_models(cfg: &Config) -> Vec<String> {
                 if !models.contains(m) {
                     models.push(m.clone());
                 }
+            }
+        }
+    }
+    // 追加已启用的模型映射别名（对外可请求的虚拟模型）
+    for mm in &cfg.model_mappings {
+        if mm.enabled {
+            let alias = mm.alias.trim();
+            if !alias.is_empty() && !models.iter().any(|m| m == alias) {
+                models.push(alias.to_string());
             }
         }
     }

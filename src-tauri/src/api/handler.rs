@@ -45,18 +45,23 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
         .unwrap_or(false);
     tracing::debug!(
         model = %model,
-        candidates = ?candidates.iter().map(|p| &p.name).collect::<Vec<_>>(),
+        candidates = ?candidates.iter().map(|(p, m)| format!("{}→{}", p.name, m)).collect::<Vec<_>>(),
         stream,
         "proxy: route resolved"
     );
 
     let mut last_err: Option<AppError> = None;
-    for provider in &candidates {
+    for (provider, actual_model) in &candidates {
         let p_proto = provider.protocol;
+        // 别名重定向：把请求体里的 model 改写为实际后端模型
+        let mut send_body = body.clone();
+        if actual_model != &model {
+            send_body["model"] = serde_json::Value::String(actual_model.clone());
+        }
         let (send_body, need_convert) = if c_proto == p_proto {
-            (body.clone(), false)
+            (send_body, false)
         } else {
-            match converter::req_convert(&body, c_proto, p_proto) {
+            match converter::req_convert(&send_body, c_proto, p_proto) {
                 Ok(v) => (v, true),
                 Err(e) => {
                     last_err = Some(e);
@@ -89,6 +94,13 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                     .lock()
                     .unwrap()
                     .insert(model.clone(), provider.id);
+                // 别名重定向：记录上次成功的实际模型，下次该别名优先用它
+                if st.model_aliases.contains_key(model.as_str()) {
+                    st.last_model
+                        .lock()
+                        .unwrap()
+                        .insert(model.clone(), actual_model.clone());
+                }
                 tracing::debug!(
                     provider = %provider.name,
                     status = %resp.status(),
@@ -102,7 +114,8 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                     stream,
                     UsageCtx {
                         consumer_key: consumer_key.clone(),
-                        model: model.clone(),
+                        // 用量统计按真实模型记录（别名重定向后的实际后端模型）
+                        model: actual_model.clone(),
                         provider_id: provider.id,
                         provider_key,
                         db: st.db.clone(),

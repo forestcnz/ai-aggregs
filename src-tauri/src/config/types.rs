@@ -82,6 +82,9 @@ pub struct Config {
     /// 启动应用时是否恢复上次网关运行状态（需配合运行状态记录）
     #[serde(default)]
     pub auto_start_gateway: bool,
+    /// 模型映射（别名 → 实际后端模型池）。用户请求别名时，重定向到池中的实际模型。
+    #[serde(default)]
+    pub model_mappings: Vec<ModelMapping>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -110,6 +113,19 @@ pub struct ConsumerConfig {
     pub api_keys: Vec<String>,
     #[serde(default)]
     pub models: Vec<String>,
+}
+
+/// 模型映射：把对外别名重定向到一组实际后端模型（负载均衡 / 故障转移）。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ModelMapping {
+    /// 对外别名 — 用户请求时填的模型名
+    #[serde(default)]
+    pub alias: String,
+    /// 实际后端模型池（按顺序尝试，命中后端 providers 的模型）
+    #[serde(default)]
+    pub models: Vec<String>,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -144,5 +160,6 @@ pub fn default_config() -> Config {
         },
         key_blacklist_secs: 600,
         auto_start_gateway: false,
+        model_mappings: vec![],
     }
 }

@@ -35,13 +35,22 @@ export interface ProviderConfig {
   reasoning_effort?: string | null
 }
 
+/** 模型映射：把对外别名重定向到一组实际后端模型（负载均衡 / 故障转移） */
+export interface ModelMapping {
+  /** 对外别名 — 用户请求时填的模型名 */
+  alias: string
+  /** 实际后端模型池（按顺序尝试） */
+  models: string[]
+  enabled: boolean
+}
+
 /** 全局配置 */
 export interface Config {
   listen: string
   providers: ProviderConfig[]
   consumer: {
     api_keys: string[]
-    /** 自动从已启用 provider 的 models 并集计算，不应手动设置 */
+    /** 自动从已启用 provider 的 models 并集计算（含已启用别名），不应手动设置 */
     models: string[]
   }
   log: { level: string }
@@ -49,6 +58,8 @@ export interface Config {
   key_blacklist_secs: number
   /** 启动应用时是否恢复上次网关运行状态 */
   auto_start_gateway: boolean
+  /** 模型映射（别名 → 实际后端模型池） */
+  model_mappings: ModelMapping[]
 }
 
 /** 网关运行状态 */
@@ -160,6 +171,12 @@ export const getProviderUsage = (
   providerKey: string | null,
   days: number | null,
 ) => invoke<UsageSummary>('get_provider_usage', { providerId, providerKey, days })
+
+/**
+ * 查询各别名上次成功响应的实际模型（内存记录）。
+ * 返回 别名 → 实际模型 的映射，用于设置页高亮当前命中的后端模型。
+ */
+export const getLastUsedModels = () => invoke<Record<string, string>>('last_used_models')
 
 // ===================== 事件监听 =====================
 

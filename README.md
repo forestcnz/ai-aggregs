@@ -45,7 +45,9 @@ Tauri v2 壳 + Vue 3 前端 + Rust/Axum 网关嵌入同一进程。
 
 **设置**
 
-![设置](preview/设置.png)
+![设置（一）](preview/设置1.png)
+
+![设置（二）](preview/设置2.png)
 
 ---
 
