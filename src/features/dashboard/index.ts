@@ -1,4 +1,4 @@
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import { startGateway, stopGateway, type GatewayStatus, type LogEntry } from '../../api/commands'
 
 export function useDashboard(
@@ -38,15 +38,17 @@ export function useDashboard(
     )
   }
 
-  // 监听 logs 变化，自动滚动到底部
-  watch(
-    () => props.logs.length,
-    () => {
-      nextTick(() => {
-        if (logPanel.value) logPanel.value.scrollTop = logPanel.value.scrollHeight
-      })
-    }
-  )
+  // 滚动日志面板到底部（展示最新日志）
+  function scrollToBottom() {
+    nextTick(() => {
+      if (logPanel.value) logPanel.value.scrollTop = logPanel.value.scrollHeight
+    })
+  }
+
+  // 切回该页时组件重新挂载（v-if），scrollTop 会归零 → 挂载后拉到底部
+  onMounted(scrollToBottom)
+  // 实时日志增长时自动滚动
+  watch(() => props.logs.length, scrollToBottom)
 
   return { logPanel, starting, toggle, levelClass, formatTime }
 }

@@ -5,6 +5,7 @@ import { normalizeKey } from '../../api/commands'
 defineProps<{ gatewayRunning: boolean }>()
 const {
   config, loading, msg,
+  sortedProviders,
   modalMode, editingProvider, modelInput, keyInput,
   onToggleProvider, onToggleKey,
   openAdd, openEdit, closeModal, submitModal, deleteFromModal,
@@ -30,7 +31,7 @@ const {
     <!-- 卡片网格 -->
     <div class="card-grid">
       <div
-        v-for="(p, idx) in config.providers"
+        v-for="{ p, idx } in sortedProviders"
         :key="idx"
         class="provider-card"
         :class="{ off: !p.enabled }"

@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   getConfig,
   saveConfig,
@@ -19,6 +19,14 @@ export function useProviderList() {
 
   // 上次拉取运行时状态的时间戳
   const lastRuntimeAt = ref(Date.now())
+
+  // 卡片展示顺序：启用的供应商优先，组内保持原顺序（idx 为在 config.providers 中的真实下标）
+  const sortedProviders = computed(() => {
+    if (!config.value) return [] as { p: ProviderConfig; idx: number }[]
+    return config.value.providers
+      .map((p, idx) => ({ p, idx }))
+      .sort((a, b) => Number(b.p.enabled) - Number(a.p.enabled))
+  })
 
   // 弹窗状态
   const modalMode = ref<'add' | 'edit' | null>(null)
@@ -249,6 +257,7 @@ export function useProviderList() {
 
   return {
     config, loading, msg,
+    sortedProviders,
     modalMode, editingProvider, modelInput, keyInput,
     onToggleProvider, onToggleKey,
     openAdd, openEdit, closeModal, submitModal, deleteFromModal,
