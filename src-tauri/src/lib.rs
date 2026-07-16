@@ -73,6 +73,14 @@ pub fn run() {
 
     // ---- Tauri 应用构建 ----
     tauri::Builder::default()
+        // 单实例限制（仅桌面端）：二次启动时聚焦到已运行实例而非新开进程
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            // 二次启动时显示并聚焦主窗口
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
