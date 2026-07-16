@@ -178,6 +178,8 @@ pub async fn stream_convert(
 
                 if s.is_empty() {
                     if !cur_data.is_empty() {
+                        // 先从原始上游数据嗅探 usage，避免协议转换时 usage 丢失
+                        sniff_usage(&cur_data, &mut last_usage);
                         let payloads = conv.on_event(cur_event.as_deref(), &cur_data);
                         for p in payloads {
                             sniff_usage(&p, &mut last_usage);
@@ -203,6 +205,8 @@ pub async fn stream_convert(
         }
 
         if !cur_data.is_empty() {
+            // 先从原始上游数据嗅探 usage，避免协议转换时 usage 丢失
+            sniff_usage(&cur_data, &mut last_usage);
             for p in conv.on_event(cur_event.as_deref(), &cur_data) {
                 sniff_usage(&p, &mut last_usage);
                 let line = make_sse_line(&p);

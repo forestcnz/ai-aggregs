@@ -58,7 +58,7 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
         if actual_model != &model {
             send_body["model"] = serde_json::Value::String(actual_model.clone());
         }
-        let (send_body, need_convert) = if c_proto == p_proto {
+        let (mut send_body, need_convert) = if c_proto == p_proto {
             (send_body, false)
         } else {
             match converter::req_convert(&send_body, c_proto, p_proto) {
@@ -69,6 +69,17 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                 }
             }
         };
+        // 流式 Chat 请求注入 stream_options.include_usage，确保上游在末尾 chunk 返回 token 用量
+        if stream && p_proto == Protocol::Chat {
+            if let Some(obj) = send_body.as_object_mut() {
+                let so = obj
+                    .entry("stream_options")
+                    .or_insert_with(|| Value::Object(serde_json::Map::new()));
+                if let Some(so_obj) = so.as_object_mut() {
+                    so_obj.insert("include_usage".into(), Value::Bool(true));
+                }
+            }
+        }
         tracing::info!(
             model = %model,
             provider = %provider.name,
