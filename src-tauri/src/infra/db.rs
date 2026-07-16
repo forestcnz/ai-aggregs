@@ -26,8 +26,7 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
             name             TEXT NOT NULL UNIQUE,
             protocol         TEXT NOT NULL DEFAULT 'chat',
             base_url         TEXT NOT NULL DEFAULT '',
-            timeout_secs     INTEGER NOT NULL DEFAULT 300,
-            max_retries      INTEGER NOT NULL DEFAULT 2,
+            timeout_secs     INTEGER NOT NULL DEFAULT 3000,
             enabled          INTEGER NOT NULL DEFAULT 1,
             reasoning_effort TEXT,
             extra_headers    TEXT NOT NULL DEFAULT '{}',
@@ -100,7 +99,7 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
 
     let mut providers = Vec::new();
     let mut stmt = conn.prepare(
-        "SELECT id, name, protocol, base_url, timeout_secs, max_retries, enabled, reasoning_effort, extra_headers
+        "SELECT id, name, protocol, base_url, timeout_secs, enabled, reasoning_effort, extra_headers
          FROM providers ORDER BY sort_order",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -110,10 +109,9 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             row.get::<_, String>(2)?,
             row.get::<_, String>(3)?,
             row.get::<_, u64>(4)?,
-            row.get::<_, u32>(5)?,
-            row.get::<_, i64>(6)? != 0,
-            row.get::<_, Option<String>>(7)?,
-            row.get::<_, String>(8)?,
+            row.get::<_, i64>(5)? != 0,
+            row.get::<_, Option<String>>(6)?,
+            row.get::<_, String>(7)?,
         ))
     })?;
 
@@ -124,7 +122,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             protocol,
             base_url,
             timeout_secs,
-            max_retries,
             enabled,
             reasoning_effort,
             extra_headers_json,
@@ -168,7 +165,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             api_keys,
             models,
             timeout_secs,
-            max_retries,
             extra_headers,
             enabled,
             reasoning_effort,
@@ -224,7 +220,7 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
         let pid = if p.id > 0 {
             tx.execute(
                 "UPDATE providers SET name=?2, protocol=?3, base_url=?4, timeout_secs=?5,
-                 max_retries=?6, enabled=?7, reasoning_effort=?8, extra_headers=?9, sort_order=?10
+                 enabled=?6, reasoning_effort=?7, extra_headers=?8, sort_order=?9
                  WHERE id=?1",
                 params![
                     p.id,
@@ -232,7 +228,6 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                     p.protocol.as_str(),
                     p.base_url,
                     p.timeout_secs,
-                    p.max_retries,
                     p.enabled as i64,
                     p.reasoning_effort,
                     serde_json::to_string(&p.extra_headers)?,
@@ -243,14 +238,13 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
         } else {
             tx.execute(
                 "INSERT INTO providers
-                    (name, protocol, base_url, timeout_secs, max_retries, enabled, reasoning_effort, extra_headers, sort_order)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    (name, protocol, base_url, timeout_secs, enabled, reasoning_effort, extra_headers, sort_order)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     p.name,
                     p.protocol.as_str(),
                     p.base_url,
                     p.timeout_secs,
-                    p.max_retries,
                     p.enabled as i64,
                     p.reasoning_effort,
                     serde_json::to_string(&p.extra_headers)?,

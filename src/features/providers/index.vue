@@ -223,10 +223,6 @@ const {
                   class="f-input"
                 />
               </div>
-              <div class="mf">
-                <label>重试次数</label>
-                <input v-model.number="editingProvider.max_retries" type="number" class="f-input" />
-              </div>
             </div>
           </div>
 

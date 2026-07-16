@@ -35,8 +35,7 @@ export function useProviderList() {
       base_url: '',
       api_keys: [],
       models: [],
-      timeout_secs: 300,
-      max_retries: 2,
+      timeout_secs: 3000,
       extra_headers: {},
       enabled: true,
       reasoning_effort: null

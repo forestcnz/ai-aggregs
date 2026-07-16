@@ -29,7 +29,6 @@ export interface ProviderConfig {
   api_keys: ApiKeyEntry[]
   models: string[]
   timeout_secs: number
-  max_retries: number
   extra_headers: Record<string, string>
   enabled: boolean
   /** 固定思考强度（注入到发给上游的请求体），null 表示不注入 */

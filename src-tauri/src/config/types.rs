@@ -96,8 +96,6 @@ pub struct ProviderConfig {
     pub models: Vec<String>,
     #[serde(default = "default_timeout")]
     pub timeout_secs: u64,
-    #[serde(default = "default_retries")]
-    pub max_retries: u32,
     #[serde(default)]
     pub extra_headers: HashMap<String, String>,
     #[serde(default = "default_true")]
@@ -121,10 +119,7 @@ pub struct LogConfig {
 }
 
 fn default_timeout() -> u64 {
-    120
-}
-fn default_retries() -> u32 {
-    2
+    3000
 }
 fn default_level() -> String {
     "info".into()

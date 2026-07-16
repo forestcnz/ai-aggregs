@@ -36,7 +36,6 @@ pub struct Provider {
     pub protocol: Protocol,
     pub base_url: String,
     pub models: Vec<String>,
-    pub max_retries: u32,
     pub extra_headers: Vec<(String, String)>,
     pub reasoning_effort: Option<String>,
     keys: Vec<ApiKeyEntry>,
@@ -60,7 +59,6 @@ impl Provider {
             protocol: cfg.protocol,
             base_url: cfg.base_url.trim_end_matches('/').to_string(),
             models: cfg.models.clone(),
-            max_retries: cfg.max_retries,
             extra_headers: cfg
                 .extra_headers
                 .iter()
@@ -171,8 +169,9 @@ impl Provider {
             body.clone()
         };
         tracing::debug!(provider = %self.name, url = %url, body = %send_body, "→ 上游请求");
+        // 有多少个启用的 key 就最多尝试多少个（不再受 max_retries 限制）
         let enabled_count = self.keys.iter().filter(|e| e.enabled()).count();
-        let total = ((self.max_retries as usize) + 1).min(enabled_count.max(1));
+        let total = enabled_count.max(1);
         let mut last_err: Option<UpstreamError> = None;
 
         // 构建密钥尝试顺序：上次成功的密钥优先，其余按原序
