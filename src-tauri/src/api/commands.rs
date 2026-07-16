@@ -152,6 +152,24 @@ pub fn autostart_status(app: tauri::AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)
 }
 
+/// 按自然日计算 since 时间戳。
+/// days=None 查全部时间（返回 0）；days=Some(d) 返回本地今天 0 点起往前 d 个自然日（含今天）的时间戳。
+fn since_for_days(days: Option<u32>) -> i64 {
+    use chrono::{Local, TimeZone};
+    match days {
+        None => 0,
+        Some(d) => {
+            let today = Local::now().date_naive();
+            // 含今天：d=1 → 今天 0 点；d=7 → 6 天前 0 点
+            let start = today - chrono::Duration::days(d.saturating_sub(1) as i64);
+            Local
+                .from_local_datetime(&start.and_hms_opt(0, 0, 0).unwrap())
+                .unwrap()
+                .timestamp()
+        }
+    }
+}
+
 /// 查询用量统计。consumer_key=None 查全部当前 key，days=None 查全部时间
 #[tauri::command]
 pub fn get_usage(
@@ -167,15 +185,7 @@ pub fn get_usage(
         Some(k) => vec![k.clone()],
     };
 
-    let since = days
-        .map(|d| {
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0) as i64;
-            now - (d as i64 * 86400)
-        })
-        .unwrap_or(0);
+    let since = since_for_days(days);
 
     let conn = ctrl.db.lock().unwrap();
     let rows = db::query_usage(&conn, &consumer_keys, since).unwrap_or_default();
@@ -238,15 +248,7 @@ pub fn get_provider_usage(
         }
     };
 
-    let since = days
-        .map(|d| {
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0) as i64;
-            now - (d as i64 * 86400)
-        })
-        .unwrap_or(0);
+    let since = since_for_days(days);
 
     let conn = ctrl.db.lock().unwrap();
     let rows =

@@ -36,6 +36,8 @@ anyhow = "1"
 thiserror = "1"
 # SQLite 数据库
 rusqlite = { version = "0.32", features = ["bundled"] }
+# 时间处理（用量统计按自然日计算 since）
+chrono = "0.4"
 
 [profile.release]
 opt-level = 3
