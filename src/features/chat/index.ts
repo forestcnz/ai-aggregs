@@ -47,7 +47,6 @@ export function useChat(props: { status: GatewayStatus }) {
     if (!props.status.running || !props.status.listen_addr) return ''
     return `http://${props.status.listen_addr}`
   })
-  const apiKey = computed(() => selectedKey.value)
 
   // ---- 生命周期 ----
   onMounted(async () => {
@@ -118,13 +117,12 @@ export function useChat(props: { status: GatewayStatus }) {
         thinking: { type: 'enabled', budget_tokens: 10000 }
       }
     } else {
-      // Chat 协议：messages 字段；启用 thinking
+      // Chat 协议：messages 字段；启用 reasoning_effort
       return {
         model,
         messages: sendMessages,
         stream: true,
-        reasoning_effort: 'medium',
-        thinking: { type: 'enabled' }
+        reasoning_effort: 'medium'
       }
     }
   }
@@ -132,12 +130,12 @@ export function useChat(props: { status: GatewayStatus }) {
   // ---- 按协议构建请求头 ----
   function buildHeaders(): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (apiKey.value) {
+    if (selectedKey.value) {
       // Anthropic 用 x-api-key，其余用 Bearer；网关两种都支持
       if (protocol.value === 'anthropic') {
-        headers['x-api-key'] = apiKey.value
+        headers['x-api-key'] = selectedKey.value
       } else {
-        headers['Authorization'] = `Bearer ${apiKey.value}`
+        headers['Authorization'] = `Bearer ${selectedKey.value}`
       }
     }
     return headers

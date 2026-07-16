@@ -45,7 +45,7 @@ pub fn resp_convert(src: &Value, s: Protocol, d: Protocol) -> Result<Value, AppE
 
 // ===================== 通用 helper =====================
 
-fn rand_id() -> String {
+pub(super) fn rand_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let n = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -54,7 +54,7 @@ fn rand_id() -> String {
     format!("{n:x}")
 }
 
-fn created_now() -> u64 {
+pub(super) fn created_now() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

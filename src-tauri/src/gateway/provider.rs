@@ -305,9 +305,6 @@ impl Provider {
         match self.protocol {
             Protocol::Chat => {
                 body["reasoning_effort"] = json!(effort);
-                if body.get("thinking").is_none() {
-                    body["thinking"] = json!({"type": "enabled"});
-                }
             }
             Protocol::Responses => {
                 body["reasoning"] = json!({"effort": effort, "summary": "auto"});

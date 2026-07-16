@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use crate::config::types::Protocol;
 use crate::gateway::converter::{
-    map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat,
+    created_now, map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat, rand_id,
 };
 use crate::infra::db;
 use crate::infra::error::AppError;
@@ -722,21 +722,6 @@ fn message_delta_event(stop_reason: String, usage: Value) -> String {
 fn message_stop_event() -> String {
     json!({"type":"message_stop"}).to_string()
 }
-fn rand_id() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let n = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    format!("{n:x}")
-}
-fn created_now() -> u64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
-}
 
 // ===================== Responses -> Chat =====================
 
@@ -1047,7 +1032,7 @@ impl StreamConverter for ChatToResponsesStream {
             }
         }
 
-        if let Some(_fr) = choice.get("finish_reason").and_then(|x| x.as_str()) {
+        if choice.get("finish_reason").and_then(|x| x.as_str()).is_some() {
             if let Some(oi) = self.message_oi {
                 out.push(
                     json!({
