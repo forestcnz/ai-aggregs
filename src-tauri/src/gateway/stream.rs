@@ -94,7 +94,7 @@ pub fn stream_passthrough(resp: reqwest::Response, ctx: UsageCtx) -> Response {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(64);
 
     tokio::spawn(async move {
-        use futures::StreamExt;
+        use futures_util::StreamExt;
         let mut stream = resp.bytes_stream();
         let mut buf = BytesMut::new();
         let mut last_usage: Option<(u64, u64, u64)> = None;
@@ -146,7 +146,7 @@ pub async fn stream_convert(
     let mut conv = make_converter(src, dst);
 
     tokio::spawn(async move {
-        use futures::StreamExt;
+        use futures_util::StreamExt;
         let mut buf = BytesMut::new();
         let mut cur_event: Option<String> = None;
         let mut cur_data = String::new();

@@ -19,21 +19,29 @@ tauri-plugin-opener = "2"
 tauri-plugin-autostart = "2"
 # 网关运行时
 axum = { version = "0.7", features = ["json"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-futures = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tokio-stream = "0.1"
 bytes = "1"
 # 日志
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
 log = "0.4"
-log4rs = { version = "1", default-features = false, features = ["all_components", "gzip"] }
+log4rs = { version = "1", default-features = false, features = [
+    "rolling_file_appender",
+    "compound_policy",
+    "fixed_window_roller",
+    "size_trigger",
+    "time_trigger",
+    "pattern_encoder",
+    "gzip",
+] }
 # 错误处理
 anyhow = "1"
-thiserror = "1"
+thiserror = "2"
 # SQLite 数据库
 rusqlite = { version = "0.32", features = ["bundled"] }
 # 时间处理（用量统计按自然日计算 since）
