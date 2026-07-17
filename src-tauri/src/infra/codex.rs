@@ -517,12 +517,21 @@ fn run_codex(args: &str) -> std::io::Result<std::process::Output> {
     } else {
         ("sh", "-c")
     };
-    std::process::Command::new(shell)
-        .arg(flag)
+    let mut cmd = std::process::Command::new(shell);
+    cmd.arg(flag)
         .arg(format!("codex {args}"))
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()
+        .stderr(std::process::Stdio::piped());
+    #[cfg(target_os = "windows")]
+    hide_console(&mut cmd);
+    cmd.output()
+}
+
+#[cfg(target_os = "windows")]
+fn hide_console(cmd: &mut std::process::Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    cmd.creation_flags(CREATE_NO_WINDOW);
 }
 
 /// 执行 `codex --version` 获取版本号；未安装或执行失败时返回 None。
