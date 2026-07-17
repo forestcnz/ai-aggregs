@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useOpencodeConfig, MODALITY_OPTIONS, npmSelectOptions } from './index'
 import ModelCombobox from './ModelCombobox.vue'
+import MultiCombobox from './MultiCombobox.vue'
 import type { OcModel } from '../../api/commands'
 
 const {
@@ -20,7 +21,6 @@ const {
   toggleProvider,
   toggleModel,
   editingKeys,
-  keyDraft,
   startEditKey,
   endEditKey,
   maskedKey,
@@ -29,7 +29,12 @@ const {
   addModel,
   removeModel,
   toggleModality,
-  modelFlags
+  modelFlags,
+  isProviderDisabled,
+  availableProviderIds,
+  loadingProviderIds,
+  refreshProviderIds,
+  disabledProviders
 } = useOpencodeConfig()
 
 /** limit 字段的受控输入：空串视为删除 limit 对象 */
@@ -76,9 +81,33 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
       </div>
     </div>
 
-    <!-- 01 基础 -->
+    <!-- 01 屏蔽 -->
     <div class="group">
-      <h3><span class="gn">01</span>基础</h3>
+      <h3>
+        <span class="gn">01</span>屏蔽 Provider
+        <span class="cnt">· 已屏蔽 {{ disabledProviders.length }} 个 · 候选 {{ availableProviderIds.length }} 个</span>
+        <button
+          class="btn btn-secondary sm oc-refresh"
+          :disabled="loadingProviderIds"
+          @click="refreshProviderIds"
+        >
+          {{ loadingProviderIds ? '获取中…' : '刷新候选' }}
+        </button>
+      </h3>
+      <p class="oc-blocked-tip">
+        候选列表由 <code>opencode models</code> 动态获取；被屏蔽的 provider 不会被 opencode 加载
+        （对应顶层 <code>disabled_providers</code>）。可多选，也可手动输入任意 id 后回车添加。
+      </p>
+      <MultiCombobox
+        v-model="disabledProviders"
+        :options="availableProviderIds"
+        placeholder="选择候选 provider，或输入任意 id（如 openai / gemini）后回车"
+      />
+    </div>
+
+    <!-- 02 基础 -->
+    <div class="group">
+      <h3><span class="gn">02</span>基础</h3>
       <div class="row">
         <label>主模型 model</label>
         <ModelCombobox
@@ -104,7 +133,7 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
     <!-- 02 Provider -->
     <div class="group">
       <h3>
-        <span class="gn">02</span>Provider
+        <span class="gn">03</span>Provider
         <span class="cnt">· {{ providerCount }} 个 · {{ modelTotalCount }} 个模型</span>
       </h3>
 
@@ -115,7 +144,7 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
           v-for="(p, pi) in form.providers"
           :key="pi"
           class="pv-card"
-          :class="{ expanded: expandedProviders.has(p) }"
+          :class="{ expanded: expandedProviders.has(p), disabled: isProviderDisabled(p) }"
         >
           <div class="pv-head" @click="toggleProvider(p)">
             <span class="pv-chevron">
@@ -124,6 +153,7 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
               </svg>
             </span>
             <span class="pv-id">{{ p.id || '(未命名)' }}</span>
+            <span v-if="isProviderDisabled(p)" class="pv-badge-disabled">已屏蔽</span>
             <span v-if="p.npm" class="pv-npm">{{ p.npm }}</span>
             <span class="pv-modelcount">{{ p.models.length }} models</span>
             <button class="btn btn-secondary sm" @click.stop="removeProvider(pi)">删除</button>
@@ -158,23 +188,19 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
               <div class="mf">
                 <label>apiKey</label>
                 <div class="key-field">
-                  <template v-if="editingKeys.has(p)">
+                  <template v-if="editingKeys.has(p) || !p.options.apiKey">
                     <input
-                      v-model="keyDraft"
+                      v-model="p.options.apiKey"
                       class="inp mono"
-                      placeholder="输入完整 apiKey（留空则不变）"
+                      placeholder="留空将写入空值"
                       autofocus
                       @blur="endEditKey(p)"
                       @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
                     />
                   </template>
                   <template v-else>
-                    <span
-                      class="key-display"
-                      :class="{ placeholder: !p.options.apiKey }"
-                      @click="startEditKey(p)"
-                    >
-                      {{ p.options.apiKey ? maskedKey(p) : '点击设置…' }}
+                    <span class="key-display" @click="startEditKey(p)">
+                      {{ maskedKey(p) }}
                     </span>
                   </template>
                 </div>

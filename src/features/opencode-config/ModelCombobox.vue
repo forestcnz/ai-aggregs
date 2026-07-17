@@ -97,7 +97,9 @@ function clearVal() {
   box-sizing: border-box;
 }
 .combo-input:focus {
+  background: var(--bg-interactive-weaker);
   border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
 }
 .combo-input::placeholder {
   color: var(--text-weaker);
@@ -141,8 +143,9 @@ function clearVal() {
   color: var(--text-strong);
 }
 .combo-item.active {
-  background: var(--bg-strong);
-  color: var(--text-inverted);
+  background: var(--bg-weak);
+  color: var(--text-strong);
+  font-weight: 600;
 }
 .combo-empty {
   color: var(--text-weak);

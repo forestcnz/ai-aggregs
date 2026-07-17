@@ -390,7 +390,7 @@
   border-color: var(--text-strong);
 }
 
-/* apiKey 展示/编辑态 */
+/* apiKey 掩码展示 / 明文编辑 */
 .key-field {
   display: flex;
   align-items: center;
@@ -703,6 +703,50 @@
 .oc-add .hint {
   font-size: 10px;
   color: var(--text-weak);
+}
+
+/* ---------- Provider 屏蔽态 ---------- */
+.pv-card.disabled {
+  border-style: dashed;
+  border-color: var(--border);
+  background: var(--bg-weak);
+}
+.pv-card.disabled .pv-id {
+  color: var(--text-weak);
+  text-decoration: line-through;
+}
+.pv-card.disabled .pv-npm,
+.pv-card.disabled .pv-modelcount {
+  opacity: 0.55;
+}
+.pv-badge-disabled {
+  font-size: 9px;
+  color: #c0703a;
+  border: 1px solid #c0703a;
+  border-radius: var(--r-sm);
+  padding: 1px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---------- 屏蔽区（独立 group） ---------- */
+.oc-blocked-tip {
+  font-size: 11px;
+  color: var(--text-weak);
+  line-height: 1.6;
+  margin: -6px 0 12px;
+}
+.oc-blocked-tip code {
+  font-family: inherit;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 0 5px;
+  font-size: 10px;
+  color: var(--text);
+}
+.oc-refresh {
+  margin-left: auto;
 }
 
 /* 保存栏 */

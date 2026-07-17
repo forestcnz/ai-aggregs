@@ -1,7 +1,7 @@
 //! OpenCode 配置（opencode.jsonc）读写与网关联动。
 //!
 //! 仅管理 `~/.config/opencode/opencode.jsonc` 的部分字段：
-//!   `model` / `small_model` / `default_agent` / `provider`。
+//!   `model` / `small_model` / `default_agent` / `provider` / `disabled_providers`。
 //! 其余字段（`mcp` / `permission` / `agent` / `instructions` / `server` …）
 //! 原样保留——保存时 **按 key 合并写入**，不做整体覆盖。
 //!
@@ -109,6 +109,11 @@ pub struct OcForm {
     /// provider 列表（按顺序，保存时转为以 id 为 key 的对象）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<OcProvider>,
+    /// 被屏蔽的 provider id 列表（opencode 顶层 `disabled_providers` 字段，
+    /// 命中的 provider 即使配置存在也不会被加载）。支持自定义 provider id，
+    /// 也支持内置 provider（如 openai/gemini，通过环境变量自动加载的）。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disabled_providers: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -167,30 +172,20 @@ pub struct OcLimit {
 
 // ===================== 表单 ↔ Value 转换 =====================
 
-/// 把表单转为合法的 opencode Value 片段（仅含被管理的 key）。
-/// 空字符串字段会被视为未设置（不写入）。
-pub fn form_to_value(form: &OcForm) -> Value {
-    let mut obj = Map::new();
-    if let Some(m) = form.model.as_deref().filter(|s| !s.is_empty()) {
-        obj.insert("model".into(), json!(m));
-    }
-    if let Some(m) = form.small_model.as_deref().filter(|s| !s.is_empty()) {
-        obj.insert("small_model".into(), json!(m));
-    }
-    if let Some(a) = form.default_agent.as_deref().filter(|s| !s.is_empty()) {
-        obj.insert("default_agent".into(), json!(a));
-    }
-    let mut providers = Map::new();
-    for p in &form.providers {
-        if p.id.trim().is_empty() {
+/// 规范化 disabled_providers：trim、去空、去重（保留首次出现顺序）。
+fn normalize_disabled(raw: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for s in raw {
+        let t = s.trim();
+        if t.is_empty() {
             continue;
         }
-        providers.insert(p.id.clone(), provider_to_value(p));
+        if seen.insert(t.to_string()) {
+            out.push(t.to_string());
+        }
     }
-    if !providers.is_empty() {
-        obj.insert("provider".into(), Value::Object(providers));
-    }
-    Value::Object(obj)
+    out
 }
 
 fn provider_to_value(p: &OcProvider) -> Value {
@@ -205,9 +200,11 @@ fn provider_to_value(p: &OcProvider) -> Value {
     if let Some(b) = p.options.base_url.as_deref().filter(|s| !s.is_empty()) {
         opts.insert("baseURL".into(), json!(b));
     }
-    if let Some(k) = p.options.api_key.as_deref().filter(|s| !s.is_empty()) {
-        opts.insert("apiKey".into(), json!(k));
-    }
+    // apiKey 即使留空也写入文件（写 ""），不因空字符串而省略
+    opts.insert(
+        "apiKey".into(),
+        json!(p.options.api_key.as_deref().unwrap_or("")),
+    );
     if !opts.is_empty() {
         po.insert("options".into(), Value::Object(opts));
     }
@@ -271,11 +268,22 @@ pub fn extract_form(root: &Value) -> OcForm {
             providers.push(extract_provider(id, pv));
         }
     }
+    let disabled_providers = obj
+        .get("disabled_providers")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(Value::as_str)
+                .map(String::from)
+                .collect()
+        })
+        .unwrap_or_default();
     OcForm {
         model,
         small_model,
         default_agent,
         providers,
+        disabled_providers,
     }
 }
 
@@ -391,7 +399,7 @@ fn extract_limit(v: &Value) -> OcLimit {
 // ===================== 按 key 合并保存 =====================
 
 /// 把表单管理的字段合并进磁盘读入的 Value（仅覆盖 model / small_model /
-/// default_agent / provider 四个 key，其余字段不动）。
+/// default_agent / provider / disabled_providers 五个 key，其余字段不动）。
 ///
 /// **清除语义**：表单字段为空时，显式从 root 中删除对应 key
 /// （支持用户在 UI 上把某字段置空并保存后，文件里也清掉）。
@@ -446,6 +454,13 @@ pub fn merge_form(root: &mut Value, form: &OcForm) {
         obj.remove("provider");
     } else {
         obj.insert("provider".into(), Value::Object(providers));
+    }
+    // disabled_providers：非空覆盖、空则删除（trim 去空去重）
+    let disabled = normalize_disabled(&form.disabled_providers);
+    if disabled.is_empty() {
+        obj.remove("disabled_providers");
+    } else {
+        obj.insert("disabled_providers".into(), json!(disabled));
     }
 }
 
@@ -536,6 +551,53 @@ pub fn save(form: &OcForm) -> std::io::Result<()> {
     Ok(())
 }
 
+// ===================== provider id 列表（执行 opencode 命令） =====================
+
+/// 执行 `opencode models`，从其输出（每行 `provider/model`）中提取去重、
+/// 按字母序排列的 provider id 列表。这些是 opencode 当前可加载的 provider，
+/// 适合作为 `disabled_providers` 屏蔽下拉的候选项。
+///
+/// 失败原因：opencode 不在 PATH、命令退出非 0 等。
+pub fn list_provider_ids() -> std::io::Result<Vec<String>> {
+    // 通过系统 shell 执行，由 shell 负责按 PATH / PATHEXT 解析 `opencode`
+    // （Windows 上 opencode 是 npm/bun 生成的 .cmd shim，需经 cmd.exe；Unix 经 sh）。
+    let (shell, flag) = if cfg!(target_os = "windows") {
+        ("cmd.exe", "/c")
+    } else {
+        ("sh", "-c")
+    };
+    let output = std::process::Command::new(shell)
+        .arg(flag)
+        .arg("opencode models")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        let suffix = if err.trim().is_empty() {
+            String::new()
+        } else {
+            format!(": {err}")
+        };
+        return Err(std::io::Error::other(format!(
+            "opencode models 执行失败（退出码 {:?}）{}",
+            output.status.code(),
+            suffix
+        )));
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut set = std::collections::BTreeSet::new();
+    for line in text.lines() {
+        if let Some((provider, _)) = line.trim().split_once('/') {
+            let p = provider.trim();
+            if !p.is_empty() {
+                set.insert(p.to_string());
+            }
+        }
+    }
+    Ok(set.into_iter().collect())
+}
+
 // ===================== 测试 =====================
 
 #[cfg(test)]
@@ -623,9 +685,12 @@ mod tests {
             small_model: Some("".into()),
             default_agent: None,
             providers: vec![],
+            disabled_providers: vec![],
         };
-        let v = form_to_value(&form);
-        let obj = v.as_object().unwrap();
+        // 合并到空对象：空字段不应写入任何 key
+        let mut root: Value = Value::Object(Map::new());
+        merge_form(&mut root, &form);
+        let obj = root.as_object().unwrap();
         assert!(!obj.contains_key("model"));
         assert!(!obj.contains_key("small_model"));
         assert!(obj.is_empty());
@@ -666,6 +731,7 @@ mod tests {
             small_model: Some("   ".into()), // 纯空白也视为空
             default_agent: None,
             providers: vec![],
+            disabled_providers: vec![],
         };
         merge_form(&mut root, &form);
         assert!(root.get("model").is_none(), "model 应被删除");
@@ -685,10 +751,51 @@ mod tests {
             small_model: None,
             default_agent: Some("plan".into()),
             providers: vec![],
+            disabled_providers: vec![],
         };
         merge_form(&mut root, &form);
         assert_eq!(root["model"], "new/model");
         assert_eq!(root["default_agent"], "plan");
+        assert_eq!(root["mcp"]["keep"], 1);
+    }
+
+    #[test]
+    fn extract_and_merge_disabled_providers() {
+        let json = r#"{
+  "provider": { "Local-oai": { "options": { "baseURL": "http://127.0.0.1:8000/v1" } } },
+  "disabled_providers": ["openai", "Local-oai", "openai", "  "],
+  "mcp": { "keep": 1 }
+}"#;
+        let root: Value = serde_json::from_str(json).unwrap();
+        let form = extract_form(&root);
+        // 提取时原样保留（含重复与空白），规范在合并阶段
+        assert_eq!(form.disabled_providers.len(), 4);
+        assert!(form.disabled_providers.contains(&"openai".to_string()));
+        assert!(form.disabled_providers.contains(&"Local-oai".to_string()));
+
+        // 合并阶段：trim、去空、去重
+        let mut root2: Value = serde_json::from_str(json).unwrap();
+        merge_form(&mut root2, &form);
+        let dp = root2["disabled_providers"].as_array().unwrap();
+        assert_eq!(dp.len(), 2, "应去重去空");
+        assert!(dp.iter().any(|v| v == "openai"));
+        assert!(dp.iter().any(|v| v == "Local-oai"));
+        // 未管理字段保留
+        assert_eq!(root2["mcp"]["keep"], 1);
+    }
+
+    #[test]
+    fn merge_empty_disabled_providers_removes_key() {
+        let mut root: Value = serde_json::from_str(
+            r#"{"disabled_providers":["openai"],"mcp":{"keep":1}}"#,
+        )
+        .unwrap();
+        let form = OcForm {
+            disabled_providers: vec![],
+            ..Default::default()
+        };
+        merge_form(&mut root, &form);
+        assert!(root.get("disabled_providers").is_none(), "空数组应删除 key");
         assert_eq!(root["mcp"]["keep"], 1);
     }
 }

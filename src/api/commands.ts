@@ -219,12 +219,14 @@ export interface OcProvider {
   models: OcModel[]
 }
 
-/** OpenCode 配置表单（仅管理 model / small_model / default_agent / provider） */
+/** OpenCode 配置表单（仅管理 model / small_model / default_agent / provider / disabled_providers） */
 export interface OcForm {
   model?: string | null
   small_model?: string | null
   default_agent?: string | null
   providers: OcProvider[]
+  /** 被屏蔽的 provider id 列表（opencode 顶层 disabled_providers） */
+  disabled_providers?: string[]
 }
 
 /** opencode_config_load 返回结构 */
@@ -249,6 +251,9 @@ export const opencodeConfigLoad = () =>
 /** 把表单按 key 合并写回配置文件（保存前自动备份 .bak） */
 export const opencodeConfigSave = (form: OcForm) =>
   invoke<void>('opencode_config_save', { form })
+
+/** 执行 `opencode models` 获取 opencode 可用的 provider id 列表（屏蔽下拉候选） */
+export const opencodeProviderIds = () => invoke<string[]>('opencode_provider_ids')
 
 // ===================== 事件监听 =====================
 

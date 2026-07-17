@@ -2,6 +2,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   opencodeConfigLoad,
   opencodeConfigSave,
+  opencodeProviderIds,
   getConfig,
   maskKey,
   type OcForm,
@@ -71,18 +72,28 @@ function gatewayV1Url(listen: string): string {
 export function useOpencodeConfig() {
   const { toast, alert: alertModal } = useDialog()
 
-  const form = ref<OcForm>({ model: null, small_model: null, default_agent: null, providers: [] })
+  const form = ref<OcForm>({
+    model: null,
+    small_model: null,
+    default_agent: null,
+    providers: [],
+    disabled_providers: []
+  })
   const loading = ref(false)
   const saving = ref(false)
   const filePath = ref('')
   const fileExists = ref(false)
   /** 网关 baseURL（http://{listen}/v1），用于新建 provider 时预填 */
   const gatewayBaseUrl = ref('')
+  /** opencode 可用的 provider id 列表（执行 `opencode models` 获取），屏蔽下拉候选 */
+  const availableProviderIds = ref<string[]>([])
+  /** 正在获取 provider id 列表 */
+  const loadingProviderIds = ref(false)
 
   // 折叠状态：用 provider / model 的引用做 key（避免 index 变动错位）
   const expandedProviders = ref<Set<OcProvider>>(new Set())
   const expandedModels = ref<Set<OcModel>>(new Set())
-  /** apiKey 正在编辑的 provider（编辑态显示明文 input，否则展示 mask 值） */
+  /** apiKey 正在明文编辑的 provider（有值且非编辑态时显示掩码） */
   const editingKeys = ref<Set<OcProvider>>(new Set())
 
   /** 所有 provider 的所有 model，聚合成 `providerId/modelId` 形式（供主模型下拉）。
@@ -146,14 +157,30 @@ export function useOpencodeConfig() {
         model: f.model ?? null,
         small_model: f.small_model ?? null,
         default_agent: f.default_agent ?? null,
-        providers: Array.isArray(f.providers) ? f.providers : []
+        providers: Array.isArray(f.providers) ? f.providers : [],
+        disabled_providers: Array.isArray(f.disabled_providers) ? f.disabled_providers : []
       }
       expandedProviders.value.clear()
       expandedModels.value.clear()
+      // 异步获取 opencode 可用 provider 列表（不阻塞页面加载，失败仅提示）
+      void refreshProviderIds()
     } catch (e) {
       await alertModal({ title: '读取失败', message: String(e) })
     } finally {
       loading.value = false
+    }
+  }
+
+  /** 执行 `opencode models` 刷新 opencode 可用 provider id 列表 */
+  async function refreshProviderIds() {
+    loadingProviderIds.value = true
+    try {
+      availableProviderIds.value = await opencodeProviderIds()
+    } catch (e) {
+      toast('获取 opencode provider 列表失败: ' + String(e), 'error', 5000)
+      availableProviderIds.value = []
+    } finally {
+      loadingProviderIds.value = false
     }
   }
 
@@ -163,6 +190,8 @@ export function useOpencodeConfig() {
     try {
       // 兜底：确保 providers 字段存在（用户可能从未触发过 load 的规范化）
       if (!Array.isArray(form.value.providers)) form.value.providers = []
+      if (!Array.isArray(form.value.disabled_providers))
+        form.value.disabled_providers = []
       await opencodeConfigSave(form.value)
       toast('已保存 · 已备份', 'success')
       // 不调用 load()：避免重置折叠状态。文件已按 key 合并写回，表单即最新。
@@ -188,24 +217,19 @@ export function useOpencodeConfig() {
     expandedModels.value = new Set(set)
   }
 
-  // ---------- apiKey 编辑态 ----------
-  /** 编辑草稿（进入编辑时清空，失焦后回写或回退） */
-  const keyDraft = ref('')
+  // ---------- apiKey 掩码/编辑切换 ----------
+  /** 进入明文编辑（直接 v-model 绑定原值，预填不清空） */
   function startEditKey(p: OcProvider) {
-    // 清空输入框，方便用户重新输入完整 key（不预填旧值）
-    keyDraft.value = ''
     editingKeys.value = new Set(editingKeys.value).add(p)
     editingKeys.value = new Set(editingKeys.value)
   }
+  /** 退出编辑（值已通过 v-model 写回，无需额外处理） */
   function endEditKey(p: OcProvider) {
-    // 草稿非空才回写；空则回退原值（展示态回显旧值或「点击设置…」）
-    const v = keyDraft.value.trim()
-    if (v) p.options.apiKey = v
     const set = editingKeys.value
     set.delete(p)
     editingKeys.value = new Set(set)
   }
-  /** 展示态用的 mask 值（统一用全局 maskKey，短 key 也首尾都露） */
+  /** 展示态掩码（首尾露，与系统 maskKey 一致） */
   function maskedKey(p: OcProvider): string {
     const k = p.options.apiKey
     if (!k) return ''
@@ -232,6 +256,21 @@ export function useOpencodeConfig() {
   }
   function removeModel(p: OcProvider, i: number) {
     p.models.splice(i, 1)
+  }
+
+  // ---------- provider 屏蔽（disabled_providers） ----------
+  /** 屏蔽列表（get/set 包装 optional，便于模板 v-model 且类型为 string[]） */
+  const disabledProviders = computed<string[]>({
+    get: () => form.value.disabled_providers ?? [],
+    set: (v) => {
+      form.value.disabled_providers = v
+    }
+  })
+  /** provider 是否被屏蔽（卡片视觉用，屏蔽状态由下方下拉统一管理） */
+  function isProviderDisabled(p: OcProvider): boolean {
+    const id = p.id?.trim()
+    if (!id) return false
+    return (form.value.disabled_providers ?? []).some((d) => d === id)
   }
 
   // ---------- modalities 多选切换 ----------
@@ -274,9 +313,8 @@ export function useOpencodeConfig() {
     // 折叠
     toggleProvider,
     toggleModel,
-    // apiKey 编辑态
+    // apiKey 掩码/编辑
     editingKeys,
-    keyDraft,
     startEditKey,
     endEditKey,
     maskedKey,
@@ -287,6 +325,13 @@ export function useOpencodeConfig() {
     removeModel,
     // modalities
     toggleModality,
-    modelFlags
+    modelFlags,
+    // opencode 可用 provider 列表（执行 opencode models 获取）
+    availableProviderIds,
+    loadingProviderIds,
+    refreshProviderIds,
+    // provider 屏蔽
+    isProviderDisabled,
+    disabledProviders
   }
 }

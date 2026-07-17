@@ -315,3 +315,16 @@ pub fn opencode_config_load() -> Result<OcLoadResult, IpcError> {
 pub fn opencode_config_save(form: OcForm) -> Result<(), IpcError> {
     opencode::save(&form).map_err(|e| IpcError(format!("保存 opencode 配置失败: {e}")))
 }
+
+/// 执行 `opencode models` 获取 opencode 当前可用的 provider id 列表，
+/// 作为屏蔽下拉（disabled_providers）的候选项。
+/// 用 spawn_blocking 包裹，避免阻塞 tokio worker（opencode 为外部进程）。
+#[tauri::command]
+pub async fn opencode_provider_ids() -> Result<Vec<String>, IpcError> {
+    tauri::async_runtime::spawn_blocking(|| {
+        opencode::list_provider_ids()
+            .map_err(|e| IpcError(format!("获取 opencode provider 列表失败: {e}")))
+    })
+    .await
+    .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
+}
