@@ -441,6 +441,11 @@ fn build_forward_headers(
         "trailer",
         "transfer-encoding",
         "upgrade",
+        // 内容编码：reqwest 未启用 gzip/brotli feature，不会自动解压。
+        // 若透传客户端的 accept-encoding，上游会返回压缩响应，
+        // 网关无法解析（非流式 JSON 解析失败 / 流式 SSE 字节被压缩且 content-encoding 头在重建响应时丢失）。
+        // 本地网关场景（client → gateway 为 localhost）无需压缩，禁用透传最稳妥。
+        "accept-encoding",
         // 会话/隐私头：禁止泄漏给第三方上游
         "cookie",
         "cookie2",

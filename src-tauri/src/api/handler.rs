@@ -1,5 +1,5 @@
 use axum::extract::{Request, State};
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
@@ -176,39 +176,106 @@ async fn build_response(
     stream: bool,
     ctx: UsageCtx,
 ) -> Result<Response, AppError> {
+    let status = resp.status();
+    let upstream_ct = resp
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_lowercase();
+
     tracing::debug!(
         p_proto = ?p_proto,
         c_proto = ?c_proto,
         need_convert,
         stream,
-        status = %resp.status(),
+        status = %status,
+        upstream_content_type = %upstream_ct,
         "build_response"
     );
-    if stream {
+
+    // 流式请求降级判定：
+    // 客户端请求 stream=true 时，必须确认上游真的返回了 SSE 流：
+    //   - status 必须是 2xx
+    //   - content-type 必须包含 text/event-stream
+    // 上游有时会用 "HTTP 200 + JSON 错误体" 报错（如路由 404、模型不存在、网关故障等），
+    // 此时若仍按 SSE 包装透传，客户端会收到 "empty or malformed response (HTTP 200)"，
+    // 必须降级为非流式错误透传，让客户端能看到真实错误。
+    let upstream_is_sse = status.is_success() && upstream_ct.contains("text/event-stream");
+
+    if stream && upstream_is_sse {
         if need_convert {
-            Ok(stream::stream_convert(resp, p_proto, c_proto, ctx).await?)
-        } else {
-            Ok(stream::stream_passthrough(resp, ctx))
+            return stream::stream_convert(resp, p_proto, c_proto, ctx).await;
         }
-    } else {
-        let status = resp.status();
-        let text = resp
-            .text()
-            .await
-            .map_err(|e| AppError::Upstream(e.to_string()))?;
-        let val: Value = serde_json::from_str(&text)
-            .map_err(|e| AppError::Upstream(format!("bad upstream json: {e}; body={text}")))?;
-        let out = if need_convert {
-            converter::resp_convert(&val, p_proto, c_proto)?
-        } else {
-            val
-        };
-        // 记录 token 用量
-        if let Some((input, output, total)) = stream::extract_usage(&out) {
-            ctx.record(input, output, total);
-        }
-        Ok((status, Json(out)).into_response())
+        return Ok(stream::stream_passthrough(resp, ctx));
     }
+
+    // 非流式路径（或流式请求遇到上游非 SSE 的降级处理）：读完 body 再决定如何响应
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| AppError::Upstream(e.to_string()))?;
+
+    let val: Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(e) => {
+            // 上游返回非 JSON 内容（HTML 错误页、纯文本等）
+            tracing::warn!(
+                status = %status,
+                upstream_content_type = %upstream_ct,
+                body_preview = %truncate_str(&text, 500),
+                "upstream returned non-JSON body"
+            );
+            return Ok((
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "error": {
+                        "message": format!(
+                            "upstream returned non-JSON (status {status}, content-type '{upstream_ct}'): {e}"
+                        ),
+                        "type": "bad_gateway",
+                        "upstream_status": status.as_u16(),
+                    }
+                })),
+            )
+                .into_response());
+        }
+    };
+
+    // 上游是否在报错：
+    //   - status 非 2xx → 明确错误
+    //   - 客户端请求 stream 但上游 content-type 不是 SSE → 伪成功（如 404 路由错误）
+    //   - 其它情况（客户端非流式 + 2xx）→ 正常成功响应
+    let is_upstream_error = !status.is_success() || (stream && !upstream_is_sse);
+    if is_upstream_error {
+        tracing::warn!(
+            status = %status,
+            upstream_content_type = %upstream_ct,
+            client_stream = stream,
+            body = %val,
+            "upstream returned error body"
+        );
+        // 透传上游错误体给客户端便于排查；status 修正：
+        //   - 上游伪 2xx（非 SSE）→ 502 BAD_GATEWAY（反映网关层面判定失败）
+        //   - 上游 4xx/5xx → 保留原状态
+        let final_status = if status.is_success() {
+            StatusCode::BAD_GATEWAY
+        } else {
+            StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY)
+        };
+        return Ok((final_status, Json(val)).into_response());
+    }
+
+    // 正常非流式成功响应：按需协议转换 + 记录 token 用量
+    let out = if need_convert {
+        converter::resp_convert(&val, p_proto, c_proto)?
+    } else {
+        val
+    };
+    if let Some((input, output, total)) = stream::extract_usage(&out) {
+        ctx.record(input, output, total);
+    }
+    Ok((status, Json(out)).into_response())
 }
 
 pub async fn list_models(State(st): State<AppState>) -> impl IntoResponse {
@@ -230,17 +297,20 @@ fn proto_from_path(path: &str) -> Protocol {
     }
 }
 
-fn truncate_json(v: &Value, max: usize) -> String {
-    let s = serde_json::to_string(v).unwrap_or_default();
+/// 截断字符串到 max 字节，回退到最近的 UTF-8 字符边界，避免切到多字节字符中间导致 panic
+fn truncate_str(s: &str, max: usize) -> String {
     if s.len() <= max {
-        return s;
+        return s.to_string();
     }
-    // 回退到最近的 UTF-8 字符边界，避免切到多字节字符中间导致 panic
     let mut end = max;
     while end > 0 && !s.is_char_boundary(end) {
         end -= 1;
     }
     format!("{}... (truncated {})", &s[..end], s.len())
+}
+
+fn truncate_json(v: &Value, max: usize) -> String {
+    truncate_str(&serde_json::to_string(v).unwrap_or_default(), max)
 }
 
 /// 鉴权，返回 consumer 提交的 key（用于用量统计）
