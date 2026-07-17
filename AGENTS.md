@@ -59,6 +59,7 @@ src/
 │   ├── provider-usage/   ← 供应商用量统计
 │   ├── opencode-config/  ← opencode.json 表单编辑
 │   ├── claude-code-config/ ← ~/.claude/settings.json 的 env 段编辑
+│   ├── codex-config/     ← ~/.codex/config.toml 受管 provider 表单编辑
 │   └── settings/         ← 设置
 ```
 
@@ -94,7 +95,7 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 
 ### 模块布局
 
-- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 20 个 IPC 命令 + 2 个事件
+- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 25 个 IPC 命令 + 2 个事件（`gateway-log`、`gateway-state-changed`）
 - `api/commands.rs` — 所有 `#[tauri::command]` 函数
 - `api/handler.rs` — Axum HTTP 请求处理（鉴权、model 路由、协议判定、failover）
 - `api/router.rs` — Axum 路由表 + CORS
@@ -109,6 +110,7 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 - `infra/log_bridge.rs` — tracing → log4rs 桥接 + 日志热更新 + 前端事件
 - `infra/opencode.rs` — `opencode.json` 读写/解析/合并（剥注释、表单↔JSON 双向转换）
 - `infra/claude_code.rs` — `~/.claude/settings.json` 的 `env` 段读写/合并（整体替换 env，保留其它顶层字段；备份 `.bak`；执行 `claude --version`）
+- `infra/codex.rs` — `~/.codex/config.toml` 受管 provider 读写/合并（路径优先 `CODEX_HOME` 否则 `$HOME/.codex`；仅覆盖受管 provider 的 `name`/`base_url`/`experimental_bearer_token` + 顶层 `model`/`model_provider`，其它键原样保留；**TOML `#` 注释在 `toml::to_string` 后会丢失，保存前自动备份 `config.toml.YYYYMMDD_HHMMSS.bak` 并通过 `has_comments` 提示前端**；Codex 仅支持 `wire_api = "responses"`，网关以 `/v1/responses` 对接）
 - `infra/tray.rs` — 系统托盘
 
 ### 关键行为
