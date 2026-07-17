@@ -5,18 +5,32 @@ import {
   onGatewayStateChanged,
   onLog,
   opencodeVersion,
+  claudeCodeVersion,
+  autostartGatewayIfConfigured,
   type GatewayStatus,
   type LogEntry
 } from './api/commands'
 
 export function useApp() {
   const activeTab = ref<
-    'dashboard' | 'providers' | 'chat' | 'usage' | 'provider-usage' | 'settings' | 'opencode'
+    | 'dashboard'
+    | 'providers'
+    | 'chat'
+    | 'usage'
+    | 'provider-usage'
+    | 'settings'
+    | 'opencode'
+    | 'claude-code'
   >('dashboard')
   const status = ref<GatewayStatus>({ running: false, listen_addr: '' })
   const isMaximized = ref(false)
   /** opencode 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
   const ocVersion = ref<string | null>(null)
+  /** claude code 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
+  const ccVersion = ref<string | null>(null)
+  /** 启动期检测是否完成（网关状态 + opencode/claude code 版本）。
+   * 完成前不渲染侧边栏导航，让 opencode/claude-code 入口一次性出现而非先后弹出。 */
+  const ready = ref(false)
   let unlistenStatus: (() => void) | null = null
   let unlistenResize: (() => void) | null = null
   let unlistenLog: (() => void) | null = null
@@ -59,14 +73,20 @@ export function useApp() {
   onMounted(async () => {
     document.addEventListener('contextmenu', preventCtx)
 
-    await refreshStatus()
-    await checkMaximized()
-    // 检测 opencode 是否安装（决定侧边栏入口显隐），失败静默置 null
-    try {
-      ocVersion.value = await opencodeVersion()
-    } catch {
-      ocVersion.value = null
-    }
+    // 启动期独立检测并行执行（网关状态、窗口最大化、opencode/claude code 版本）：
+    // 先「提前判断」两个工具是否存在，再一次性渲染侧边栏，入口不会先后弹出。
+    // 每个检测各自吞掉异常（未安装→版本置 null），不影响其它检测。
+    const ocCheck = opencodeVersion()
+      .then((v) => (ocVersion.value = v))
+      .catch(() => (ocVersion.value = null))
+    const ccCheck = claudeCodeVersion()
+      .then((v) => (ccVersion.value = v))
+      .catch(() => (ccVersion.value = null))
+
+    await Promise.all([refreshStatus(), checkMaximized(), ocCheck, ccCheck])
+    ready.value = true
+
+    // 事件监听在首轮状态拉取之后注册，避免初始事件与本地状态竞争
     unlistenStatus = await onGatewayStateChanged((running) => {
       status.value.running = running
       refreshStatus()
@@ -77,6 +97,15 @@ export function useApp() {
       logs.value.push(entry)
       if (logs.value.length > 500) logs.value.shift()
     })
+
+    // 页面就绪、事件监听已注册后，再按配置自动恢复网关。
+    // 启动后刷新一次状态（状态变化事件也会驱动刷新，此处兜底）。
+    try {
+      await autostartGatewayIfConfigured()
+    } catch (e) {
+      console.error('autostart gateway failed', e)
+    }
+    await refreshStatus()
   })
 
   onUnmounted(() => {
@@ -91,6 +120,8 @@ export function useApp() {
     status,
     isMaximized,
     ocVersion,
+    ccVersion,
+    ready,
     logs,
     refreshStatus,
     minimize,

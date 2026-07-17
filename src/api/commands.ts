@@ -126,6 +126,13 @@ export const saveConfig = (cfg: Config) => invoke<void>('save_config', { cfg })
 /** 启动网关，返回监听地址 */
 export const startGateway = () => invoke<string>('start_gateway')
 
+/**
+ * 页面就绪后按配置自动恢复网关：仅当 `auto_start_gateway` 且上次退出时网关在运行才启动。
+ * 返回是否实际启动了网关。由 App 在 ready 后调用。
+ */
+export const autostartGatewayIfConfigured = () =>
+  invoke<boolean>('autostart_gateway_if_configured')
+
 /** 停止网关 */
 export const stopGateway = () => invoke<void>('stop_gateway')
 
@@ -257,6 +264,41 @@ export const opencodeProviderIds = () => invoke<string[]>('opencode_provider_ids
 
 /** 执行 `opencode -v` 获取版本号；未安装返回 null（控制侧边栏入口显示） */
 export const opencodeVersion = () => invoke<string | null>('opencode_version')
+
+// ===================== Claude Code 配置编辑 =====================
+
+/** Claude Code settings.json 中的一条环境变量（secret 仅为前端展示提示） */
+export interface CcEnvEntry {
+  key: string
+  value: string
+  /** 是否敏感凭证（含 TOKEN/SECRET/PASSWORD），前端据此掩码展示 */
+  secret?: boolean
+}
+
+/** Claude Code 配置表单（仅管理 settings.json 的 env 段） */
+export interface CcForm {
+  env: CcEnvEntry[]
+}
+
+/** claude_code_config_load 返回结构 */
+export interface CcLoadResult {
+  /** 配置文件绝对路径 */
+  path: string
+  /** 文件是否存在（不存在时 form 为空默认值） */
+  exists: boolean
+  /** 表单数据 */
+  form: CcForm
+}
+
+/** 读取并解析 Claude Code 配置文件，提取 env 段 */
+export const claudeCodeConfigLoad = () => invoke<CcLoadResult>('claude_code_config_load')
+
+/** 把表单的 env 段整体合并写回配置文件（保存前自动备份 .bak） */
+export const claudeCodeConfigSave = (form: CcForm) =>
+  invoke<void>('claude_code_config_save', { form })
+
+/** 执行 `claude --version` 获取版本号；未安装返回 null（控制侧边栏入口显示） */
+export const claudeCodeVersion = () => invoke<string | null>('claude_code_version')
 
 // ===================== 事件监听 =====================
 

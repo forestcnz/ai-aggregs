@@ -16,7 +16,6 @@ use tauri_plugin_autostart::MacosLauncher;
 use crate::api::commands::*;
 use crate::config::state::AppCtrl;
 use crate::config::types::default_config;
-use crate::gateway::manager::start_gateway_inner;
 use crate::infra::db;
 use crate::infra::log_bridge;
 use crate::infra::tray::build_tray;
@@ -135,24 +134,8 @@ pub fn run() {
             let tray_items = build_tray(app.handle())?;
             app.manage(tray_items);
 
-            // 按配置自动恢复网关运行状态
-            let should_start = {
-                let ctrl = app.state::<AppCtrl>();
-                let auto = ctrl.config.lock().unwrap().auto_start_gateway;
-                let last_running = db::get_setting(&ctrl.db.lock().unwrap(), "gateway_running")
-                    .map(|v| v == "1")
-                    .unwrap_or(false);
-                auto && last_running
-            };
-            if should_start {
-                let app_handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    match start_gateway_inner(&app_handle).await {
-                        Ok(addr) => tracing::info!(addr = %addr, "网关已自动恢复启动"),
-                        Err(e) => tracing::error!(err = %e, "自动启动网关失败"),
-                    }
-                });
-            }
+            // 网关自动恢复改由前端在页面就绪（ready）后通过
+            // autostart_gateway_if_configured 触发，避免网关先于界面就绪。
 
             // 开机自启时隐藏窗口
             if std::env::args().any(|a| a == "--minimized") {
@@ -174,6 +157,7 @@ pub fn run() {
             get_config,
             save_config,
             start_gateway,
+            autostart_gateway_if_configured,
             stop_gateway,
             gateway_status,
             toggle_provider,
@@ -189,6 +173,9 @@ pub fn run() {
             opencode_config_save,
             opencode_provider_ids,
             opencode_version,
+            claude_code_config_load,
+            claude_code_config_save,
+            claude_code_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

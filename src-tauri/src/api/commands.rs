@@ -11,6 +11,7 @@ use crate::gateway::manager::{
 use crate::infra::db;
 use crate::infra::error::IpcError;
 use crate::infra::opencode::{self, OcForm, OcLoadResult};
+use crate::infra::claude_code::{self, CcForm, CcLoadResult};
 
 #[tauri::command]
 pub fn get_config(app: tauri::AppHandle) -> Config {
@@ -49,6 +50,28 @@ pub async fn save_config(app: tauri::AppHandle, mut cfg: Config) -> Result<(), I
 #[tauri::command]
 pub async fn start_gateway(app: tauri::AppHandle) -> Result<String, IpcError> {
     start_gateway_inner(&app).await
+}
+
+/// 由前端在**页面就绪后**调用：若 `auto_start_gateway` 且上次退出时网关在运行
+/// （DB `gateway_running` == "1"），则启动网关。
+///
+/// 把「自动恢复网关」从启动早期（backend setup）推迟到 UI 就绪之后执行，
+/// 避免网关先于界面就绪。返回是否实际启动了网关。
+#[tauri::command]
+pub async fn autostart_gateway_if_configured(app: tauri::AppHandle) -> Result<bool, IpcError> {
+    let should = {
+        let ctrl = app.state::<AppCtrl>();
+        let auto = ctrl.config.lock().unwrap().auto_start_gateway;
+        let last_running = db::get_setting(&ctrl.db.lock().unwrap(), "gateway_running")
+            .map(|v| v == "1")
+            .unwrap_or(false);
+        auto && last_running
+    };
+    if !should {
+        return Ok(false);
+    }
+    start_gateway_inner(&app).await?;
+    Ok(true)
 }
 
 #[tauri::command]
@@ -334,6 +357,32 @@ pub async fn opencode_provider_ids() -> Result<Vec<String>, IpcError> {
 #[tauri::command]
 pub async fn opencode_version() -> Result<Option<String>, IpcError> {
     tauri::async_runtime::spawn_blocking(|| Ok(opencode::version()))
+        .await
+        .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
+}
+
+// ===================== Claude Code 配置编辑 =====================
+
+/// 读取并解析 `~/.claude/settings.json`（或 `$CLAUDE_CONFIG_DIR/settings.json`），
+/// 提取 `env` 段。文件不存在时返回空表单（exists=false），前端可据此新建。
+#[tauri::command]
+pub fn claude_code_config_load() -> Result<CcLoadResult, IpcError> {
+    claude_code::load().map_err(|e| IpcError(format!("读取 claude code 配置失败: {e}")))
+}
+
+/// 把表单的 env 段整体合并写回配置文件（仅替换 `env` key，
+/// 其余顶层字段如 enabledPlugins / statusLine 原样保留；保存前自动备份 .bak）。
+#[tauri::command]
+pub fn claude_code_config_save(form: CcForm) -> Result<(), IpcError> {
+    claude_code::save(&form).map_err(|e| IpcError(format!("保存 claude code 配置失败: {e}")))
+}
+
+/// 执行 `claude --version` 获取版本号；未安装返回 None。
+/// 前端据此决定是否显示「Claude Code 配置」侧边栏入口。
+/// 用 spawn_blocking 包裹，避免阻塞 tokio worker（claude 为外部进程）。
+#[tauri::command]
+pub async fn claude_code_version() -> Result<Option<String>, IpcError> {
+    tauri::async_runtime::spawn_blocking(|| Ok(claude_code::version()))
         .await
         .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
 }
