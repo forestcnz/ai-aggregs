@@ -57,6 +57,7 @@ src/
 │   ├── chat/             ← 聊天
 │   ├── usage/            ← consumer 用量统计
 │   ├── provider-usage/   ← 供应商用量统计
+│   ├── opencode-config/  ← opencode.json 表单编辑
 │   └── settings/         ← 设置
 ```
 
@@ -92,7 +93,7 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 
 ### 模块布局
 
-- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 14 个 IPC 命令 + 2 个事件
+- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 16 个 IPC 命令 + 2 个事件
 - `api/commands.rs` — 所有 `#[tauri::command]` 函数
 - `api/handler.rs` — Axum HTTP 请求处理（鉴权、model 路由、协议判定、failover）
 - `api/router.rs` — Axum 路由表 + CORS
@@ -105,6 +106,7 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 - `infra/db.rs` — SQLite 持久化（bundled rusqlite）
 - `infra/error.rs` — `AppError`(Axum HTTP) + `IpcError`(Tauri IPC)
 - `infra/log_bridge.rs` — tracing → log4rs 桥接 + 日志热更新 + 前端事件
+- `infra/opencode.rs` — `opencode.json` 读写/解析/合并（剥注释、表单↔JSON 双向转换）
 - `infra/tray.rs` — 系统托盘
 
 ### 关键行为
