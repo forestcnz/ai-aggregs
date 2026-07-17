@@ -300,6 +300,65 @@ export const claudeCodeConfigSave = (form: CcForm) =>
 /** 执行 `claude --version` 获取版本号；未安装返回 null（控制侧边栏入口显示） */
 export const claudeCodeVersion = () => invoke<string | null>('claude_code_version')
 
+// ===================== Codex 配置编辑 =====================
+
+/**
+ * Codex（~/.codex/config.toml）受管 provider — 指向本网关的那一条。
+ * id 同时作为顶层 model_provider 的值；base_url 指到网关 /v1（Codex 走 Responses 协议）。
+ */
+export interface CodexProvider {
+  id: string
+  name?: string | null
+  base_url?: string | null
+  /** 网关 consumer key 直接写入（开箱即用；与 env_key 互斥） */
+  experimental_bearer_token?: string | null
+}
+
+/** Codex 配置表单（管理 model + 一条受管 provider + 模型目录清单） */
+export interface CodexForm {
+  model?: string | null
+  provider: CodexProvider
+  /** 加载时的受管 provider id（前端原样回传、不可编辑；改名时后端清理旧表） */
+  loaded_provider_id?: string | null
+  /** 是否在 config.toml 设 model_catalog_json（启用 /model 模型目录） */
+  enable_model_catalog?: boolean
+  /** 模型目录手动清单（持久化于 catalog 文件，load 时回填） */
+  catalog_models?: string[]
+}
+
+/** codex_config_save 返回结构（前端据此 toast 模型目录生成结果） */
+export interface CodexSaveResult {
+  /** 模型目录是否成功生成并写入 */
+  catalog_ok: boolean
+  /** 生成的 catalog 条目数（0 = 未启用或失败） */
+  catalog_count: number
+  /** 目录未生成时的原因（未启用时为 null） */
+  catalog_error: string | null
+}
+
+/** codex_config_load 返回结构 */
+export interface CodexLoadResult {
+  /** 配置文件绝对路径 */
+  path: string
+  /** 文件是否存在（不存在时 form 为默认空壳） */
+  exists: boolean
+  /** 原文件是否含 TOML 注释（前端据此提示「注释将丢失」） */
+  has_comments: boolean
+  /** 表单数据 */
+  form: CodexForm
+}
+
+/** 读取并解析 Codex 配置文件，提取受管字段 */
+export const codexConfigLoad = () => invoke<CodexLoadResult>('codex_config_load')
+
+/** 把表单按 key 合并写回配置文件（保存前自动备份 .bak）。
+ * 若开启模型目录且清单非空，后端克隆内置模板生成 catalog 并设 model_catalog_json。 */
+export const codexConfigSave = (form: CodexForm) =>
+  invoke<CodexSaveResult>('codex_config_save', { form })
+
+/** 执行 `codex --version` 获取版本号；未安装返回 null（控制侧边栏入口显示） */
+export const codexVersion = () => invoke<string | null>('codex_version')
+
 // ===================== 事件监听 =====================
 
 /** 监听网关日志事件，返回取消监听函数 */

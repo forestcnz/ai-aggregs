@@ -1,0 +1,285 @@
+/* ============================================================
+   Codex 配置页 · scoped 样式
+   复用全局 .btn / .btn-primary / .btn-secondary；
+   结构类（page-title / group / row / inp / key-field …）与本页 scoped 绑定。
+   ============================================================ */
+
+.oc-page {
+  padding-bottom: 40px;
+}
+
+.oc-loading {
+  padding: 40px;
+  color: var(--text-weak);
+  font-size: 13px;
+}
+
+/* 页标题 + 文件标记 */
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.file-tag {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 2px 7px;
+  letter-spacing: 0;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--text-weak);
+  margin-top: 3px;
+  margin-bottom: 18px;
+}
+.page-sub code {
+  font-family: inherit;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 0 5px;
+  font-size: 10px;
+  color: var(--text);
+}
+
+/* 工具栏 */
+.oc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.oc-path {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--text);
+  min-width: 0;
+}
+.oc-path .pth {
+  color: var(--text-strong);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.oc-path .meta {
+  color: var(--text-weak);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.oc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 注释丢失横幅（TOML # 注释重新序列化后丢失） */
+.comment-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  margin-bottom: 14px;
+  border: 1px solid #c0703a;
+  border-radius: var(--r-md);
+  background: rgba(192, 112, 58, 0.04);
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.6;
+}
+.comment-banner .ic {
+  color: #c0703a;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.comment-banner b {
+  color: var(--text-strong);
+  font-weight: 500;
+}
+
+/* group 容器 */
+.group {
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+.group h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.group h3 .gn {
+  font-size: 9px;
+  color: var(--text-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+}
+.group h3 .cnt {
+  font-size: 10px;
+  color: var(--text-weak);
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+/* 说明段落（含 code） */
+.oc-blocked-tip {
+  font-size: 11px;
+  color: var(--text-weak);
+  line-height: 1.7;
+  margin: -6px 0 12px;
+}
+.oc-blocked-tip code {
+  font-family: inherit;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 0 5px;
+  font-size: 10px;
+  color: var(--text);
+}
+.oc-blocked-tip b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* 行：label + input */
+.row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 11px;
+}
+.row:last-child {
+  margin-bottom: 0;
+}
+.row label {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 400;
+}
+
+/* toggle + 说明文字并排 */
+.inline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.inline-toggle span {
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* 输入框 */
+.inp {
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: var(--transition);
+  max-width: 420px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.inp.mono {
+  font-size: 11px;
+}
+.inp:focus {
+  border-color: var(--text-strong);
+}
+.inp::placeholder {
+  color: var(--text-weaker);
+}
+
+/* bearer token / 敏感值掩码展示 / 明文编辑 */
+.key-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+}
+.key-display {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  transition: var(--transition);
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  word-break: break-all;
+}
+.key-display:hover {
+  border-color: var(--border);
+  color: var(--text-strong);
+}
+.key-field .inp {
+  flex: 1;
+  max-width: none;
+}
+
+/* 保存栏 */
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 18px;
+}
+.actions .save-hint {
+  font-size: 11px;
+  color: var(--text-weak);
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* 按钮紧凑变体（global .btn 的 sm 补充，scoped 生效） */
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* 响应式 */
+@media (max-width: 60rem) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+  .oc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .oc-actions {
+    justify-content: flex-end;
+  }
+}

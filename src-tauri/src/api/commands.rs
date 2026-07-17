@@ -12,6 +12,7 @@ use crate::infra::db;
 use crate::infra::error::IpcError;
 use crate::infra::opencode::{self, OcForm, OcLoadResult};
 use crate::infra::claude_code::{self, CcForm, CcLoadResult};
+use crate::infra::codex::{self, CodexForm, CodexLoadResult, CodexSaveResult};
 
 #[tauri::command]
 pub fn get_config(app: tauri::AppHandle) -> Config {
@@ -383,6 +384,79 @@ pub fn claude_code_config_save(form: CcForm) -> Result<(), IpcError> {
 #[tauri::command]
 pub async fn claude_code_version() -> Result<Option<String>, IpcError> {
     tauri::async_runtime::spawn_blocking(|| Ok(claude_code::version()))
+        .await
+        .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
+}
+
+// ===================== Codex 配置编辑 =====================
+
+/// 读取并解析 `~/.codex/config.toml`（或 `$CODEX_HOME/config.toml`），
+/// 提取受管字段（顶层 model / model_provider + 受管 [model_providers.<id>]）。
+/// 文件不存在时返回默认空壳（exists=false），前端可据此新建。
+#[tauri::command]
+pub fn codex_config_load() -> Result<CodexLoadResult, IpcError> {
+    codex::load().map_err(|e| IpcError(format!("读取 codex 配置失败: {e}")))
+}
+
+/// 把表单按 key 合并写回配置文件（仅覆盖受管字段，其余字段原样保留；
+/// 受管 provider 改名时清理旧表；保存前自动备份 .bak）。
+///
+/// 若开启模型目录且清单非空，先克隆内置模板生成 `ai-aggregs.catalog.json`，
+/// 再把其路径写入 `model_catalog_json`；生成失败则不设该 key（返回错误供前端提示）。
+#[tauri::command]
+pub fn codex_config_save(form: CodexForm) -> Result<CodexSaveResult, IpcError> {
+    // 模型目录：开启且清单非空 → 生成 catalog 文件；否则不设 model_catalog_json
+    let (catalog_path, result) = if form.enable_model_catalog {
+        if form.catalog_models.iter().any(|s| !s.trim().is_empty()) {
+            match codex::generate_catalog(&form.catalog_models) {
+                Ok((path, count)) => (
+                    Some(path),
+                    CodexSaveResult {
+                        catalog_ok: true,
+                        catalog_count: count,
+                        catalog_error: None,
+                    },
+                ),
+                Err(e) => (
+                    None,
+                    CodexSaveResult {
+                        catalog_ok: false,
+                        catalog_count: 0,
+                        catalog_error: Some(e.to_string()),
+                    },
+                ),
+            }
+        } else {
+            (
+                None,
+                CodexSaveResult {
+                    catalog_ok: false,
+                    catalog_count: 0,
+                    catalog_error: Some("模型清单为空".into()),
+                },
+            )
+        }
+    } else {
+        (
+            None,
+            CodexSaveResult {
+                catalog_ok: false,
+                catalog_count: 0,
+                catalog_error: None,
+            },
+        )
+    };
+    codex::save(&form, catalog_path.as_deref())
+        .map_err(|e| IpcError(format!("保存 codex 配置失败: {e}")))?;
+    Ok(result)
+}
+
+/// 执行 `codex --version` 获取版本号；未安装返回 None。
+/// 前端据此决定是否显示「Codex 配置」侧边栏入口。
+/// 用 spawn_blocking 包裹，避免阻塞 tokio worker（codex 为外部进程）。
+#[tauri::command]
+pub async fn codex_version() -> Result<Option<String>, IpcError> {
+    tauri::async_runtime::spawn_blocking(|| Ok(codex::version()))
         .await
         .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
 }

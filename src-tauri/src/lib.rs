@@ -176,6 +176,9 @@ pub fn run() {
             claude_code_config_load,
             claude_code_config_save,
             claude_code_version,
+            codex_config_load,
+            codex_config_save,
+            codex_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

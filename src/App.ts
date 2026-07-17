@@ -6,6 +6,7 @@ import {
   onLog,
   opencodeVersion,
   claudeCodeVersion,
+  codexVersion,
   autostartGatewayIfConfigured,
   type GatewayStatus,
   type LogEntry
@@ -21,6 +22,7 @@ export function useApp() {
     | 'settings'
     | 'opencode'
     | 'claude-code'
+    | 'codex'
   >('dashboard')
   const status = ref<GatewayStatus>({ running: false, listen_addr: '' })
   const isMaximized = ref(false)
@@ -28,6 +30,8 @@ export function useApp() {
   const ocVersion = ref<string | null>(null)
   /** claude code 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
   const ccVersion = ref<string | null>(null)
+  /** codex 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
+  const cdxVersion = ref<string | null>(null)
   /** 启动期检测是否完成（网关状态 + opencode/claude code 版本）。
    * 完成前不渲染侧边栏导航，让 opencode/claude-code 入口一次性出现而非先后弹出。 */
   const ready = ref(false)
@@ -82,8 +86,11 @@ export function useApp() {
     const ccCheck = claudeCodeVersion()
       .then((v) => (ccVersion.value = v))
       .catch(() => (ccVersion.value = null))
+    const cdxCheck = codexVersion()
+      .then((v) => (cdxVersion.value = v))
+      .catch(() => (cdxVersion.value = null))
 
-    await Promise.all([refreshStatus(), checkMaximized(), ocCheck, ccCheck])
+    await Promise.all([refreshStatus(), checkMaximized(), ocCheck, ccCheck, cdxCheck])
     ready.value = true
 
     // 事件监听在首轮状态拉取之后注册，避免初始事件与本地状态竞争
@@ -121,6 +128,7 @@ export function useApp() {
     isMaximized,
     ocVersion,
     ccVersion,
+    cdxVersion,
     ready,
     logs,
     refreshStatus,
