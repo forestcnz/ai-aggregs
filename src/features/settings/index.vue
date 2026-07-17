@@ -5,7 +5,6 @@ const {
   cfg,
   saving,
   autoStart,
-  msg,
   keyInput,
   addKey,
   removeKey,
@@ -93,8 +92,11 @@ const {
     <div class="group">
       <h3><span class="gn">03</span>模型映射</h3>
       <p class="group-desc">
-        用户请求「<b>别名</b>」时，重定向到一组「<b>实际后端模型</b>」（负载均衡 / 故障转移）。一个别名可映射多个后端，多个别名也可共享同一后端。<br />
-        <span class="legend"><i class="legend-dot"></i>蓝色 = 上次成功响应的模型（下次该别名优先使用）</span>
+        用户请求「<b>别名</b>」时，重定向到一组「<b>实际后端模型</b>」（负载均衡 /
+        故障转移）。一个别名可映射多个后端，多个别名也可共享同一后端。<br />
+        <span class="legend"
+          ><i class="legend-dot"></i>蓝色 = 上次成功响应的模型（下次该别名优先使用）</span
+        >
       </p>
 
       <div v-if="!cfg.model_mappings.length" class="map-empty">暂无映射规则</div>
@@ -179,11 +181,6 @@ const {
         {{ saving ? '保存中...' : '保存配置' }}
       </button>
     </div>
-
-    <!-- 保存提示 toast -->
-    <Transition name="toast">
-      <div v-if="msg" class="toast" :class="{ ok: msg.includes('已保存') }">{{ msg }}</div>
-    </Transition>
   </div>
 </template>
 

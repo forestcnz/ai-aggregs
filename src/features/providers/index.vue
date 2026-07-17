@@ -1,19 +1,40 @@
 <script setup lang="ts">
 import { useProviderList } from './index'
 import { normalizeKey } from '../../api/commands'
+import AppModal from '../../components/AppModal.vue'
 
 defineProps<{ gatewayRunning: boolean }>()
 const {
-  config, loading, msg,
+  config,
+  loading,
   sortedProviders,
-  dragIdx, dragOverIdx,
+  dragIdx,
+  dragOverIdx,
   onHandleMouseDown,
-  modalMode, editingProvider, modelInput, keyInput, headerInput,
-  onToggleProvider, onToggleKey,
-  openAdd, openEdit, closeModal, submitModal, deleteFromModal,
-  modalAddModel, modalRemoveModel, modalAddKey, modalRemoveKey,
-  modalAddHeader, modalRemoveHeader,
-  getRuntime, keyRuntime, maskKey, iconFor, keyReleaseTime, fmtTime
+  modalMode,
+  editingProvider,
+  modelInput,
+  keyInput,
+  headerInput,
+  onToggleProvider,
+  onToggleKey,
+  openAdd,
+  openEdit,
+  closeModal,
+  submitModal,
+  deleteFromModal,
+  modalAddModel,
+  modalRemoveModel,
+  modalAddKey,
+  modalRemoveKey,
+  modalAddHeader,
+  modalRemoveHeader,
+  getRuntime,
+  keyRuntime,
+  maskKey,
+  iconFor,
+  keyReleaseTime,
+  fmtTime
 } = useProviderList()
 </script>
 
@@ -26,7 +47,6 @@ const {
         <p class="page-sub">管理上游 API 供应商及密钥</p>
       </div>
       <div class="header-actions">
-        <span v-if="msg" class="save-msg" :class="{ ok: msg.includes('已保存') }">{{ msg }}</span>
         <button class="btn btn-primary sm" @click="openAdd">+ 添加提供商</button>
       </div>
     </div>
@@ -49,7 +69,13 @@ const {
               title="拖动以排序"
               @mousedown.stop.prevent="onHandleMouseDown($event, idx)"
             >
-              <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+              <svg
+                width="10"
+                height="14"
+                viewBox="0 0 10 14"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <circle cx="2" cy="2" r="1.4" />
                 <circle cx="8" cy="2" r="1.4" />
                 <circle cx="2" cy="7" r="1.4" />
@@ -136,159 +162,141 @@ const {
       </div>
     </div>
 
-    <!-- 添加 / 编辑 弹窗 -->
-    <Teleport to="body">
-      <div v-if="modalMode" class="modal-overlay" @click.self="closeModal">
-        <div class="modal">
-          <div class="modal-header">
-            <h2>{{ modalMode === 'add' ? '添加提供商' : '编辑提供商' }}</h2>
-            <button class="modal-close" @click="closeModal">✕</button>
-          </div>
+    <!-- 添加 / 编辑 弹窗（统一使用 AppModal 组件） -->
+    <AppModal :open="!!modalMode" :close-on-overlay="true" @close="closeModal">
+      <template #header>
+        {{ modalMode === 'add' ? '添加提供商' : '编辑提供商' }}
+      </template>
 
-          <div class="modal-body">
-            <div class="mf">
-              <label>名称</label>
-              <input v-model="editingProvider.name" class="f-input" placeholder="如 glm" />
-            </div>
-            <div class="mf-row">
-              <!-- 协议选择 — 分段控件 -->
-              <div class="mf">
-                <label>协议</label>
-                <div class="seg">
-                  <input
-                    id="proto-chat"
-                    v-model="editingProvider.protocol"
-                    type="radio"
-                    value="chat"
-                  />
-                  <label for="proto-chat">chat</label>
-                  <input
-                    id="proto-resp"
-                    v-model="editingProvider.protocol"
-                    type="radio"
-                    value="responses"
-                  />
-                  <label for="proto-resp">responses</label>
-                  <input
-                    id="proto-anth"
-                    v-model="editingProvider.protocol"
-                    type="radio"
-                    value="anthropic"
-                  />
-                  <label for="proto-anth">anthropic</label>
-                </div>
-              </div>
-              <div class="mf">
-                <label>思考强度</label>
-                <select v-model="editingProvider.reasoning_effort" class="f-select">
-                  <option :value="null">无</option>
-                  <option value="max">max</option>
-                  <option value="xhigh">xhigh</option>
-                  <option value="high">high</option>
-                  <option value="medium">medium</option>
-                  <option value="low">low</option>
-                  <option value="minimal">minimal</option>
-                </select>
-              </div>
-            </div>
-            <div class="mf">
-              <label>Base URL</label>
-              <input
-                v-model="editingProvider.base_url"
-                class="f-input"
-                placeholder="https://api.example.com/v1"
-              />
-            </div>
-
-            <!-- API Keys（先填 key 再填模型） -->
-            <div class="mf">
-              <label>API Keys</label>
-              <div class="chip-input">
-                <span v-for="(k, ki) in editingProvider.api_keys" :key="ki" class="chip">
-                  <span class="chip-text">{{ maskKey(normalizeKey(k).key) }}</span>
-                  <button class="chip-x" @click="modalRemoveKey(ki)">×</button>
-                </span>
-                <input
-                  v-model="keyInput"
-                  class="chip-field"
-                  :placeholder="editingProvider.api_keys.length ? '' : 'API Key，回车添加'"
-                  @keydown.enter.prevent="modalAddKey"
-                />
-              </div>
-            </div>
-
-            <!-- 模型 -->
-            <div class="mf">
-              <label>模型</label>
-              <div class="chip-input">
-                <span v-for="(m, mi) in editingProvider.models" :key="mi" class="chip">
-                  <span class="chip-text">{{ m }}</span>
-                  <button class="chip-x" @click="modalRemoveModel(mi)">×</button>
-                </span>
-                <input
-                  v-model="modelInput"
-                  class="chip-field"
-                  :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'"
-                  @keydown.enter.prevent="modalAddModel"
-                />
-              </div>
-            </div>
-
-            <!-- 自定义请求头 -->
-            <div class="mf">
-              <label>自定义请求头</label>
-              <div class="chip-input">
-                <span
-                  v-for="[hk, hv] in Object.entries(editingProvider.extra_headers)"
-                  :key="hk"
-                  class="chip header-chip"
-                >
-                  <span class="chip-text">{{ hk }}: {{ hv }}</span>
-                  <button class="chip-x" @click="modalRemoveHeader(hk)">×</button>
-                </span>
-                <input
-                  v-model="headerInput"
-                  class="chip-field"
-                  :placeholder="
-                    Object.keys(editingProvider.extra_headers).length
-                      ? ''
-                      : 'Key: Value，回车添加'
-                  "
-                  @keydown.enter.prevent="modalAddHeader"
-                />
-              </div>
-            </div>
-
-            <div class="mf-row">
-              <div class="mf">
-                <label>超时（秒）</label>
-                <input
-                  v-model.number="editingProvider.timeout_secs"
-                  type="number"
-                  class="f-input"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button
-              v-if="modalMode === 'edit'"
-              class="btn btn-secondary danger-btn"
-              @click="deleteFromModal"
-            >
-              删除
-            </button>
-            <div class="footer-right">
-              <button class="btn btn-secondary" @click="closeModal">取消</button>
-              <button class="btn btn-primary" @click="submitModal">
-                {{ modalMode === 'add' ? '创建' : '保存' }}
-              </button>
-            </div>
+      <div class="mf">
+        <label>名称</label>
+        <input v-model="editingProvider.name" class="f-input" placeholder="如 glm" />
+      </div>
+      <div class="mf-row">
+        <!-- 协议选择 — 分段控件 -->
+        <div class="mf">
+          <label>协议</label>
+          <div class="seg">
+            <input id="proto-chat" v-model="editingProvider.protocol" type="radio" value="chat" />
+            <label for="proto-chat">chat</label>
+            <input
+              id="proto-resp"
+              v-model="editingProvider.protocol"
+              type="radio"
+              value="responses"
+            />
+            <label for="proto-resp">responses</label>
+            <input
+              id="proto-anth"
+              v-model="editingProvider.protocol"
+              type="radio"
+              value="anthropic"
+            />
+            <label for="proto-anth">anthropic</label>
           </div>
         </div>
+        <div class="mf">
+          <label>思考强度</label>
+          <select v-model="editingProvider.reasoning_effort" class="f-select">
+            <option :value="null">无</option>
+            <option value="max">max</option>
+            <option value="xhigh">xhigh</option>
+            <option value="high">high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+            <option value="minimal">minimal</option>
+          </select>
+        </div>
       </div>
-    </Teleport>
+      <div class="mf">
+        <label>Base URL</label>
+        <input
+          v-model="editingProvider.base_url"
+          class="f-input"
+          placeholder="https://api.example.com/v1"
+        />
+      </div>
+
+      <!-- API Keys（先填 key 再填模型） -->
+      <div class="mf">
+        <label>API Keys</label>
+        <div class="chip-input">
+          <span v-for="(k, ki) in editingProvider.api_keys" :key="ki" class="chip">
+            <span class="chip-text">{{ maskKey(normalizeKey(k).key) }}</span>
+            <button class="chip-x" @click="modalRemoveKey(ki)">×</button>
+          </span>
+          <input
+            v-model="keyInput"
+            class="chip-field"
+            :placeholder="editingProvider.api_keys.length ? '' : 'API Key，回车添加'"
+            @keydown.enter.prevent="modalAddKey"
+          />
+        </div>
+      </div>
+
+      <!-- 模型 -->
+      <div class="mf">
+        <label>模型</label>
+        <div class="chip-input">
+          <span v-for="(m, mi) in editingProvider.models" :key="mi" class="chip">
+            <span class="chip-text">{{ m }}</span>
+            <button class="chip-x" @click="modalRemoveModel(mi)">×</button>
+          </span>
+          <input
+            v-model="modelInput"
+            class="chip-field"
+            :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'"
+            @keydown.enter.prevent="modalAddModel"
+          />
+        </div>
+      </div>
+
+      <!-- 自定义请求头 -->
+      <div class="mf">
+        <label>自定义请求头</label>
+        <div class="chip-input">
+          <span
+            v-for="[hk, hv] in Object.entries(editingProvider.extra_headers)"
+            :key="hk"
+            class="chip header-chip"
+          >
+            <span class="chip-text">{{ hk }}: {{ hv }}</span>
+            <button class="chip-x" @click="modalRemoveHeader(hk)">×</button>
+          </span>
+          <input
+            v-model="headerInput"
+            class="chip-field"
+            :placeholder="
+              Object.keys(editingProvider.extra_headers).length ? '' : 'Key: Value，回车添加'
+            "
+            @keydown.enter.prevent="modalAddHeader"
+          />
+        </div>
+      </div>
+
+      <div class="mf-row">
+        <div class="mf">
+          <label>超时（秒）</label>
+          <input v-model.number="editingProvider.timeout_secs" type="number" class="f-input" />
+        </div>
+      </div>
+
+      <template #footer>
+        <button
+          v-if="modalMode === 'edit'"
+          class="btn btn-secondary danger-btn"
+          @click="deleteFromModal"
+        >
+          删除
+        </button>
+        <div class="footer-right">
+          <button class="btn btn-secondary" @click="closeModal">取消</button>
+          <button class="btn btn-primary" @click="submitModal">
+            {{ modalMode === 'add' ? '创建' : '保存' }}
+          </button>
+        </div>
+      </template>
+    </AppModal>
   </div>
 </template>
 

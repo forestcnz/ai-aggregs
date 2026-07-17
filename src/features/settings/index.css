@@ -106,36 +106,6 @@
   margin-top: 16px;
 }
 
-/* ---- 保存提示 toast ---- */
-.toast {
-  position: fixed;
-  top: 52px;
-  right: 28px;
-  z-index: 100;
-  padding: 7px 14px;
-  border: 1px solid var(--border-weak);
-  border-radius: var(--r-md);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 500;
-}
-.toast.ok {
-  color: var(--green);
-  border-color: var(--green);
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
 /* ---- Chip 输入框（与供应商 API Key 输入框一致） ---- */
 .chip-input {
   display: flex;

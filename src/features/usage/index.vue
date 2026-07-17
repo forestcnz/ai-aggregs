@@ -19,11 +19,7 @@ const { config, summary, selectedKey, selectedDays, loading, loadUsage, fmtNum, 
         <span class="uf-label">Consumer Key</span>
         <select v-model="selectedKey" class="select">
           <option value="all">全部 Keys</option>
-          <option
-            v-for="key in config?.consumer.api_keys ?? []"
-            :key="key"
-            :value="key"
-          >
+          <option v-for="key in config?.consumer.api_keys ?? []" :key="key" :value="key">
             {{ key }}
           </option>
         </select>
@@ -65,7 +61,9 @@ const { config, summary, selectedKey, selectedDays, loading, loadUsage, fmtNum, 
 
     <!-- 模型明细 -->
     <div class="usage-head">
-      <h3>模型明细 <span class="ct">{{ summary?.models.length ?? 0 }} 个模型</span></h3>
+      <h3>
+        模型明细 <span class="ct">{{ summary?.models.length ?? 0 }} 个模型</span>
+      </h3>
       <button class="btn btn-secondary sm" :disabled="loading" @click="loadUsage">
         {{ loading ? '加载中...' : '刷新' }}
       </button>
@@ -84,16 +82,14 @@ const { config, summary, selectedKey, selectedDays, loading, loadUsage, fmtNum, 
         <span class="num">输出</span>
         <span class="num">合计</span>
       </div>
-      <div
-        v-for="(m, i) in summary.models"
-        :key="m.model"
-        class="urow"
-      >
+      <div v-for="(m, i) in summary.models" :key="m.model" class="urow">
         <span class="mdl">
           <span class="mdot" :style="{ background: colorForModel(i) }"></span>
           {{ m.model }}
         </span>
-        <span class="num">{{ ((m.total_tokens / (summary?.total_tokens || 1)) * 100).toFixed(0) }}%</span>
+        <span class="num"
+          >{{ ((m.total_tokens / (summary?.total_tokens || 1)) * 100).toFixed(0) }}%</span
+        >
         <span class="num">{{ m.requests }}</span>
         <span class="num">{{ fmtNum(m.input_tokens) }}</span>
         <span class="num">{{ fmtNum(m.output_tokens) }}</span>

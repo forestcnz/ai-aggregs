@@ -1,5 +1,6 @@
 import { ref, nextTick, onMounted, computed } from 'vue'
-import { getConfig, type GatewayStatus, type Config } from '../../api/commands'
+import { getConfig, maskKey, type GatewayStatus, type Config } from '../../api/commands'
+import { useDialog } from '../../composables/useDialog'
 
 type ChatProtocol = 'chat' | 'responses' | 'anthropic'
 
@@ -9,6 +10,8 @@ const lastModel = ref('')
 const lastKey = ref('')
 
 export function useChat(props: { status: GatewayStatus }) {
+  const { toast } = useDialog()
+
   // ---- 协议类型 ----
   const PROTOCOL_ENDPOINT: Record<ChatProtocol, string> = {
     chat: '/v1/chat/completions',
@@ -23,7 +26,6 @@ export function useChat(props: { status: GatewayStatus }) {
   const selectedKey = lastKey
   const input = ref('')
   const sending = ref(false)
-  const dialogMsg = ref('')
   const messages = ref<ChatMsg[]>([])
   const scrollEl = ref<HTMLElement | null>(null)
   const textareaRef = ref<HTMLTextAreaElement | null>(null)
@@ -40,7 +42,7 @@ export function useChat(props: { status: GatewayStatus }) {
 
   // ---- 计算属性 ----
   const models = computed(() =>
-    [...(config.value?.consumer.models ?? [])].sort((a, b) => a.localeCompare(b)),
+    [...(config.value?.consumer.models ?? [])].sort((a, b) => a.localeCompare(b))
   )
   const apiKeys = computed(() => config.value?.consumer.api_keys ?? [])
   const gatewayUrl = computed(() => {
@@ -65,13 +67,6 @@ export function useChat(props: { status: GatewayStatus }) {
   })
 
   // ---- 工具函数 ----
-  function showDialog(msg: string) {
-    dialogMsg.value = msg
-  }
-  function closeDialog() {
-    dialogMsg.value = ''
-    nextTick(() => textareaRef.value?.focus())
-  }
   async function scrollToBottom() {
     await nextTick()
     if (scrollEl.value) {
@@ -88,7 +83,11 @@ export function useChat(props: { status: GatewayStatus }) {
       // Responses 协议：input 字段，每条消息含 type/content 结构；启用 reasoning summary
       const input = sendMessages.map((m) => {
         if (m.role === 'user') {
-          return { type: 'message', role: 'user', content: [{ type: 'input_text', text: m.content }] }
+          return {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: m.content }]
+          }
         } else if (m.role === 'assistant') {
           return {
             type: 'message',
@@ -96,7 +95,11 @@ export function useChat(props: { status: GatewayStatus }) {
             content: [{ type: 'output_text', text: m.content }]
           }
         } else {
-          return { type: 'message', role: m.role, content: [{ type: 'input_text', text: m.content }] }
+          return {
+            type: 'message',
+            role: m.role,
+            content: [{ type: 'input_text', text: m.content }]
+          }
         }
       })
       return {
@@ -250,15 +253,15 @@ export function useChat(props: { status: GatewayStatus }) {
 
     // 前置检查
     if (!gatewayUrl.value) {
-      showDialog('网关未运行，请先在「网关状态」页启动网关')
+      toast('网关未运行，请先在「网关状态」页启动网关', 'error')
       return
     }
     if (!selectedModel.value) {
-      showDialog('请先选择模型')
+      toast('请先选择模型', 'error')
       return
     }
     if (!selectedKey.value) {
-      showDialog('请先选择 API Key')
+      toast('请先选择 API Key', 'error')
       return
     }
 
@@ -369,15 +372,23 @@ export function useChat(props: { status: GatewayStatus }) {
     }
   }
 
-  // ---- 工具：掩码显示 key ----
-  function maskKey(k: string): string {
-    if (k.length <= 8) return k
-    return k.slice(0, 4) + '...' + k.slice(-4)
-  }
+  // ---- 工具：掩码显示 key（统一使用 api/commands.ts 中的实现）----
 
   return {
-    protocol, selectedModel, selectedKey, input, sending, dialogMsg,
-    messages, scrollEl, textareaRef, models, apiKeys, maskKey,
-    closeDialog, send, stop, clearChat, onKeydown
+    protocol,
+    selectedModel,
+    selectedKey,
+    input,
+    sending,
+    messages,
+    scrollEl,
+    textareaRef,
+    models,
+    apiKeys,
+    maskKey,
+    send,
+    stop,
+    clearChat,
+    onKeydown
   }
 }

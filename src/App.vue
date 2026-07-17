@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { useApp } from './App'
+import { provideDialog } from './composables/useDialog'
+import AppToast from './components/AppToast.vue'
+import AppConfirm from './components/AppConfirm.vue'
 import GatewayStatusView from './features/dashboard/index.vue'
 import ProviderList from './features/providers/index.vue'
 import ConfigEditor from './features/settings/index.vue'
@@ -7,11 +10,26 @@ import ChatView from './features/chat/index.vue'
 import UsageView from './features/usage/index.vue'
 import ProviderUsageView from './features/provider-usage/index.vue'
 
-const { activeTab, status, isMaximized, logs, refreshStatus, minimize, toggleMaximize, closeWindow } = useApp()
+// 全局弹窗状态注入（在挂载子组件前完成 provide）
+provideDialog()
+
+const {
+  activeTab,
+  status,
+  isMaximized,
+  logs,
+  refreshStatus,
+  minimize,
+  toggleMaximize,
+  closeWindow
+} = useApp()
 </script>
 
 <template>
   <div class="app">
+    <!-- 全局弹窗（toast + 确认框） -->
+    <AppToast />
+    <AppConfirm />
     <!-- 自定义标题栏 — opencode.ai 风格 -->
     <header class="titlebar" data-tauri-drag-region>
       <!-- 左：品牌名 -->
@@ -182,16 +200,85 @@ const { activeTab, status, isMaximized, logs, refreshStatus, minimize, toggleMax
             />
           </svg>
           <svg v-else-if="tab.id === 'usage'" class="nav-icon" viewBox="0 0 14 14" fill="none">
-            <line x1="2.5" y1="11.5" x2="2.5" y2="8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" />
-            <line x1="6" y1="11.5" x2="6" y2="4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" />
-            <line x1="9.5" y1="11.5" x2="9.5" y2="6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" />
-            <line x1="1.5" y1="12.5" x2="12.5" y2="12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="square" />
+            <line
+              x1="2.5"
+              y1="11.5"
+              x2="2.5"
+              y2="8.5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="square"
+            />
+            <line
+              x1="6"
+              y1="11.5"
+              x2="6"
+              y2="4.5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="square"
+            />
+            <line
+              x1="9.5"
+              y1="11.5"
+              x2="9.5"
+              y2="6.5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="square"
+            />
+            <line
+              x1="1.5"
+              y1="12.5"
+              x2="12.5"
+              y2="12.5"
+              stroke="currentColor"
+              stroke-width="1.2"
+              stroke-linecap="square"
+            />
           </svg>
-          <svg v-else-if="tab.id === 'provider-usage'" class="nav-icon" viewBox="0 0 14 14" fill="none">
-            <rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3" />
-            <line x1="8" y1="3.5" x2="12.5" y2="3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" />
-            <line x1="3.5" y1="8" x2="3.5" y2="12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" />
-            <rect x="7" y="7" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.3" />
+          <svg
+            v-else-if="tab.id === 'provider-usage'"
+            class="nav-icon"
+            viewBox="0 0 14 14"
+            fill="none"
+          >
+            <rect
+              x="1.5"
+              y="1.5"
+              width="4.5"
+              height="4.5"
+              rx="1"
+              stroke="currentColor"
+              stroke-width="1.3"
+            />
+            <line
+              x1="8"
+              y1="3.5"
+              x2="12.5"
+              y2="3.5"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="square"
+            />
+            <line
+              x1="3.5"
+              y1="8"
+              x2="3.5"
+              y2="12.5"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linecap="square"
+            />
+            <rect
+              x="7"
+              y="7"
+              width="5.5"
+              height="5.5"
+              rx="1"
+              stroke="currentColor"
+              stroke-width="1.3"
+            />
           </svg>
           <svg v-else class="nav-icon" viewBox="0 0 14 14" fill="none">
             <circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3" />

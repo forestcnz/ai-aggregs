@@ -4,7 +4,7 @@ import {
   getProviderUsage,
   normalizeKey,
   type UsageSummary,
-  type Config,
+  type Config
 } from '../../api/commands'
 
 export function useProviderUsage() {
@@ -85,6 +85,6 @@ export function useProviderUsage() {
     loadUsage,
     fmtNum,
     maskKey,
-    colorForModel,
+    colorForModel
   }
 }

@@ -1,5 +1,5 @@
 import { ref, onMounted, watch } from 'vue'
-import { getConfig, getUsage, type UsageSummary, type Config } from '../../api/commands'
+import { getConfig, getUsage, maskKey, type UsageSummary, type Config } from '../../api/commands'
 
 export function useUsage() {
   const config = ref<Config | null>(null)
@@ -36,22 +36,10 @@ export function useUsage() {
     return String(n)
   }
 
-  // 遮蔽 consumer key 中间部分
-  function maskKey(key: string): string {
-    if (key.length <= 10) return key
-    return key.slice(0, 6) + '...' + key.slice(-4)
-  }
+  // 遮蔽 consumer key 中间部分（统一使用 api/commands.ts 中的实现，与后端一致）
 
   // 模型配色（克制调色板）
-  const palette = [
-    '#1f1e1e',
-    '#646363',
-    '#7c3aed',
-    '#03b000',
-    '#c0703a',
-    '#2d7d8c',
-    '#8b4513',
-  ]
+  const palette = ['#1f1e1e', '#646363', '#7c3aed', '#03b000', '#c0703a', '#2d7d8c', '#8b4513']
 
   function colorForModel(index: number): string {
     return palette[index % palette.length]
@@ -76,6 +64,6 @@ export function useUsage() {
     loadUsage,
     fmtNum,
     maskKey,
-    colorForModel,
+    colorForModel
   }
 }

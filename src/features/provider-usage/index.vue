@@ -15,7 +15,7 @@ const {
   loadUsage,
   fmtNum,
   maskKey,
-  colorForModel,
+  colorForModel
 } = useProviderUsage()
 </script>
 
@@ -30,11 +30,7 @@ const {
         <span class="uf-label">供应商</span>
         <select v-model="selectedProvider" class="select">
           <option :value="0">全部</option>
-          <option
-            v-for="p in config?.providers ?? []"
-            :key="p.id"
-            :value="p.id"
-          >
+          <option v-for="p in config?.providers ?? []" :key="p.id" :value="p.id">
             {{ p.name }}
           </option>
         </select>
@@ -85,7 +81,9 @@ const {
 
     <!-- 模型明细 -->
     <div class="usage-head">
-      <h3>模型明细 <span class="ct">{{ summary?.models.length ?? 0 }} 个模型</span></h3>
+      <h3>
+        模型明细 <span class="ct">{{ summary?.models.length ?? 0 }} 个模型</span>
+      </h3>
       <button class="btn btn-secondary sm" :disabled="loading" @click="loadUsage">
         {{ loading ? '加载中...' : '刷新' }}
       </button>

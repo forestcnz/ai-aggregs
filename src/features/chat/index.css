@@ -81,32 +81,6 @@
   margin-bottom: 14px;
 }
 
-/* 弹窗 */
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-.dialog-box {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 28px 32px 22px;
-  min-width: 300px;
-  max-width: 420px;
-  text-align: center;
-}
-.dialog-text {
-  font-size: 14px;
-  color: var(--text-strong);
-  margin-bottom: 20px;
-  line-height: 1.6;
-}
-
 /* 消息列表 */
 .messages {
   flex: 1;

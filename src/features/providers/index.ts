@@ -5,16 +5,18 @@ import {
   runtimeStatus,
   toggleProvider,
   toggleKey,
+  maskKey,
   type Config,
   type ProviderConfig,
   type ProviderRuntime
 } from '../../api/commands'
+import { useDialog } from '../../composables/useDialog'
 
 export function useProviderList() {
+  const { toast, confirm } = useDialog()
   const config = ref<Config | null>(null)
   const runtimeMap = ref<Map<string, ProviderRuntime>>(new Map())
   const loading = ref(false)
-  const msg = ref('')
   let timer: ReturnType<typeof setInterval> | null = null
 
   // 上次拉取运行时状态的时间戳
@@ -75,21 +77,18 @@ export function useProviderList() {
     }
   }
 
-  function showMsg(text: string) {
-    msg.value = text
-    setTimeout(() => {
-      msg.value = ''
-    }, 3000)
-  }
-
-  async function save() {
+  /**
+   * 保存配置。
+   * @param silent 静默模式（拖拽排序后自动保存使用）：成功不提示，仅失败提示
+   */
+  async function save(silent = false) {
     if (!config.value) return
     try {
       await saveConfig(config.value)
       await refreshRuntime()
-      showMsg('已保存')
+      if (!silent) toast('保存成功', 'success')
     } catch (e) {
-      showMsg('保存失败: ' + String(e))
+      toast('保存失败: ' + String(e), 'error', 5000)
     }
   }
 
@@ -103,7 +102,7 @@ export function useProviderList() {
       config.value.providers[idx].enabled = enabled
       await refreshRuntime()
     } catch (e) {
-      showMsg(String(e))
+      toast(String(e), 'error', 5000)
     } finally {
       loading.value = false
     }
@@ -127,7 +126,7 @@ export function useProviderList() {
       }
       await refreshRuntime()
     } catch (e) {
-      showMsg(String(e))
+      toast(String(e), 'error', 5000)
     } finally {
       loading.value = false
     }
@@ -160,6 +159,7 @@ export function useProviderList() {
   }
 
   function onDocumentKeydown(e: KeyboardEvent) {
+    // ESC 关闭由 AppModal 组件内部处理；此处保留空函数避免破坏模板调用
     if (e.key === 'Escape' && modalMode.value) {
       closeModal()
     }
@@ -168,7 +168,7 @@ export function useProviderList() {
   function submitModal() {
     const p = editingProvider.value
     if (!p.name.trim() || !p.base_url.trim()) {
-      showMsg('名称和 Base URL 不能为空')
+      toast('名称和 Base URL 不能为空', 'error')
       return
     }
     if (!config.value) return
@@ -182,11 +182,20 @@ export function useProviderList() {
     save()
   }
 
-  function deleteFromModal() {
+  async function deleteFromModal() {
     if (editingIdx.value < 0 || !config.value) {
       modalMode.value = null
       return
     }
+    const name = config.value.providers[editingIdx.value]?.name ?? ''
+    // 删除前确认（避免误删）
+    const ok = await confirm({
+      title: '删除提供商',
+      message: `确认删除提供商「${name}」？该操作不可撤销。`,
+      confirmText: '删除',
+      danger: true
+    })
+    if (!ok) return
     config.value.providers.splice(editingIdx.value, 1)
     modalMode.value = null
     save()
@@ -221,7 +230,7 @@ export function useProviderList() {
     if (!raw) return
     const sep = raw.indexOf(':')
     if (sep <= 0) {
-      showMsg('格式：Key: Value')
+      toast('格式：Key: Value', 'error')
       return
     }
     const k = raw.slice(0, sep).trim()
@@ -288,7 +297,8 @@ export function useProviderList() {
     const arr = config.value.providers
     const [moved] = arr.splice(from, 1)
     arr.splice(to, 0, moved)
-    await save()
+    // 拖拽静默保存：成功不提示，失败才提示
+    await save(true)
   }
 
   // ---- 辅助 ----
@@ -300,11 +310,6 @@ export function useProviderList() {
   // 按 idx 从 runtime 中取某个 key 的运行时状态（用于黑名单/禁用）
   function keyRuntime(name: string, idx: number) {
     return getRuntime(name)?.keys.find((k) => k.idx === idx)
-  }
-
-  function maskKey(key: string): string {
-    if (key.length <= 12) return key.slice(0, 4) + '**'
-    return key.slice(0, 6) + '**' + key.slice(-6)
   }
 
   // 按协议返回图标 emoji
@@ -346,15 +351,35 @@ export function useProviderList() {
   })
 
   return {
-    config, loading, msg,
+    config,
+    loading,
     sortedProviders,
-    dragIdx, dragOverIdx,
+    dragIdx,
+    dragOverIdx,
     onHandleMouseDown,
-    modalMode, editingProvider, modelInput, keyInput, headerInput,
-    onToggleProvider, onToggleKey,
-    openAdd, openEdit, closeModal, submitModal, deleteFromModal,
-    modalAddModel, modalRemoveModel, modalAddKey, modalRemoveKey,
-    modalAddHeader, modalRemoveHeader,
-    getRuntime, keyRuntime, maskKey, iconFor, keyReleaseTime, fmtTime
+    modalMode,
+    editingProvider,
+    modelInput,
+    keyInput,
+    headerInput,
+    onToggleProvider,
+    onToggleKey,
+    openAdd,
+    openEdit,
+    closeModal,
+    submitModal,
+    deleteFromModal,
+    modalAddModel,
+    modalRemoveModel,
+    modalAddKey,
+    modalRemoveKey,
+    modalAddHeader,
+    modalRemoveHeader,
+    getRuntime,
+    keyRuntime,
+    maskKey,
+    iconFor,
+    keyReleaseTime,
+    fmtTime
   }
 }

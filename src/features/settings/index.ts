@@ -6,14 +6,16 @@ import {
   disableAutostart,
   autostartStatus,
   getLastUsedModels,
+  maskKey,
   type Config
 } from '../../api/commands'
+import { useDialog } from '../../composables/useDialog'
 
 export function useSettings() {
+  const { toast, alert: alertModal } = useDialog()
   const cfg = ref<Config | null>(null)
   const saving = ref(false)
   const autoStart = ref(false)
-  const msg = ref('')
   const keyInput = ref('')
   /** 模型映射：每条规则的「实际模型」chip 输入框文本（与 model_mappings 并行） */
   const mapInputs = ref<string[]>([])
@@ -31,10 +33,7 @@ export function useSettings() {
     if (!cfg.value) return
     cfg.value.consumer.api_keys.splice(i, 1)
   }
-  function maskKey(key: string): string {
-    if (key.length <= 12) return key.slice(0, 4) + '**'
-    return key.slice(0, 6) + '**' + key.slice(-6)
-  }
+  // maskKey 统一使用 api/commands.ts 中的实现
 
   async function load() {
     try {
@@ -50,15 +49,11 @@ export function useSettings() {
   async function save() {
     if (!cfg.value) return
     saving.value = true
-    msg.value = ''
     try {
       await saveConfig(cfg.value)
-      msg.value = '配置已保存'
-      setTimeout(() => {
-        msg.value = ''
-      }, 3000)
+      toast('配置已保存', 'success')
     } catch (e) {
-      msg.value = '保存失败: ' + String(e)
+      toast('保存失败: ' + String(e), 'error', 5000)
     } finally {
       saving.value = false
     }
@@ -70,7 +65,7 @@ export function useSettings() {
       else await disableAutostart()
       autoStart.value = val
     } catch (e) {
-      alert(String(e))
+      await alertModal({ title: '操作失败', message: String(e) })
     }
   }
 
@@ -122,7 +117,6 @@ export function useSettings() {
     cfg,
     saving,
     autoStart,
-    msg,
     keyInput,
     addKey,
     removeKey,

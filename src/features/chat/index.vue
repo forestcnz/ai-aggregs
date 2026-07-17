@@ -4,9 +4,20 @@ import { type GatewayStatus } from '../../api/commands'
 
 const props = defineProps<{ status: GatewayStatus }>()
 const {
-  protocol, selectedModel, selectedKey, input, sending, dialogMsg,
-  messages, scrollEl, textareaRef, models, apiKeys,
-  closeDialog, send, stop, clearChat, onKeydown
+  protocol,
+  selectedModel,
+  selectedKey,
+  input,
+  sending,
+  messages,
+  scrollEl,
+  textareaRef,
+  models,
+  apiKeys,
+  send,
+  stop,
+  clearChat,
+  onKeydown
 } = useChat(props)
 </script>
 
@@ -87,14 +98,6 @@ const {
       </div>
     </div>
 
-    <!-- 弹窗 -->
-    <div v-if="dialogMsg" class="dialog-overlay" @click.self="closeDialog">
-      <div class="dialog-box">
-        <p class="dialog-text">{{ dialogMsg }}</p>
-        <button class="btn btn-primary" @click="closeDialog">确定</button>
-      </div>
-    </div>
-
     <!-- 输入区 -->
     <div class="input-area">
       <textarea
@@ -106,13 +109,7 @@ const {
         rows="3"
         @keydown="onKeydown"
       />
-      <button
-        v-if="!sending"
-        class="btn btn-primary send-btn"
-        @click="send"
-      >
-        发送
-      </button>
+      <button v-if="!sending" class="btn btn-primary send-btn" @click="send">发送</button>
       <button v-else class="btn btn-stop send-btn" @click="stop">停止</button>
     </div>
   </div>

@@ -169,7 +169,7 @@ export const getUsage = (consumerKey: string | null, days: number | null) =>
 export const getProviderUsage = (
   providerId: number | null,
   providerKey: string | null,
-  days: number | null,
+  days: number | null
 ) => invoke<UsageSummary>('get_provider_usage', { providerId, providerKey, days })
 
 /**
@@ -198,4 +198,22 @@ export function normalizeKey(entry: ApiKeyEntry): { key: string; enabled: boolea
     return { key: entry, enabled: true }
   }
   return entry
+}
+
+/**
+ * 统一的密钥掩码函数（与后端 provider.rs::mask_key 行为一致）：
+ *   - 长度 <= 12：保留首 4 个字符 + "**"
+ *   - 长度 > 12：保留首 6 + 尾 6 个字符，中间以 "**" 替代
+ * 全程按 Unicode code point 切分，emoji / 多字节字符不会切坏。
+ */
+export function maskKey(key: string): string {
+  // 使用 Array.from 按 code point 拆分，避免 JS 字符串按 UTF-16 码元切到 emoji 中间
+  const chars = Array.from(key)
+  const len = chars.length
+  if (len <= 12) {
+    return chars.slice(0, 4).join('') + '**'
+  }
+  const head = chars.slice(0, 6).join('')
+  const tail = chars.slice(-6).join('')
+  return `${head}**${tail}`
 }
