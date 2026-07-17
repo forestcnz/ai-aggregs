@@ -331,6 +331,15 @@
   font-weight: 500;
   color: var(--text-strong);
 }
+.header-hint {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-weak);
+  margin-left: 4px;
+}
+.header-chip .chip-text {
+  font-size: 10px;
+}
 .mf-row {
   display: flex;
   gap: 12px;

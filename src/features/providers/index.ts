@@ -40,6 +40,8 @@ export function useProviderList() {
   const editingIdx = ref(-1)
   const modelInput = ref('')
   const keyInput = ref('')
+  // 自定义请求头输入：格式 "Key: Value"，回车添加
+  const headerInput = ref('')
 
   function blankProvider(): ProviderConfig {
     return {
@@ -138,6 +140,7 @@ export function useProviderList() {
     editingIdx.value = -1
     modelInput.value = ''
     keyInput.value = ''
+    headerInput.value = ''
     modalMode.value = 'add'
   }
 
@@ -148,6 +151,7 @@ export function useProviderList() {
     editingIdx.value = idx
     modelInput.value = ''
     keyInput.value = ''
+    headerInput.value = ''
     modalMode.value = 'edit'
   }
 
@@ -208,6 +212,26 @@ export function useProviderList() {
   }
   function modalRemoveKey(i: number) {
     editingProvider.value.api_keys.splice(i, 1)
+  }
+
+  // ---- 弹窗内 自定义请求头 ----
+  // headerInput 格式 "Key: Value"，回车解析添加
+  function modalAddHeader() {
+    const raw = headerInput.value.trim()
+    if (!raw) return
+    const sep = raw.indexOf(':')
+    if (sep <= 0) {
+      showMsg('格式：Key: Value')
+      return
+    }
+    const k = raw.slice(0, sep).trim()
+    const v = raw.slice(sep + 1).trim()
+    if (!k) return
+    editingProvider.value.extra_headers[k] = v
+    headerInput.value = ''
+  }
+  function modalRemoveHeader(key: string) {
+    delete editingProvider.value.extra_headers[key]
   }
 
   // ---- 拖拽排序（纯鼠标事件，绕开 HTML5 DnD，兼容 Tauri webview）----
@@ -326,10 +350,11 @@ export function useProviderList() {
     sortedProviders,
     dragIdx, dragOverIdx,
     onHandleMouseDown,
-    modalMode, editingProvider, modelInput, keyInput,
+    modalMode, editingProvider, modelInput, keyInput, headerInput,
     onToggleProvider, onToggleKey,
     openAdd, openEdit, closeModal, submitModal, deleteFromModal,
     modalAddModel, modalRemoveModel, modalAddKey, modalRemoveKey,
+    modalAddHeader, modalRemoveHeader,
     getRuntime, keyRuntime, maskKey, iconFor, keyReleaseTime, fmtTime
   }
 }

@@ -12,6 +12,8 @@ use crate::infra::error::AppError;
 
 pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response, AppError> {
     let consumer_key = auth(&st, req.headers())?;
+    // 捕获 incoming 请求头快照（req.into_body 会消耗 req）
+    let incoming_headers = req.headers().clone();
 
     let c_proto = proto_from_path(req.uri().path());
     let req_method = req.method().clone();
@@ -98,7 +100,10 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
             body_preview = %truncate_json(&send_body, 500),
             "proxy: sending to provider"
         );
-        match provider.send(endpoint, &send_body, stream).await {
+        match provider
+            .send(endpoint, &send_body, stream, &incoming_headers)
+            .await
+        {
             Ok((resp, provider_key)) => {
                 // 记录该模型上次成功的供应商，下次路由优先使用
                 st.last_provider

@@ -159,7 +159,13 @@ impl Provider {
         endpoint: &str,
         body: &serde_json::Value,
         stream: bool,
+        incoming: &HeaderMap,
     ) -> Result<(reqwest::Response, String), UpstreamError> {
+        // 预构建透传 + 补充请求头（auth 单独 per-key 处理）：
+        //   1. 透传 incoming 所有非认证 / 非 hop-by-hop 头（小写比较）
+        //   2. extra_headers 仅补充 consumer 未带的 key（不覆盖已透传的值）
+        //   认证头（authorization / x-api-key / anthropic-version）由 auth_headers_for 注入，不透传
+        let forward = build_forward_headers(incoming, &self.extra_headers);
         let url = format!("{}{}", self.base_url, endpoint);
         let send_body: serde_json::Value = if let Some(eff) = &self.reasoning_effort {
             let mut b = body.clone();
@@ -203,20 +209,32 @@ impl Provider {
 
                 let key = self.keys[idx].key();
                 let masked = mask_key(key);
-                let mut req = self
-                    .client
-                    .post(&url)
-                    .headers(self.auth_headers_for(key))
-                    .json(&send_body);
+                // 构建完整上游请求头：auth（优先级最低）→ 透传+补充（forward，覆盖同名 auth 以防用户故意覆盖认证）
+                let mut headers = self.auth_headers_for(key);
+                for (name, val) in &forward {
+                    headers.append(name.clone(), val.clone());
+                }
+                // debug：输出最终发送给上游的请求头（剔除认证头，避免泄漏密钥）
+                {
+                    let dbg_headers: Vec<String> = headers
+                        .iter()
+                        .filter(|(n, _)| {
+                            let s = n.as_str();
+                            s != "authorization" && s != "x-api-key"
+                        })
+                        .map(|(n, v)| format!("{}={}", n, v.to_str().unwrap_or("<binary>")))
+                        .collect();
+                    tracing::debug!(
+                        provider = %self.name,
+                        idx,
+                        key = %masked,
+                        headers = ?dbg_headers,
+                        "→ 上游请求头（不含认证）"
+                    );
+                }
+                let mut req = self.client.post(&url).headers(headers).json(&send_body);
                 if stream {
                     req = req.header("accept", "text/event-stream");
-                }
-                for (k, v) in &self.extra_headers {
-                    if let (Ok(name), Ok(val)) =
-                        (HeaderName::try_from(k.as_str()), HeaderValue::from_str(v))
-                    {
-                        req = req.header(name, val);
-                    }
                 }
 
                 tried += 1;
@@ -333,4 +351,54 @@ fn mask_key(key: &str) -> String {
         .rev()
         .collect();
     format!("{head}**{tail}")
+}
+
+/// 构建透传到上游的请求头集合：
+///
+/// 1. 透传 incoming 所有非认证 / 非 hop-by-hop 头（小写比较）
+/// 2. extra_headers 仅补充 consumer 未携带的 key（不覆盖已透传的值）
+/// 3. 认证头（authorization / x-api-key / anthropic-version）由 auth_headers_for 注入，不透传
+fn build_forward_headers(
+    incoming: &HeaderMap,
+    extra: &[(String, String)],
+) -> Vec<(HeaderName, HeaderValue)> {
+    // 跳过：认证 + 协议/传输相关（hop-by-hop & reqwest 自动设置）
+    const SKIP: &[&str] = &[
+        "authorization",
+        "x-api-key",
+        "anthropic-version",
+        "host",
+        "content-length",
+        "content-type",
+        "connection",
+        "keep-alive",
+        "proxy-authorization",
+        "proxy-authenticate",
+        "te",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+    ];
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut out: Vec<(HeaderName, HeaderValue)> = Vec::new();
+    for (name, val) in incoming.iter() {
+        let lname = name.as_str().to_lowercase();
+        if SKIP.contains(&lname.as_str()) {
+            continue;
+        }
+        // 跳过 consumer 自身的 consumer key（防泄漏），但网关本身不校验这些头，保留即可
+        seen.insert(lname.clone());
+        out.push((name.clone(), val.clone()));
+    }
+    // extra_headers 补充：仅添加 consumer 未携带的 key
+    for (k, v) in extra {
+        if seen.contains(&k.to_lowercase()) {
+            continue;
+        }
+        if let (Ok(name), Ok(val)) = (HeaderName::try_from(k.as_str()), HeaderValue::from_str(v)) {
+            seen.insert(k.to_lowercase());
+            out.push((name, val));
+        }
+    }
+    out
 }

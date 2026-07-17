@@ -8,10 +8,11 @@ const {
   sortedProviders,
   dragIdx, dragOverIdx,
   onHandleMouseDown,
-  modalMode, editingProvider, modelInput, keyInput,
+  modalMode, editingProvider, modelInput, keyInput, headerInput,
   onToggleProvider, onToggleKey,
   openAdd, openEdit, closeModal, submitModal, deleteFromModal,
   modalAddModel, modalRemoveModel, modalAddKey, modalRemoveKey,
+  modalAddHeader, modalRemoveHeader,
   getRuntime, keyRuntime, maskKey, iconFor, keyReleaseTime, fmtTime
 } = useProviderList()
 </script>
@@ -229,6 +230,31 @@ const {
                   class="chip-field"
                   :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'"
                   @keydown.enter.prevent="modalAddModel"
+                />
+              </div>
+            </div>
+
+            <!-- 自定义请求头 -->
+            <div class="mf">
+              <label>自定义请求头</label>
+              <div class="chip-input">
+                <span
+                  v-for="[hk, hv] in Object.entries(editingProvider.extra_headers)"
+                  :key="hk"
+                  class="chip header-chip"
+                >
+                  <span class="chip-text">{{ hk }}: {{ hv }}</span>
+                  <button class="chip-x" @click="modalRemoveHeader(hk)">×</button>
+                </span>
+                <input
+                  v-model="headerInput"
+                  class="chip-field"
+                  :placeholder="
+                    Object.keys(editingProvider.extra_headers).length
+                      ? ''
+                      : 'Key: Value，回车添加'
+                  "
+                  @keydown.enter.prevent="modalAddHeader"
                 />
               </div>
             </div>
