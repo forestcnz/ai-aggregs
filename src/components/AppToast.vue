@@ -94,7 +94,8 @@ const { toasts, removeToast } = useDialog()
   word-break: break-word;
 }
 
-/* TransitionGroup 动画：从右侧滑入/淡出 */
+/* TransitionGroup 动画：从右侧滑入/淡出。
+ * 不用 position:absolute（会导致高度塌陷变扁），toast 原地淡出即可。 */
 .toast-enter-active,
 .toast-leave-active {
   transition:
@@ -105,9 +106,5 @@ const { toasts, removeToast } = useDialog()
 .toast-leave-to {
   opacity: 0;
   transform: translateX(12px);
-}
-.toast-leave-active {
-  position: absolute;
-  right: 0;
 }
 </style>
