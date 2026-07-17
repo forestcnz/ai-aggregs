@@ -20,13 +20,19 @@ export function useProviderList() {
   // 上次拉取运行时状态的时间戳
   const lastRuntimeAt = ref(Date.now())
 
-  // 卡片展示顺序：启用的供应商优先，组内保持原顺序（idx 为在 config.providers 中的真实下标）
+  // 卡片展示顺序：直接按 config.providers 数组顺序（用户可拖动调整顺序）
   const sortedProviders = computed(() => {
     if (!config.value) return [] as { p: ProviderConfig; idx: number }[]
-    return config.value.providers
-      .map((p, idx) => ({ p, idx }))
-      .sort((a, b) => Number(b.p.enabled) - Number(a.p.enabled))
+    return config.value.providers.map((p, idx) => ({ p, idx }))
   })
+
+  // ---- 拖拽排序状态（纯鼠标事件实现，兼容 Tauri webview）----
+  // dragIdx：正在拖动的源卡片下标（-1 表示未拖动）
+  // dragOverIdx：当前鼠标悬停的目标卡片下标
+  // pendingDragIdx：手柄 mousedown 时记录，移动超过阈值后才转为正式拖动，避免点击误判
+  const dragIdx = ref(-1)
+  const dragOverIdx = ref(-1)
+  const pendingDragIdx = ref(-1)
 
   // 弹窗状态
   const modalMode = ref<'add' | 'edit' | null>(null)
@@ -204,6 +210,63 @@ export function useProviderList() {
     editingProvider.value.api_keys.splice(i, 1)
   }
 
+  // ---- 拖拽排序（纯鼠标事件，绕开 HTML5 DnD，兼容 Tauri webview）----
+
+  // 记录 mousedown 起点坐标，用于判断移动是否超过阈值
+  let dragStartX = 0
+  let dragStartY = 0
+
+  // 通过鼠标坐标查找当前悬停的卡片下标（卡片元素带 data-idx 属性）
+  function findCardIdxAtPoint(clientX: number, clientY: number): number {
+    const el = document.elementFromPoint(clientX, clientY)
+    if (!el) return -1
+    const card = (el as HTMLElement).closest('.provider-card')
+    if (!card) return -1
+    const attr = card.getAttribute('data-idx')
+    return attr === null ? -1 : Number(attr)
+  }
+
+  // 手柄按下：记录起点，挂载全局 mousemove / mouseup 监听
+  function onHandleMouseDown(e: MouseEvent, idx: number) {
+    if (e.button !== 0) return // 仅响应左键
+    pendingDragIdx.value = idx
+    dragStartX = e.clientX
+    dragStartY = e.clientY
+    document.addEventListener('mousemove', onDocMouseMove)
+    document.addEventListener('mouseup', onDocMouseUp)
+  }
+
+  function onDocMouseMove(e: MouseEvent) {
+    // 首次移动需超过阈值（4px）才正式进入拖动状态，避免单击被误判为拖动
+    if (pendingDragIdx.value !== -1) {
+      const dx = e.clientX - dragStartX
+      const dy = e.clientY - dragStartY
+      if (dx * dx + dy * dy < 16) return
+      dragIdx.value = pendingDragIdx.value
+      pendingDragIdx.value = -1
+    }
+    if (dragIdx.value === -1) return
+    e.preventDefault() // 阻止文字/图片被选中
+    dragOverIdx.value = findCardIdxAtPoint(e.clientX, e.clientY)
+  }
+
+  async function onDocMouseUp() {
+    document.removeEventListener('mousemove', onDocMouseMove)
+    document.removeEventListener('mouseup', onDocMouseUp)
+    const from = dragIdx.value
+    const to = dragOverIdx.value
+    dragIdx.value = -1
+    dragOverIdx.value = -1
+    pendingDragIdx.value = -1
+    if (from === -1 || to === -1 || from === to) return
+    if (!config.value) return
+    // 重排 providers 数组（后端按数组下标持久化 sort_order）
+    const arr = config.value.providers
+    const [moved] = arr.splice(from, 1)
+    arr.splice(to, 0, moved)
+    await save()
+  }
+
   // ---- 辅助 ----
 
   function getRuntime(name: string) {
@@ -253,11 +316,16 @@ export function useProviderList() {
   onUnmounted(() => {
     if (timer) clearInterval(timer)
     document.removeEventListener('keydown', onDocumentKeydown)
+    // 组件卸载时移除可能残留的拖拽监听
+    document.removeEventListener('mousemove', onDocMouseMove)
+    document.removeEventListener('mouseup', onDocMouseUp)
   })
 
   return {
     config, loading, msg,
     sortedProviders,
+    dragIdx, dragOverIdx,
+    onHandleMouseDown,
     modalMode, editingProvider, modelInput, keyInput,
     onToggleProvider, onToggleKey,
     openAdd, openEdit, closeModal, submitModal, deleteFromModal,

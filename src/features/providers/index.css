@@ -58,6 +58,44 @@
 .provider-card.off {
   opacity: 0.45;
 }
+/* 拖动中的源卡片：半透明 + 轻微缩小 */
+.provider-card.dragging {
+  opacity: 0.4;
+  transform: scale(0.98);
+}
+/* 拖动悬停目标：顶部高亮提示放置位置 */
+.provider-card.drag-over {
+  box-shadow: 0 -2px 0 0 var(--text-strong);
+  border-color: var(--text-strong);
+}
+
+/* 拖动进行中：全区域统一 grabbing 光标 + 禁止选中文字 */
+.provider-dragging,
+.provider-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+/* 拖动排序手柄 */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--text-weak);
+  cursor: grab;
+  opacity: 0.5;
+  transition: var(--transition);
+  user-select: none;
+}
+.drag-handle:hover {
+  opacity: 1;
+  color: var(--text-strong);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
 
 /* 协议内联小标签（名称旁） */
 .protocol-tag {

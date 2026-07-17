@@ -6,6 +6,8 @@ defineProps<{ gatewayRunning: boolean }>()
 const {
   config, loading, msg,
   sortedProviders,
+  dragIdx, dragOverIdx,
+  onHandleMouseDown,
   modalMode, editingProvider, modelInput, keyInput,
   onToggleProvider, onToggleKey,
   openAdd, openEdit, closeModal, submitModal, deleteFromModal,
@@ -15,7 +17,7 @@ const {
 </script>
 
 <template>
-  <div v-if="config">
+  <div v-if="config" :class="{ 'provider-dragging': dragIdx !== -1 }">
     <!-- 标题栏 -->
     <div class="header-row">
       <div>
@@ -32,13 +34,29 @@ const {
     <div class="card-grid">
       <div
         v-for="{ p, idx } in sortedProviders"
-        :key="idx"
+        :key="p.id ?? idx"
         class="provider-card"
-        :class="{ off: !p.enabled }"
+        :class="{ off: !p.enabled, dragging: dragIdx === idx, 'drag-over': dragOverIdx === idx }"
+        :data-idx="idx"
       >
         <!-- 卡片头部（双击编辑） -->
         <div class="provider-card-header" @dblclick="openEdit(idx)">
           <div class="provider-card-left">
+            <!-- 拖动排序手柄（仅此处可发起拖动） -->
+            <div
+              class="drag-handle"
+              title="拖动以排序"
+              @mousedown.stop.prevent="onHandleMouseDown($event, idx)"
+            >
+              <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+                <circle cx="2" cy="2" r="1.4" />
+                <circle cx="8" cy="2" r="1.4" />
+                <circle cx="2" cy="7" r="1.4" />
+                <circle cx="8" cy="7" r="1.4" />
+                <circle cx="2" cy="12" r="1.4" />
+                <circle cx="8" cy="12" r="1.4" />
+              </svg>
+            </div>
             <div class="provider-icon">{{ iconFor(p.protocol) }}</div>
             <div class="provider-name">
               <span class="name-text">{{ p.name }}</span>
