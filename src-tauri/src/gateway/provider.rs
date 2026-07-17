@@ -43,14 +43,21 @@ pub struct Provider {
     blacklist_disabled_until: Mutex<Option<Instant>>,
     blacklist_secs: u64,
     client: reqwest::Client,
+    /// 非流式请求的总超时（流式请求不应用此超时，避免长 SSE 被切断）
+    timeout: Duration,
     /// 上次成功使用的密钥索引，下次优先尝试
     last_key_idx: Mutex<Option<usize>>,
 }
 
 impl Provider {
     pub fn new(cfg: &ProviderConfig, blacklist_secs: u64) -> anyhow::Result<Self> {
+        // 客户端层面只设置 connect 超时（连接建立阶段）。
+        // 总请求超时由 RequestBuilder::timeout() 按是否流式分别设置：
+        //   - 非流式：应用 timeout_secs 限制整体响应时间
+        //   - 流式：不设置请求超时，避免 SSE 长流被中途切断
+        //   （SSE 可能持续数分钟，特别是 reasoning model）
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(cfg.timeout_secs))
+            .connect_timeout(Duration::from_secs(30))
             .pool_idle_timeout(Duration::from_secs(90))
             .build()?;
         Ok(Self {
@@ -69,6 +76,7 @@ impl Provider {
             blacklist: Mutex::new(HashMap::new()),
             blacklist_disabled_until: Mutex::new(None),
             blacklist_secs,
+            timeout: Duration::from_secs(cfg.timeout_secs),
             client,
             last_key_idx: Mutex::new(None),
         })
@@ -234,7 +242,11 @@ impl Provider {
                 }
                 let mut req = self.client.post(&url).headers(headers).json(&send_body);
                 if stream {
+                    // 流式请求：仅设置 accept 头，不设请求超时（SSE 流可能持续数分钟）
                     req = req.header("accept", "text/event-stream");
+                } else {
+                    // 非流式请求：应用 provider 配置的总超时
+                    req = req.timeout(self.timeout);
                 }
 
                 tried += 1;
@@ -337,9 +349,12 @@ impl Provider {
 }
 
 fn mask_key(key: &str) -> String {
+    // 全程按字符（Unicode scalar）切分，避免落在 UTF-8 多字节字符中间导致 panic
     let len = key.chars().count();
     if len <= 12 {
-        return format!("{}**", &key[..len.min(4)]);
+        // 短 key：只保留首 4 个字符（不足则全部），后接 **
+        let head: String = key.chars().take(4).collect();
+        return format!("{head}**");
     }
     let head: String = key.chars().take(6).collect();
     let tail: String = key
@@ -362,7 +377,10 @@ fn build_forward_headers(
     incoming: &HeaderMap,
     extra: &[(String, String)],
 ) -> Vec<(HeaderName, HeaderValue)> {
-    // 跳过：认证 + 协议/传输相关（hop-by-hop & reqwest 自动设置）
+    // 跳过：认证 + 协议/传输相关（hop-by-hop & reqwest 自动设置）+ 隐私敏感头
+    // - 认证：由 auth_headers_for 单独注入，避免 consumer 的认证头泄漏给上游
+    // - hop-by-hop：HTTP/1.1 规范要求代理剥离的头
+    // - cookie / forwarded：consumer 端的会话信息，禁止透传给第三方上游
     const SKIP: &[&str] = &[
         "authorization",
         "x-api-key",
@@ -378,6 +396,21 @@ fn build_forward_headers(
         "trailer",
         "transfer-encoding",
         "upgrade",
+        // 会话/隐私头：禁止泄漏给第三方上游
+        "cookie",
+        "cookie2",
+        // 代理/转发链路头：上游不应感知 consumer 端的代理路径
+        "forwarded",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-proto",
+        "x-forwarded-port",
+        "x-real-ip",
+        // 安全相关头：不应被 consumer 覆盖上游的安全策略
+        "strict-transport-security",
+        "content-security-policy",
+        "x-content-type-options",
+        "x-frame-options",
     ];
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut out: Vec<(HeaderName, HeaderValue)> = Vec::new();

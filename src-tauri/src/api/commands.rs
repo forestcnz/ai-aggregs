@@ -25,11 +25,17 @@ pub async fn save_config(app: tauri::AppHandle, mut cfg: Config) -> Result<(), I
     {
         let ctrl = app.state::<AppCtrl>();
         let old_level = ctrl.config.lock().unwrap().log.level.clone();
-        let conn = ctrl.db.lock().unwrap();
-        db::save_config(&conn, &cfg)?;
-        // 保存后重新从 DB 加载，确保新建的 provider 拿到正确的 id
-        let reloaded = db::load_config(&conn)?;
-        drop(conn);
+        let db = ctrl.db.clone();
+        // DB 事务（save + reload）可能耗时，放 spawn_blocking 避免阻塞 async runtime
+        let reloaded = tauri::async_runtime::spawn_blocking(move || -> Result<Config, IpcError> {
+            let conn = db.lock().map_err(|e| IpcError(format!("db lock: {e}")))?;
+            db::save_config(&conn, &cfg)?;
+            // 保存后重新从 DB 加载，确保新建的 provider 拿到正确的 id
+            let reloaded = db::load_config(&conn)?;
+            Ok(reloaded)
+        })
+        .await
+        .map_err(|e| IpcError(format!("join: {e}")))??;
         if reloaded.log.level != old_level {
             ctrl.log_level_setter.set(&reloaded.log.level);
         }
@@ -69,12 +75,13 @@ pub async fn toggle_provider(
     {
         let ctrl = app.state::<AppCtrl>();
         let mut cfg = ctrl.config.lock().unwrap();
-        for p in &mut cfg.providers {
-            if p.name == name {
-                p.enabled = enabled;
-                break;
-            }
-        }
+        // 找到目标 provider（找不到时返回错误，不再静默成功）
+        let target = cfg
+            .providers
+            .iter_mut()
+            .find(|p| p.name == name)
+            .ok_or_else(|| IpcError(format!("provider 不存在: {name}")))?;
+        target.enabled = enabled;
         sync_consumer_models(&mut cfg);
         db::save_config(&ctrl.db.lock().unwrap(), &cfg)?;
     }
@@ -93,14 +100,19 @@ pub async fn toggle_key(
     {
         let ctrl = app.state::<AppCtrl>();
         let mut cfg = ctrl.config.lock().unwrap();
-        for p in &mut cfg.providers {
-            if p.name == provider_name {
-                if key_idx < p.api_keys.len() {
-                    p.api_keys[key_idx].set_enabled(enabled);
-                }
-                break;
-            }
+        let target = cfg
+            .providers
+            .iter_mut()
+            .find(|p| p.name == provider_name)
+            .ok_or_else(|| IpcError(format!("provider 不存在: {provider_name}")))?;
+        // key_idx 越界校验（前端可能传错误值，或本地配置已变）
+        if key_idx >= target.api_keys.len() {
+            return Err(IpcError(format!(
+                "key_idx {key_idx} 越界（provider {provider_name} 共 {} 个 key）",
+                target.api_keys.len()
+            )));
         }
+        target.api_keys[key_idx].set_enabled(enabled);
         db::save_config(&ctrl.db.lock().unwrap(), &cfg)?;
     }
     rebuild_if_running(&app).await?;

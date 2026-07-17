@@ -37,6 +37,7 @@ dependencies = [
  "axum",
  "bytes",
  "chrono",
+ "constant_time_eq",
  "futures-util",
  "log",
  "log4rs",
@@ -616,6 +617,12 @@ checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
 ]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "cookie"

@@ -28,15 +28,20 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
         .and_then(|m| m.as_str())
         .ok_or_else(|| AppError::BadRequest("missing model".into()))?
         .to_string();
-    tracing::debug!(
-        method = %req_method,
-        path = %req_path,
-        model = %model,
-        consumer_proto = ?c_proto,
-        stream = %body.get("stream").map(|v| v.to_string()).unwrap_or_default(),
-        body = %body,
-        "← 下游请求"
-    );
+    // 日志策略：
+    //   - debug：仅记录元信息 + 截断预览（500 字符），避免 PII/敏感内容长期落盘
+    //   - trace：完整 body（仅极深度排查时才开启，且日志保留期 30 天）
+    if tracing::enabled!(tracing::Level::DEBUG) {
+        tracing::debug!(
+            method = %req_method,
+            path = %req_path,
+            model = %model,
+            consumer_proto = ?c_proto,
+            stream = %body.get("stream").map(|v| v.to_string()).unwrap_or_default(),
+            body_preview = %truncate_json(&body, 500),
+            "← 下游请求"
+        );
+    }
 
     let candidates = st
         .route(&model, c_proto)
@@ -227,11 +232,15 @@ fn proto_from_path(path: &str) -> Protocol {
 
 fn truncate_json(v: &Value, max: usize) -> String {
     let s = serde_json::to_string(v).unwrap_or_default();
-    if s.len() > max {
-        format!("{}... (truncated {})", &s[..max], s.len())
-    } else {
-        s
+    if s.len() <= max {
+        return s;
     }
+    // 回退到最近的 UTF-8 字符边界，避免切到多字节字符中间导致 panic
+    let mut end = max;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    format!("{}... (truncated {})", &s[..end], s.len())
 }
 
 /// 鉴权，返回 consumer 提交的 key（用于用量统计）

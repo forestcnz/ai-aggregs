@@ -49,6 +49,7 @@ pub fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
         ],
     )?;
 
+    // 默认窗口图标作为托盘图标
     let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(app.default_window_icon().unwrap().clone())
         .tooltip("AI 聚合网关 - 已停止")
@@ -64,10 +65,21 @@ pub fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
                 let app = app.clone();
                 tauri::async_runtime::spawn(async move {
                     let running = app.state::<AppCtrl>().server.lock().unwrap().is_some();
-                    if running {
-                        let _ = stop_gateway_inner(&app).await;
+                    // 根据当前状态决定启停；无论成功或失败都刷新托盘显示，
+                    // 避免 UI 状态与后端实际状态不同步
+                    let result: Result<(), crate::infra::error::IpcError> = if running {
+                        stop_gateway_inner(&app).await
                     } else {
-                        let _ = start_gateway_inner(&app).await;
+                        start_gateway_inner(&app).await.map(|_| ())
+                    };
+                    match result {
+                        Ok(_) => tracing::info!(from_running = running, "托盘切换网关成功"),
+                        Err(e) => {
+                            tracing::error!(err = %e, "托盘切换网关失败");
+                            // 失败时按当前真实状态刷新托盘文字
+                            let actual = app.state::<AppCtrl>().server.lock().unwrap().is_some();
+                            update_tray(&app, actual);
+                        }
                     }
                 });
             }

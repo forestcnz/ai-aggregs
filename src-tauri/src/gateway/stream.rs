@@ -25,22 +25,31 @@ pub struct UsageCtx {
 }
 
 impl UsageCtx {
+    /// 记录 token 用量。在 spawn_blocking 中执行同步 DB 操作，
+    /// 避免阻塞 tokio runtime 的 async worker thread（用量表行数大时聚合写入可能耗时）。
     pub fn record(&self, input: u64, output: u64, total: u64) {
         if input == 0 && output == 0 {
             return;
         }
-        if let Ok(conn) = self.db.lock() {
-            let _ = db::record_usage(&conn, &self.consumer_key, &self.model, input, output, total);
-            let _ = db::record_provider_usage(
-                &conn,
-                self.provider_id,
-                &self.provider_key,
-                &self.model,
-                input,
-                output,
-                total,
-            );
-        }
+        let consumer_key = self.consumer_key.clone();
+        let model = self.model.clone();
+        let provider_id = self.provider_id;
+        let provider_key = self.provider_key.clone();
+        let db = self.db.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            if let Ok(conn) = db.lock() {
+                let _ = db::record_usage(&conn, &consumer_key, &model, input, output, total);
+                let _ = db::record_provider_usage(
+                    &conn,
+                    provider_id,
+                    &provider_key,
+                    &model,
+                    input,
+                    output,
+                    total,
+                );
+            }
+        });
     }
 }
 
@@ -1036,7 +1045,11 @@ impl StreamConverter for ChatToResponsesStream {
             }
         }
 
-        if choice.get("finish_reason").and_then(|x| x.as_str()).is_some() {
+        if choice
+            .get("finish_reason")
+            .and_then(|x| x.as_str())
+            .is_some()
+        {
             if let Some(oi) = self.message_oi {
                 out.push(
                     json!({

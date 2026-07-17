@@ -53,9 +53,14 @@ pub struct Consumer {
 impl Consumer {
     pub fn check_key(&self, presented: &str) -> bool {
         if self.api_keys.is_empty() {
+            // 未配置 consumer key：保持向后兼容（本机任意进程可调用）
+            // 但这是不安全的状态，启动时会打 warning 提示用户配置
             return true;
         }
-        self.api_keys.iter().any(|k| k == presented)
+        // 常量时间比较，缓解 timing attack（不提前短路）
+        self.api_keys
+            .iter()
+            .any(|k| constant_time_eq::constant_time_eq(k.as_bytes(), presented.as_bytes()))
     }
 }
 

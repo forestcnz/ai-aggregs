@@ -21,6 +21,14 @@ use crate::infra::db;
 use crate::infra::log_bridge;
 use crate::infra::tray::build_tray;
 
+// ===================== 日志/用量清理参数（集中常量） =====================
+/// 日志保留天数
+const LOG_RETENTION_DAYS: u64 = 30;
+/// 日志目录总大小上限（字节）：10 GB
+const LOG_MAX_TOTAL_BYTES: u64 = 10 * 1024 * 1024 * 1024;
+/// 日志清理后台任务执行间隔：24 小时
+const LOG_PURGE_INTERVAL_SECS: u64 = 24 * 60 * 60;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // ---- 日志系统初始化 ----
@@ -35,20 +43,24 @@ pub fn run() {
     let _ = std::fs::create_dir_all(&log_dir);
     let log_level_setter = log_bridge::install("info", log_slot.clone(), log_dir.clone());
 
-    // 启动时清理超过 30 天或总大小超 10GB 的旧日志
-    log_bridge::purge_old_logs(&log_dir, 30, 10 * 1024 * 1024 * 1024);
+    // 启动时清理超过 LOG_RETENTION_DAYS 天或总大小超 LOG_MAX_TOTAL_BYTES 的旧日志
+    log_bridge::purge_old_logs(&log_dir, LOG_RETENTION_DAYS, LOG_MAX_TOTAL_BYTES);
 
     // 每天定时清理一次
     let purge_dir = log_dir.clone();
     tauri::async_runtime::spawn(async move {
         loop {
-            tokio::time::sleep(std::time::Duration::from_secs(24 * 60 * 60)).await;
-            log_bridge::purge_old_logs(&purge_dir, 30, 10 * 1024 * 1024 * 1024);
+            tokio::time::sleep(std::time::Duration::from_secs(LOG_PURGE_INTERVAL_SECS)).await;
+            log_bridge::purge_old_logs(&purge_dir, LOG_RETENTION_DAYS, LOG_MAX_TOTAL_BYTES);
         }
     });
 
     tracing::info!(
-        "日志系统启动，文件日志写入 ./logs/ 目录，按天+按大小(10MB)双滚动，gzip 归档，保留 30 天，总大小上限 10GB"
+        retention_days = LOG_RETENTION_DAYS,
+        max_total_bytes = LOG_MAX_TOTAL_BYTES,
+        "日志系统启动，文件日志写入 ./logs/ 目录，按天+按大小(10MB)双滚动，gzip 归档，保留 {} 天，总大小上限 {} GB",
+        LOG_RETENTION_DAYS,
+        LOG_MAX_TOTAL_BYTES / 1024 / 1024 / 1024
     );
 
     // ---- 数据库初始化 ----
@@ -57,10 +69,22 @@ pub fn run() {
     let db_path = db_dir.join("config.db");
     let db_path_str = db_path.to_string_lossy().to_string();
 
-    let conn = db::open(&db_path_str).unwrap_or_else(|e| {
-        panic!("打开数据库 {db_path_str} 失败: {e}");
-    });
-    db::init_tables(&conn).expect("初始化数据库表失败");
+    let conn = match db::open(&db_path_str) {
+        Ok(c) => c,
+        Err(e) => {
+            // 数据库打开失败不 panic：写崩溃日志到 exe 同级目录，便于用户反馈问题
+            let msg = format!("打开数据库 {db_path_str} 失败: {e}");
+            tracing::error!(err = %msg, "数据库初始化失败");
+            write_crash_log(&exe_dir, &msg);
+            std::process::exit(1);
+        }
+    };
+    if let Err(e) = db::init_tables(&conn) {
+        let msg = format!("初始化数据库表失败: {e}");
+        tracing::error!(err = %msg, "数据库表初始化失败");
+        write_crash_log(&exe_dir, &msg);
+        std::process::exit(1);
+    }
 
     let cfg = db::load_config(&conn).unwrap_or_else(|e| {
         tracing::error!(err = %e, "从数据库加载配置失败，使用空配置");
@@ -68,8 +92,18 @@ pub fn run() {
     });
     tracing::info!(db = %db_path_str, providers = cfg.providers.len(), "配置已加载");
 
+    // 安全提示：未配置 consumer key 时，本机任意进程可调用网关消耗上游额度
+    if cfg.consumer.api_keys.is_empty() {
+        tracing::warn!(
+            "未配置 consumer api_keys：本机任意进程均可无鉴权调用网关。建议在「设置」页配置至少一个 key"
+        );
+    }
+
     // 应用配置中的日志级别（install 时用 info 占位，这里纠正为用户配置值）
     log_level_setter.set(&cfg.log.level);
+
+    // 把 connection 包成 Arc<Mutex>，AppCtrl 共享同一份
+    let db_conn = std::sync::Arc::new(Mutex::new(conn));
 
     // ---- Tauri 应用构建 ----
     tauri::Builder::default()
@@ -88,7 +122,7 @@ pub fn run() {
         ))
         .manage(AppCtrl {
             config: Mutex::new(cfg),
-            db: std::sync::Arc::new(Mutex::new(conn)),
+            db: db_conn,
             server: Mutex::new(None),
             listen_addr: Mutex::new(String::new()),
             providers: Mutex::new(Vec::new()),
@@ -154,4 +188,20 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// 将致命错误写入 exe 同级目录的 crash.log，方便用户反馈问题（不使用 panic，避免终端无输出）
+fn write_crash_log(exe_dir: &std::path::Path, msg: &str) {
+    let path = exe_dir.join("crash.log");
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+    let line = format!("[{now}] {msg}\n");
+    // 用 OpenOptions 追加写，保留历史崩溃记录
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        use std::io::Write;
+        let _ = f.write_all(line.as_bytes());
+    }
 }

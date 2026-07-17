@@ -46,6 +46,8 @@ thiserror = "2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 # 时间处理（用量统计按自然日计算 since）
 chrono = "0.4"
+# 常量时间字符串比较（缓解 consumer key 的 timing attack）
+constant_time_eq = "0.3"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
