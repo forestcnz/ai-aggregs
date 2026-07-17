@@ -403,6 +403,11 @@ body{
 .map-warn .wic{flex-shrink:0;font-size:11px}
 .map-add-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .map-add-row .hint{font-size:10px;color:var(--text-weak)}
+/* 模型映射图例 + 上次成功高亮（与真实应用 isLastUsed 一致） */
+.map-desc .legend{display:inline-flex;align-items:center;gap:6px;font-size:10px;color:var(--text-weak);margin-top:4px}
+.map-desc .legend-dot{width:8px;height:8px;border-radius:2px;background:#4a90d9;display:inline-block}
+.chip.chip-active{border-color:#4a90d9;background:rgba(74,144,217,.08)}
+.chip.chip-active .ctxt{color:#2c6fb0}
 
 /* 保存提示 toast */
 .toast{position:absolute;top:52px;right:28px;z-index:100;padding:7px 14px;border:1px solid var(--border-weak);border-radius:var(--r-md);background:var(--bg);color:var(--text);font-size:12px;font-weight:500}
@@ -447,16 +452,6 @@ body{
 /* 文件标记（页标题旁） */
 .file-tag{font-size:10px;font-weight:400;color:var(--text-weak);border:1px solid var(--border-weak);border-radius:var(--r-sm);padding:2px 7px;letter-spacing:0}
 .page-title{display:flex;align-items:center;gap:10px}
-/* 下拉菜单（从网关同步） */
-.dropdown{position:relative}
-.dropdown-menu{position:absolute;top:calc(100% + 5px);right:0;z-index:40;background:var(--bg);border:1px solid var(--text-strong);border-radius:var(--r-md);min-width:230px;padding:5px;display:none;box-shadow:0 6px 20px rgba(31,30,30,.12)}
-.dropdown-menu.show{display:block;animation:ocmin .16s ease}
-@keyframes ocmin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.dm-item{display:flex;flex-direction:column;gap:3px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;transition:var(--t)}
-.dm-item:hover{background:var(--bg-weak)}
-.dm-item b{font-size:12px;color:var(--text-strong);font-weight:600}
-.dm-item span{font-size:10px;color:var(--text-weak);line-height:1.5}
-.dm-sep{height:1px;background:var(--border-weak);margin:4px 2px}
 /* 提示横条 */
 .oc-notice{border:1px solid var(--border-weak);border-left:2px solid var(--text-strong);border-radius:var(--r-md);padding:9px 13px;margin-bottom:14px;font-size:11px;color:var(--text);line-height:1.7;background:var(--bg-weak);display:flex;align-items:flex-start;gap:9px}
 .oc-notice .ic{color:var(--text-strong);flex-shrink:0;font-weight:600}
@@ -536,12 +531,6 @@ body{
 .md-limit .mf .inp{max-width:none;font-size:11px}
 .oc-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .oc-add .hint{font-size:10px;color:var(--text-weak)}
-/* 注释丢失横幅 */
-.comment-banner{display:flex;align-items:center;gap:10px;padding:9px 13px;margin-bottom:14px;border:1px solid #c0703a;border-radius:var(--r-md);background:rgba(192,112,58,.04);font-size:11px;color:var(--text);line-height:1.6}
-.comment-banner .ic{color:#c0703a;flex-shrink:0;font-weight:600}
-.comment-banner b{color:var(--text-strong);font-weight:500}
-.comment-banner .dismiss{margin-left:auto;flex-shrink:0}
-
 /* Claude Code 配置页 · 专用组件 */
 .cc-mask{display:inline-flex;align-items:center;background:var(--bg-weak);border:1px solid var(--border-weak);border-radius:var(--r-md);padding:8px 12px;font-size:12px;color:var(--text);max-width:400px;width:100%;cursor:pointer;font-family:var(--font);transition:var(--t)}
 .cc-mask:hover{border-color:var(--border);color:var(--text-strong)}
@@ -932,9 +921,8 @@ body{
           <!-- 提供商 -->
           <div class="tabpane" data-pane="providers">
             <div class="ph-row">
-              <div class="left"><div class="page-title">供应商管理</div><div class="page-sub">管理上游 API 提供商及密钥 · 拖动手柄调整顺序</div></div>
+              <div class="left"><div class="page-title">供应商管理</div><div class="page-sub">管理上游 API 供应商及密钥</div></div>
               <div style="display:flex;gap:9px;align-items:center">
-                <span class="badge run"><span class="dot on"></span>已保存</span>
                 <button class="btn btn-sm" id="btn-add-provider">+ 添加提供商</button>
               </div>
             </div>
@@ -1019,6 +1007,7 @@ body{
                   <div class="mf"><label>Base URL</label><input class="inp" placeholder="https://api.example.com/v1" value="https://api.deepseek.com/v1"></div>
                   <div class="mf"><label>API Keys</label><div class="chip-input"><span class="chip"><span class="ctxt">sk-ds**7QxZ</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">sk-ds**3KdW</span><button class="cx">×</button></span><input class="chip-field" placeholder="API Key，回车添加"></div></div>
                   <div class="mf"><label>模型</label><div class="chip-input"><span class="chip"><span class="ctxt">deepseek-chat</span><button class="cx">×</button></span><span class="chip"><span class="ctxt">deepseek-reasoner</span><button class="cx">×</button></span><input class="chip-field" placeholder="模型名，回车添加"></div></div>
+                  <div class="mf"><label>自定义请求头</label><div class="chip-input"><span class="chip"><span class="ctxt">X-Demo: 1</span><button class="cx">×</button></span><input class="chip-field" placeholder="Key: Value，回车添加"></div></div>
                   <div class="mf-row">
                     <div class="mf"><label>超时（秒）</label><input class="inp" type="number" value="3000"></div>
                   </div>
@@ -1101,6 +1090,7 @@ body{
             <!-- 模型明细 -->
             <div class="usage-head">
               <h3>模型明细 <span class="ct" id="usage-model-count"></span></h3>
+              <button class="btn btn-ghost btn-sm">刷新</button>
             </div>
             <div class="usage-table">
               <div class="usage-thead">
@@ -1160,6 +1150,7 @@ body{
             <!-- 模型明细 -->
             <div class="usage-head">
               <h3>模型明细 <span class="ct" id="pu-model-count"></span></h3>
+              <button class="btn btn-ghost btn-sm">刷新</button>
             </div>
             <div class="usage-table">
               <div class="usage-thead">
@@ -1183,6 +1174,7 @@ body{
               <div class="row"><label>监听地址</label><input class="inp" value="127.0.0.1:8000"></div>
               <div class="row"><label>Key 黑名单时长(秒)</label><input class="inp" type="number" value="600"></div>
               <div class="row"><label>日志级别</label><select class="sel" style="max-width:400px;width:100%"><option>info</option><option>debug</option><option>warn</option><option>error</option></select></div>
+              <div class="row"><label>网关自动恢复</label><div class="inline-tg"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span>启动应用时恢复上次网关状态</span></div></div>
             </div>
             <div class="group">
               <h3><span class="gn">02</span>Consumer</h3>
@@ -1191,14 +1183,16 @@ body{
             </div>
             <div class="group">
               <h3><span class="gn">03</span>模型映射</h3>
-              <div class="map-desc">用户请求「<b>别名模型</b>」时，重定向到一组「<b>实际后端模型</b>」（负载均衡 / 故障转移）。一个别名可映射多个后端，多个别名也可共享同一后端。</div>
+              <div class="map-desc">用户请求「<b>别名</b>」时，重定向到一组「<b>实际后端模型</b>」（负载均衡 / 故障转移）。一个别名可映射多个后端，多个别名也可共享同一后端。<br><span class="legend"><i class="legend-dot"></i>蓝色 = 上次成功响应的模型（下次该别名优先使用）</span></div>
               <div class="map-list" id="map-list">
 
                 <div class="map-rule" data-rule>
                   <div class="map-rule-head">
-                    <div class="rh-left"><span class="dot ink"></span><b>映射规则 01</b></div>
-                    <div class="map-rule-actions">
+                    <div class="rh-left">
                       <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                      <b>映射规则 01</b>
+                    </div>
+                    <div class="map-rule-actions">
                       <button class="btn btn-ghost btn-sm map-del">删除</button>
                     </div>
                   </div>
@@ -1211,7 +1205,7 @@ body{
                     <div class="map-side map-pool">
                       <span class="mside-lab">实际模型（后端池）</span>
                       <div class="chip-input">
-                        <span class="chip"><span class="ctxt">b</span><button class="cx">×</button></span>
+                        <span class="chip chip-active" title="上次成功响应的模型"><span class="ctxt">b</span><button class="cx">×</button></span>
                         <span class="chip"><span class="ctxt">c</span><button class="cx">×</button></span>
                         <span class="chip"><span class="ctxt">d</span><button class="cx">×</button></span>
                         <input class="chip-field" placeholder="实际模型名，回车添加">
@@ -1223,9 +1217,11 @@ body{
 
                 <div class="map-rule" data-rule>
                   <div class="map-rule-head">
-                    <div class="rh-left"><span class="dot ink"></span><b>映射规则 02</b></div>
-                    <div class="map-rule-actions">
+                    <div class="rh-left">
                       <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                      <b>映射规则 02</b>
+                    </div>
+                    <div class="map-rule-actions">
                       <button class="btn btn-ghost btn-sm map-del">删除</button>
                     </div>
                   </div>
@@ -1250,9 +1246,11 @@ body{
 
                 <div class="map-rule" data-rule>
                   <div class="map-rule-head">
-                    <div class="rh-left"><span class="dot ink"></span><b>映射规则 03</b></div>
-                    <div class="map-rule-actions">
+                    <div class="rh-left">
                       <label class="toggle"><input type="checkbox" checked><span class="sl"></span></label>
+                      <b>映射规则 03</b>
+                    </div>
+                    <div class="map-rule-actions">
                       <button class="btn btn-ghost btn-sm map-del">删除</button>
                     </div>
                   </div>
@@ -1293,48 +1291,18 @@ body{
 
           <!-- OpenCode 配置 -->
           <div class="tabpane" data-pane="opencode">
-            <div class="page-title">OpenCode 配置 <span class="file-tag">opencode.jsonc</span></div>
+            <div class="page-title">OpenCode 配置 <span class="file-tag">v0.20.0</span> <span class="file-tag">opencode.jsonc</span></div>
             <div class="page-sub">编辑 OpenCode 工具配置 · 与本网关联动</div>
-
-            <!-- 注释丢失提示横幅 -->
-            <div class="comment-banner">
-              <span class="ic">⚠</span>
-              <span>当前文件含 <b>手工注释</b>。表单保存后会丢失注释，已自动备份为 <b>opencode.jsonc.bak</b>。</span>
-              <button class="btn btn-ghost btn-sm dismiss" id="oc-dismiss-banner">知道了</button>
-            </div>
 
             <!-- 工具栏 -->
             <div class="oc-toolbar">
               <div class="oc-path">
                 <span style="color:var(--text-weak);flex-shrink:0"><svg width="14" height="14"><use href="#ic-file"/></svg></span>
                 <span class="pth">~/.config/opencode/opencode.jsonc</span>
-                <span class="meta">· 6.0 KB · 已修改 2 分钟前</span>
+                <span class="meta">· 已存在</span>
               </div>
               <div class="oc-actions">
-                <div class="dropdown">
-                  <button class="btn btn-ghost btn-sm" id="oc-sync-btn">
-                    <svg width="12" height="12"><use href="#ic-sync"/></svg>
-                    从网关同步
-                    <svg width="8" height="8" style="opacity:.6"><use href="#ic-chev"/></svg>
-                  </button>
-                  <div class="dropdown-menu" id="oc-sync-menu">
-                    <div class="dm-item" data-mode="append">
-                      <b>↧ 追加合并</b>
-                      <span>保留现有 provider，仅补充新增的</span>
-                    </div>
-                    <div class="dm-item" data-mode="overwrite">
-                      <b>↻ 覆盖 provider 段</b>
-                      <span>用网关数据重建全部 provider+models</span>
-                    </div>
-                    <div class="dm-sep"></div>
-                    <div class="dm-item" data-mode="models">
-                      <b>≡ 仅同步 model 列表</b>
-                      <span>只更新模型名，不动 baseURL</span>
-                    </div>
-                  </div>
-                </div>
                 <button class="btn btn-ghost btn-sm">重新加载</button>
-                <button class="btn btn-sm">保存</button>
               </div>
             </div>
 
@@ -1387,10 +1355,6 @@ body{
             <!-- 02 Provider -->
             <div class="group">
               <h3><span class="gn">03</span>Provider <span class="cnt">· 3 个 · 14 个模型</span></h3>
-              <div class="oc-notice">
-                <span class="ic">↹</span>
-                <span><b>npm</b> 下拉决定协议 SDK：<code>@ai-sdk/openai-compatible</code>=chat · <code>@ai-sdk/openai</code>=responses · <code>@ai-sdk/anthropic</code>=anthropic。「从网关同步」按网关 protocol 自动选择。</span>
-              </div>
 
               <div class="oc-providers">
                 <!-- Provider 1: Local-oai (展开) -->
@@ -1404,9 +1368,12 @@ body{
                   </div>
                   <div class="pv-body">
                     <div class="pv-fields">
+                      <div class="mf"><label>id <span style="font-weight:400;color:var(--text-weaker)">*</span></label><input class="inp" value="Local-oai"></div>
                       <div class="mf"><label>name</label><input class="inp" value="Local Chat"></div>
+                    </div>
+                    <div class="pv-fields full">
                       <div class="mf">
-                        <label>npm <span style="font-weight:400;color:var(--text-weaker)">· 协议 SDK</span></label>
+                        <label>npm</label>
                         <select class="oc-sel">
                           <option selected>@ai-sdk/openai-compatible</option>
                           <option>@ai-sdk/openai</option>
@@ -1419,9 +1386,8 @@ body{
                     <div class="pv-fields full">
                       <div class="mf"><label>baseURL</label><input class="inp" value="http://127.0.0.1:8000/v1"></div>
                     </div>
-                    <div class="pv-fields">
+                    <div class="pv-fields full">
                       <div class="mf"><label>apiKey</label><span class="cc-mask" style="max-width:none" title="点按查看明文">sk-o**code</span></div>
-                      <div class="mf"><label>timeout (ms)</label><input class="inp" type="number" value="300000"></div>
                     </div>
 
                     <!-- models 子列表 -->
@@ -1439,7 +1405,6 @@ body{
                         <span class="md-flags">
                           <span class="md-flag on">reasoning</span>
                           <span class="md-flag on">tool</span>
-                          <span class="md-flag">no-attach</span>
                         </span>
                         <button class="btn btn-ghost btn-sm">×</button>
                       </div>
@@ -1505,7 +1470,6 @@ body{
                         <span class="md-flags">
                           <span class="md-flag on">reasoning</span>
                           <span class="md-flag on">tool</span>
-                          <span class="md-flag">no-attach</span>
                         </span>
                         <button class="btn btn-ghost btn-sm">×</button>
                       </div>
@@ -1545,15 +1509,14 @@ body{
             </div>
 
             <div class="actions">
-              <span style="font-size:11px;color:var(--text-weak)">按 key 合并写入 · mcp / permission / agent 等未表单字段原样保留 · 自动备份 .bak</span>
-              <button class="btn btn-ghost">放弃更改</button>
+              <span style="font-size:11px;color:var(--text-weak)">按 key 合并写入 · mcp / permission / agent 等未表单字段原样保留 · 保存前自动备份</span>
               <button class="btn">保存到 opencode.jsonc</button>
             </div>
           </div>
 
           <!-- Claude Code 配置 -->
           <div class="tabpane" data-pane="claude-code">
-            <div class="page-title">Claude Code 配置 <span class="file-tag">settings.json</span> <span class="file-tag">v2.1.170</span></div>
+            <div class="page-title">Claude Code 配置 <span class="file-tag">v2.1.170</span> <span class="file-tag">settings.json</span></div>
             <div class="page-sub">编辑 Claude Code 的 env 环境变量 · 把它指向本网关 · 其余字段原样保留</div>
 
             <!-- 工具栏 -->
@@ -1561,12 +1524,11 @@ body{
               <div class="oc-path">
                 <span style="color:var(--text-weak);flex-shrink:0"><svg width="14" height="14"><use href="#ic-file"/></svg></span>
                 <span class="pth">~/.claude/settings.json</span>
-                <span class="meta">· 已存在 · 支持 $CLAUDE_CONFIG_DIR</span>
+                <span class="meta">· 已存在</span>
               </div>
               <div class="oc-actions">
-                <button class="btn btn-sm">一键对接网关</button>
+                <button class="btn btn-ghost btn-sm">一键对接网关</button>
                 <button class="btn btn-ghost btn-sm">重新加载</button>
-                <button class="btn btn-sm">保存</button>
               </div>
             </div>
 
@@ -1608,9 +1570,9 @@ body{
                 <span>未归入上方精选字段的 <code>env</code> 条目在此自由编辑（如 <code>API_TIMEOUT_MS</code>、<code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code>）。含 TOKEN/SECRET/PASSWORD 的值默认掩码，点按转明文。空值条目保存时丢弃。</span>
               </div>
               <div class="cc-env">
-                <div class="cc-env-row"><input class="inp cc-key" value="API_TIMEOUT_MS"><input class="inp cc-val" value="3000000"></div>
-                <div class="cc-env-row"><input class="inp cc-key" value="CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"><input class="inp cc-val" value="1"></div>
-                <div class="cc-env-row"><input class="inp cc-key" value="CLAUDE_CODE_ATTRIBUTION_HEADER"><input class="inp cc-val" value="0"></div>
+                <div class="cc-env-row"><input class="inp cc-key" value="API_TIMEOUT_MS"><input class="inp cc-val" value="3000000"><button class="btn btn-ghost btn-sm">删除</button></div>
+                <div class="cc-env-row"><input class="inp cc-key" value="CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"><input class="inp cc-val" value="1"><button class="btn btn-ghost btn-sm">删除</button></div>
+                <div class="cc-env-row"><input class="inp cc-key" value="CLAUDE_CODE_ATTRIBUTION_HEADER"><input class="inp cc-val" value="0"><button class="btn btn-ghost btn-sm">删除</button></div>
               </div>
               <button class="btn btn-ghost btn-sm"><svg width="9" height="9"><use href="#ic-plus"/></svg> 添加变量</button>
             </div>
@@ -1985,27 +1947,6 @@ renderProviderUsage();
 })();
 
 /* ===== OpenCode 配置页交互 ===== */
-/* 关闭注释横幅 */
-(function(){
-  const btn = document.getElementById('oc-dismiss-banner');
-  if(btn) btn.addEventListener('click', () => btn.closest('.comment-banner').style.display = 'none');
-})();
-
-/* 从网关同步 · 下拉菜单 */
-(function(){
-  const btn = document.getElementById('oc-sync-btn');
-  const menu = document.getElementById('oc-sync-menu');
-  if(!btn || !menu) return;
-  btn.addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('show'); });
-  document.addEventListener('click', () => menu.classList.remove('show'));
-  menu.addEventListener('click', e => {
-    const item = e.target.closest('.dm-item');
-    if(!item) return;
-    menu.classList.remove('show');
-    btn.style.color = 'var(--green)';
-    setTimeout(() => btn.style.color = '', 1200);
-  });
-})();
 
 /* Provider / Model 卡片折叠 */
 (function(){
