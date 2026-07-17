@@ -116,14 +116,16 @@ const {
         <span class="gn">02</span>模型
         <span class="cnt">· 候选来自网关 consumer models</span>
       </h3>
-      <div v-for="f in CC_MODEL_FIELDS" :key="f.key" class="row">
-        <label>{{ f.label }} <span class="lab-hint">{{ f.hint }}</span></label>
-        <ModelCombobox
-          :model-value="getEnv(f.key)"
-          :options="modelSelectOptions"
-          :placeholder="`留空回退默认（可下拉或手动输入）`"
-          @update:model-value="(v) => setEnv(f.key, v ?? '')"
-        />
+      <div class="cc-models">
+        <div v-for="f in CC_MODEL_FIELDS" :key="f.key" class="cc-field">
+          <label>{{ f.label }} <span class="cc-field-hint">{{ f.hint }}</span></label>
+          <ModelCombobox
+            :model-value="getEnv(f.key)"
+            :options="modelSelectOptions"
+            :placeholder="`留空回退默认（可下拉或手动输入）`"
+            @update:model-value="(v) => setEnv(f.key, v ?? '')"
+          />
+        </div>
       </div>
     </div>
 

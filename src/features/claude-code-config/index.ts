@@ -20,10 +20,10 @@ export const CC_AUTH_TOKEN_KEY = 'ANTHROPIC_AUTH_TOKEN'
  * 为子 agent。注：`ANTHROPIC_SMALL_FAST_MODEL` 已弃用，由 HAIKU 取代（如需仍可在下方自由区填写）。 */
 export const CC_MODEL_FIELDS = [
   { key: 'ANTHROPIC_MODEL', label: 'ANTHROPIC_MODEL', hint: '主模型' },
-  { key: 'ANTHROPIC_DEFAULT_FABLE_MODEL', label: '…DEFAULT_FABLE_MODEL', hint: 'fable 别名' },
-  { key: 'ANTHROPIC_DEFAULT_OPUS_MODEL', label: '…DEFAULT_OPUS_MODEL', hint: 'opus 别名' },
-  { key: 'ANTHROPIC_DEFAULT_SONNET_MODEL', label: '…DEFAULT_SONNET_MODEL', hint: 'sonnet 别名' },
-  { key: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', label: '…DEFAULT_HAIKU_MODEL', hint: 'haiku 别名（替代 SMALL_FAST_MODEL）' },
+  { key: 'ANTHROPIC_DEFAULT_FABLE_MODEL', label: 'ANTHROPIC_DEFAULT_FABLE_MODEL', hint: 'fable 别名' },
+  { key: 'ANTHROPIC_DEFAULT_OPUS_MODEL', label: 'ANTHROPIC_DEFAULT_OPUS_MODEL', hint: 'opus 别名' },
+  { key: 'ANTHROPIC_DEFAULT_SONNET_MODEL', label: 'ANTHROPIC_DEFAULT_SONNET_MODEL', hint: 'sonnet 别名' },
+  { key: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', label: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', hint: 'haiku 别名' },
   { key: 'CLAUDE_CODE_SUBAGENT_MODEL', label: 'CLAUDE_CODE_SUBAGENT_MODEL', hint: '子 agent' }
 ] as const
 

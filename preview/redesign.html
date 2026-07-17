@@ -542,6 +542,31 @@ body{
 .comment-banner b{color:var(--text-strong);font-weight:500}
 .comment-banner .dismiss{margin-left:auto;flex-shrink:0}
 
+/* Claude Code 配置页 · 专用组件 */
+.cc-mask{display:inline-flex;align-items:center;background:var(--bg-weak);border:1px solid var(--border-weak);border-radius:var(--r-md);padding:8px 12px;font-size:12px;color:var(--text);max-width:400px;width:100%;cursor:pointer;font-family:var(--font);transition:var(--t)}
+.cc-mask:hover{border-color:var(--border);color:var(--text-strong)}
+.cc-hint{display:block;font-size:9px;color:var(--text-weaker);font-weight:400;margin-top:1px;letter-spacing:0}
+.cc-env{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.cc-env-row{display:flex;gap:8px}
+.cc-env-row .cc-key{flex:0 0 240px;max-width:240px}
+.cc-env-row .cc-val{flex:1;max-width:none}
+.cc-save-hint{font-size:11px;color:var(--text-weak);margin-right:auto;line-height:1.6}
+.cc-save-hint code{font-family:var(--font);font-size:10px;background:var(--bg-weak);border:1px solid var(--border-weak);border-radius:var(--r-sm);padding:0 5px;color:var(--text-strong)}
+.cc-mcombo{display:flex;flex-wrap:wrap;align-items:center;gap:4px;background:var(--bg-weak);border:1px solid var(--border-weak);border-radius:var(--r-md);padding:5px 7px;min-height:34px;max-width:560px;transition:var(--t)}
+.cc-mcombo:focus-within{border-color:var(--text-strong)}
+.cc-mctag{display:inline-flex;align-items:center;gap:3px;background:var(--bg);border:1px solid var(--border-weak);border-radius:var(--r-sm);padding:1px 2px 1px 7px;font-size:11px;white-space:nowrap}
+.cc-mctag:hover{border-color:var(--border)}
+.cc-mcx{background:none;border:none;color:var(--text-weak);cursor:pointer;font-size:12px;line-height:1;padding:0 2px;font-family:var(--font)}
+.cc-mcx:hover{color:var(--red)}
+.cc-mcinput{flex:1;min-width:140px;border:none;outline:none;background:transparent;color:var(--text-strong);font-size:12px;font-family:var(--font);padding:2px 0}
+.cc-mcinput::placeholder{color:var(--text-weaker)}
+/* Claude Code 模型字段 · 两列堆叠网格（env 变量名较长，竖排更清晰） */
+.cc-models{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.cc-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.cc-field>label{font-size:10px;color:var(--text-weak);line-height:1.4}
+.cc-field-hint{font-size:9px;color:var(--text-weaker);font-weight:400;margin-left:4px}
+.cc-field .inp{max-width:none}
+
 /* 底部 */
 .footer{padding:32px 80px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;border-top:1px solid var(--border-weak)}
 .footer .meta{font-size:11px;color:var(--text-weak)}
@@ -698,6 +723,10 @@ body{
       <path fill-rule="evenodd" clip-rule="evenodd" d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z" fill="currentColor"/>
       <path d="M320 352V224H192V352H320Z" fill="currentColor" opacity="0.45"/>
     </symbol>
+    <!-- Claude Code 配置页 · 官方 sunburst（simple-icons） -->
+    <symbol id="ic-cc" viewBox="0 0 24 24">
+      <path d="m4.714 15.956l4.718-2.648l.079-.23l-.08-.128h-.23l-.79-.048l-2.695-.073l-2.337-.097l-2.265-.122l-.57-.121l-.535-.704l.055-.353l.48-.321l.685.06l1.518.104l2.277.157l1.651.098l2.447.255h.389l.054-.158l-.133-.097l-.103-.098l-2.356-1.596l-2.55-1.688l-1.336-.972l-.722-.491L2 6.223l-.158-1.008l.656-.722l.88.06l.224.061l.893.686l1.906 1.476l2.49 1.833l.364.304l.146-.104l.018-.072l-.164-.274l-1.354-2.446l-1.445-2.49l-.644-1.032l-.17-.619a3 3 0 0 1-.103-.729L6.287.133L6.7 0l.995.134l.42.364l.619 1.415L9.735 4.14l1.555 3.03l.455.898l.243.832l.09.255h.159V9.01l.127-1.706l.237-2.095l.23-2.695l.08-.76l.376-.91l.747-.492l.583.28l.48.685l-.067.444l-.286 1.851l-.558 2.903l-.365 1.942h.213l.243-.242l.983-1.306l1.652-2.064l.728-.82l.85-.904l.547-.431h1.032l.759 1.129l-.34 1.166l-1.063 1.347l-.88 1.142l-1.263 1.7l-.79 1.36l.074.11l.188-.02l2.853-.606l1.542-.28l1.84-.315l.832.388l.09.395l-.327.807l-1.967.486l-2.307.462l-3.436.813l-.043.03l.049.061l1.548.146l.662.036h1.62l3.018.225l.79.522l.473.638l-.08.485l-1.213.62l-1.64-.389l-3.825-.91l-1.31-.329h-.183v.11l1.093 1.068l2.003 1.81l2.508 2.33l.127.578l-.321.455l-.34-.049l-2.204-1.657l-.85-.747l-1.925-1.62h-.127v.17l.443.649l2.343 3.521l.122 1.08l-.17.353l-.607.213l-.668-.122l-1.372-1.924l-1.415-2.168l-1.141-1.943l-.14.08l-.674 7.254l-.316.37l-.728.28l-.607-.461l-.322-.747l.322-1.476l.388-1.924l.316-1.53l.285-1.9l.17-.632l-.012-.042l-.14.018l-1.432 1.967l-2.18 2.945l-1.724 1.845l-.413.164l-.716-.37l.066-.662l.401-.589l2.386-3.036l1.439-1.882l.929-1.086l-.006-.158h-.055L4.138 18.56l-1.13.146l-.485-.456l.06-.746l.231-.243l1.907-1.312Z" fill="currentColor"/>
+    </symbol>
     <!-- 右箭头（折叠 chevron） -->
     <symbol id="ic-chev" viewBox="0 0 10 10">
       <path d="M3.5 2L7 5L3.5 8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" stroke-linejoin="miter"/>
@@ -840,8 +869,8 @@ body{
   <section class="section">
     <div class="section-head">
       <span class="kicker">03 · 界面</span>
-      <h2>应用窗口 — 七个页面</h2>
-      <p>完整桌面应用预览。点击左侧导航切换页面，所有界面复刻 opencode.ai 美学：暖白底、等宽字、1px 分隔、近黑按钮、极简无彩。选区高亮蓝色，聚焦仅描边近黑（已禁用淡黄绿光晕）。新增「OpenCode」页编辑 opencode.jsonc。</p>
+      <h2>应用窗口 — 八个页面</h2>
+      <p>完整桌面应用预览。点击左侧导航切换页面，所有界面复刻 opencode.ai 美学：暖白底、等宽字、1px 分隔、近黑按钮、极简无彩。选区高亮蓝色，聚焦仅描边近黑（已禁用淡黄绿光晕）。六个固定页 + 两个工具配置页：「OpenCode」编辑 opencode.jsonc，「Claude Code」编辑 ~/.claude/settings.json 的 env 段（二者仅在检测到对应 CLI 已安装时出现于侧边栏，启动期整页加载态后与导航一起渲染）。</p>
     </div>
     <div class="window">
       <div class="titlebar">
@@ -861,8 +890,10 @@ body{
             <a class="nav-item" data-tab="chat"><svg class="ic"><use href="#ic-chat"/></svg>AI聊天</a>
             <a class="nav-item" data-tab="usage"><svg class="ic"><use href="#ic-stat"/></svg>用量统计</a>
             <a class="nav-item" data-tab="provider-usage"><svg class="ic"><use href="#ic-pstat"/></svg>供量统计</a>
-            <a class="nav-item" data-tab="settings"><svg class="ic"><use href="#ic-set"/></svg>设置</a>
+            <!-- 以下两项仅在检测到对应工具已安装时显示 -->
             <a class="nav-item" data-tab="opencode"><svg class="ic"><use href="#ic-oc"/></svg>OpenCode</a>
+            <a class="nav-item" data-tab="claude-code"><svg class="ic"><use href="#ic-cc"/></svg>Claude Code</a>
+            <a class="nav-item" data-tab="settings"><svg class="ic"><use href="#ic-set"/></svg>设置</a>
           </div>
           <div class="sb-spacer"></div>
           <div class="sb-foot"><span class="dot on"></span>运行中</div>
@@ -1307,9 +1338,27 @@ body{
               </div>
             </div>
 
-            <!-- 01 基础 -->
+            <!-- 01 屏蔽 Provider -->
             <div class="group">
-              <h3><span class="gn">01</span>基础</h3>
+              <h3>
+                <span class="gn">01</span>屏蔽 Provider
+                <span class="cnt">· 已屏蔽 2 个 · 候选 8 个</span>
+                <button class="btn btn-ghost btn-sm" style="margin-left:auto">刷新候选</button>
+              </h3>
+              <div class="oc-notice">
+                <span class="ic">ⓘ</span>
+                <span>候选列表由 <code>opencode models</code> 动态获取；被屏蔽的 provider 不会被 opencode 加载（对应顶层 <code>disabled_providers</code>）。可多选，也可手动输入任意 id 后回车添加。</span>
+              </div>
+              <div class="cc-mcombo">
+                <span class="cc-mctag">openai <button class="cc-mcx" type="button">×</button></span>
+                <span class="cc-mctag">gemini <button class="cc-mcx" type="button">×</button></span>
+                <input class="cc-mcinput" placeholder="选择候选 provider，或输入任意 id（如 openai / gemini）后回车">
+              </div>
+            </div>
+
+            <!-- 02 基础 -->
+            <div class="group">
+              <h3><span class="gn">02</span>基础</h3>
               <div class="row">
                 <label>主模型 model</label>
                 <select class="oc-sel">
@@ -1337,7 +1386,7 @@ body{
 
             <!-- 02 Provider -->
             <div class="group">
-              <h3><span class="gn">02</span>Provider <span class="cnt">· 3 个 · 14 个模型</span></h3>
+              <h3><span class="gn">03</span>Provider <span class="cnt">· 3 个 · 14 个模型</span></h3>
               <div class="oc-notice">
                 <span class="ic">↹</span>
                 <span><b>npm</b> 下拉决定协议 SDK：<code>@ai-sdk/openai-compatible</code>=chat · <code>@ai-sdk/openai</code>=responses · <code>@ai-sdk/anthropic</code>=anthropic。「从网关同步」按网关 protocol 自动选择。</span>
@@ -1371,7 +1420,7 @@ body{
                       <div class="mf"><label>baseURL</label><input class="inp" value="http://127.0.0.1:8000/v1"></div>
                     </div>
                     <div class="pv-fields">
-                      <div class="mf"><label>apiKey</label><input class="inp" value="sk-opencode"></div>
+                      <div class="mf"><label>apiKey</label><span class="cc-mask" style="max-width:none" title="点按查看明文">sk-o**code</span></div>
                       <div class="mf"><label>timeout (ms)</label><input class="inp" type="number" value="300000"></div>
                     </div>
 
@@ -1500,6 +1549,77 @@ body{
               <button class="btn btn-ghost">放弃更改</button>
               <button class="btn">保存到 opencode.jsonc</button>
             </div>
+          </div>
+
+          <!-- Claude Code 配置 -->
+          <div class="tabpane" data-pane="claude-code">
+            <div class="page-title">Claude Code 配置 <span class="file-tag">settings.json</span> <span class="file-tag">v2.1.170</span></div>
+            <div class="page-sub">编辑 Claude Code 的 env 环境变量 · 把它指向本网关 · 其余字段原样保留</div>
+
+            <!-- 工具栏 -->
+            <div class="oc-toolbar">
+              <div class="oc-path">
+                <span style="color:var(--text-weak);flex-shrink:0"><svg width="14" height="14"><use href="#ic-file"/></svg></span>
+                <span class="pth">~/.claude/settings.json</span>
+                <span class="meta">· 已存在 · 支持 $CLAUDE_CONFIG_DIR</span>
+              </div>
+              <div class="oc-actions">
+                <button class="btn btn-sm">一键对接网关</button>
+                <button class="btn btn-ghost btn-sm">重新加载</button>
+                <button class="btn btn-sm">保存</button>
+              </div>
+            </div>
+
+            <!-- 01 连接 -->
+            <div class="group">
+              <h3><span class="gn">01</span>连接 <span class="cnt">· 指向本网关（Anthropic 协议）</span></h3>
+              <div class="oc-notice">
+                <span class="ic">ⓘ</span>
+                <span><code>ANTHROPIC_BASE_URL</code> 把请求转发到网关；但<b>仅设 base URL 不会替换登录订阅</b>——还需 <code>ANTHROPIC_AUTH_TOKEN</code> 作为网关凭证（即本网关的 consumer key）。「一键对接网关」同时填入两者。勿与 <code>ANTHROPIC_API_KEY</code> 并存（上游会拒绝）。</span>
+              </div>
+              <div class="row">
+                <label>base URL</label>
+                <input class="inp" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000（不带 /v1）" />
+              </div>
+              <div class="row">
+                <label>auth token</label>
+                <span class="cc-mask" title="点按查看明文">eb98**3Pkq</span>
+              </div>
+            </div>
+
+            <!-- 02 模型 -->
+            <div class="group">
+              <h3><span class="gn">02</span>模型 <span class="cnt">· 候选来自网关 consumer models · 网关后任意模型名原样透传</span></h3>
+              <div class="cc-models">
+                <div class="cc-field"><label>ANTHROPIC_MODEL <span class="cc-field-hint">主模型</span></label><input class="inp" value="glm-5.2[1m]"></div>
+                <div class="cc-field"><label>ANTHROPIC_DEFAULT_FABLE_MODEL <span class="cc-field-hint">fable 别名</span></label><input class="inp" placeholder="留空回退默认"></div>
+                <div class="cc-field"><label>ANTHROPIC_DEFAULT_OPUS_MODEL <span class="cc-field-hint">opus 别名</span></label><input class="inp" value="glm-5.2[1m]"></div>
+                <div class="cc-field"><label>ANTHROPIC_DEFAULT_SONNET_MODEL <span class="cc-field-hint">sonnet 别名</span></label><input class="inp" value="glm-5.2[1m]"></div>
+                <div class="cc-field"><label>ANTHROPIC_DEFAULT_HAIKU_MODEL <span class="cc-field-hint">haiku 别名</span></label><input class="inp" value="glm-5.2[1m]"></div>
+                <div class="cc-field"><label>CLAUDE_CODE_SUBAGENT_MODEL <span class="cc-field-hint">子 agent</span></label><input class="inp" value="glm-5.2[1m]"></div>
+              </div>
+            </div>
+
+            <!-- 03 其他环境变量 -->
+            <div class="group">
+              <h3><span class="gn">03</span>其他环境变量 <span class="cnt">· 3 条 · 共 10 条</span></h3>
+              <div class="oc-notice">
+                <span class="ic">ⓘ</span>
+                <span>未归入上方精选字段的 <code>env</code> 条目在此自由编辑（如 <code>API_TIMEOUT_MS</code>、<code>CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC</code>）。含 TOKEN/SECRET/PASSWORD 的值默认掩码，点按转明文。空值条目保存时丢弃。</span>
+              </div>
+              <div class="cc-env">
+                <div class="cc-env-row"><input class="inp cc-key" value="API_TIMEOUT_MS"><input class="inp cc-val" value="3000000"></div>
+                <div class="cc-env-row"><input class="inp cc-key" value="CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"><input class="inp cc-val" value="1"></div>
+                <div class="cc-env-row"><input class="inp cc-key" value="CLAUDE_CODE_ATTRIBUTION_HEADER"><input class="inp cc-val" value="0"></div>
+              </div>
+              <button class="btn btn-ghost btn-sm"><svg width="9" height="9"><use href="#ic-plus"/></svg> 添加变量</button>
+            </div>
+
+            <div class="actions">
+              <span class="cc-save-hint">整体写回 <code>env</code> 段 · enabledPlugins / statusLine / hasCompletedOnboarding 等未管理字段原样保留 · 保存前自动备份 .bak</span>
+              <button class="btn">保存到 settings.json</button>
+            </div>
+            <div class="toast ok">已保存 · 已备份</div>
           </div>
 
         </main>
