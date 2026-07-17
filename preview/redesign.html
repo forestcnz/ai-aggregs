@@ -435,6 +435,113 @@ body{
 .tabpane.active{display:block;animation:fade .3s ease}
 @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
+/* ============================================================
+   OpenCode 配置页 · 专用组件
+   ============================================================ */
+/* 工具栏：文件路径 + 同步下拉 + 操作 */
+.oc-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border-weak);border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px;flex-wrap:wrap}
+.oc-path{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--text);min-width:0}
+.oc-path .pth{color:var(--text-strong);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-path .meta{color:var(--text-weak);font-size:10px;white-space:nowrap}
+.oc-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+/* 文件标记（页标题旁） */
+.file-tag{font-size:10px;font-weight:400;color:var(--text-weak);border:1px solid var(--border-weak);border-radius:var(--r-sm);padding:2px 7px;letter-spacing:0}
+.page-title{display:flex;align-items:center;gap:10px}
+/* 下拉菜单（从网关同步） */
+.dropdown{position:relative}
+.dropdown-menu{position:absolute;top:calc(100% + 5px);right:0;z-index:40;background:var(--bg);border:1px solid var(--text-strong);border-radius:var(--r-md);min-width:230px;padding:5px;display:none;box-shadow:0 6px 20px rgba(31,30,30,.12)}
+.dropdown-menu.show{display:block;animation:ocmin .16s ease}
+@keyframes ocmin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.dm-item{display:flex;flex-direction:column;gap:3px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;transition:var(--t)}
+.dm-item:hover{background:var(--bg-weak)}
+.dm-item b{font-size:12px;color:var(--text-strong);font-weight:600}
+.dm-item span{font-size:10px;color:var(--text-weak);line-height:1.5}
+.dm-sep{height:1px;background:var(--border-weak);margin:4px 2px}
+/* 提示横条 */
+.oc-notice{border:1px solid var(--border-weak);border-left:2px solid var(--text-strong);border-radius:var(--r-md);padding:9px 13px;margin-bottom:14px;font-size:11px;color:var(--text);line-height:1.7;background:var(--bg-weak);display:flex;align-items:flex-start;gap:9px}
+.oc-notice .ic{color:var(--text-strong);flex-shrink:0;font-weight:600}
+.oc-notice code{font-family:var(--font);font-size:10px;background:var(--bg);border:1px solid var(--border-weak);border-radius:var(--r-sm);padding:0 5px;color:var(--text-strong)}
+/* group 讇数 */
+.group h3 .cnt{font-size:10px;color:var(--text-weak);font-weight:400;margin-left:2px}
+/* select 通用（OpenCode 页用，带箭头） */
+.oc-sel{padding:8px 12px;border-radius:var(--r-md);border:1px solid var(--border-weak);background:var(--bg-weak);font-family:var(--font);font-size:12px;color:var(--text-strong);cursor:pointer;max-width:400px;width:100%;outline:none;transition:var(--t);appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23999898' stroke-width='1.2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px}
+.oc-sel:focus{border-color:var(--text-strong);box-shadow:0 0 0 3px var(--bg-interactive)}
+/* Provider 折叠卡片 */
+.oc-providers{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.pv-card{border:1px solid var(--border-weak);border-radius:var(--r-md);overflow:hidden;transition:var(--t);background:var(--bg)}
+.pv-card:hover{border-color:var(--border)}
+.pv-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;transition:var(--t);user-select:none}
+.pv-head:hover{background:var(--bg-weak)}
+.pv-chevron{color:var(--text-weak);flex-shrink:0;transition:transform var(--t);display:flex;align-items:center}
+.pv-card.expanded .pv-chevron{transform:rotate(90deg)}
+.pv-id{font-size:13px;font-weight:600;color:var(--text-strong);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-npm{font-size:10px;color:var(--text-weak);border:1px solid var(--border-weak);border-radius:var(--r-sm);padding:1px 6px;white-space:nowrap;flex-shrink:0}
+.pv-modelcount{font-size:10px;color:var(--text-weak);margin-left:auto;white-space:nowrap}
+.pv-body{border-top:1px solid var(--border-weak);padding:14px;display:none}
+.pv-card.expanded .pv-body{display:block}
+.pv-fields{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.pv-fields.full{grid-template-columns:1fr}
+.pv-fields .mf{display:flex;flex-direction:column;gap:5px}
+.pv-fields .mf label{font-size:10px;color:var(--text-weak);letter-spacing:.06em;text-transform:uppercase}
+.pv-fields .mf .inp,.pv-fields .mf .oc-sel{max-width:none}
+/* models 子列表头 */
+.pv-models-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-top:12px;border-top:1px solid var(--border-weak)}
+.pv-models-head .lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-weak);display:flex;align-items:center;gap:7px}
+.pv-models-head .lbl .ct{font-size:10px;color:var(--text-weaker);font-weight:400;letter-spacing:0}
+/* 单个 model 属性行 */
+.md-row{border:1px solid var(--border-weak);border-radius:var(--r-md);margin-bottom:8px;transition:var(--t);background:var(--bg)}
+.md-row:hover{border-color:var(--border)}
+.md-row-head{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;transition:var(--t);user-select:none}
+.md-row-head:hover{background:var(--bg-weak)}
+.md-row.expanded .md-row-head{border-bottom:1px solid var(--border-weak)}
+.md-id{font-size:12px;font-weight:500;color:var(--text-strong);min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.md-name{font-size:11px;color:var(--text-weak);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.md-flags{display:flex;align-items:center;gap:6px;margin-left:auto}
+.md-flag{font-size:9px;color:var(--text-weak);border:1px solid var(--border-weak);border-radius:var(--r-sm);padding:1px 5px}
+.md-flag.on{color:var(--green);border-color:var(--green)}
+.md-chevron{color:var(--text-weak);transition:transform var(--t);display:flex;align-items:center}
+.md-row.expanded .md-chevron{transform:rotate(90deg)}
+.md-body{padding:12px;display:none}
+.md-row.expanded .md-body{display:block}
+.md-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:12px}
+.md-grid.full{grid-template-columns:1fr}
+.md-grid .mf{display:flex;flex-direction:column;gap:5px}
+.md-grid .mf label{font-size:10px;color:var(--text-weak);letter-spacing:.06em;text-transform:uppercase}
+.md-grid .mf .inp{max-width:none;font-size:11px}
+/* model 开关组 */
+.md-toggles{display:flex;align-items:center;gap:18px;padding:9px 0 11px;border-top:1px solid var(--border-weak);margin-top:4px}
+.md-tg-item{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text)}
+/* 小型 toggle */
+.toggle.mini{width:26px;height:15px}
+.toggle.mini .sl::after{width:9px;height:9px;top:2px;left:2px}
+.toggle.mini input:checked+.sl::after{transform:translateX(11px)}
+/* modalities 多选 tag */
+.md-mods{padding-top:11px;border-top:1px solid var(--border-weak)}
+.md-mods-lab{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-weak);margin-bottom:8px}
+.md-mods-group{margin-bottom:9px}
+.md-mods-group:last-child{margin-bottom:0}
+.md-mods-sublab{font-size:9px;color:var(--text-weaker);margin-bottom:5px;display:inline-flex;align-items:center;gap:5px}
+.md-mods-sublab::before{content:'';width:10px;height:1px;background:var(--border)}
+.mod-tags{display:flex;flex-wrap:wrap;gap:5px}
+.mod-tag{font-size:10px;padding:3px 9px;border:1px solid var(--border-weak);border-radius:var(--r-sm);color:var(--text-weak);cursor:pointer;transition:var(--t);user-select:none;display:inline-flex;align-items:center;gap:5px}
+.mod-tag:hover{border-color:var(--border);color:var(--text)}
+.mod-tag.on{background:var(--bg-strong);color:var(--text-inverted);border-color:var(--bg-strong)}
+.mod-tag .chk{width:7px;height:7px;border:1px solid currentColor;border-radius:2px;display:inline-flex;align-items:center;justify-content:center;opacity:.5}
+.mod-tag.on .chk{opacity:1;background:var(--text-inverted);border-color:var(--text-inverted);position:relative}
+.mod-tag.on .chk::after{content:'';width:3px;height:5px;border:solid var(--bg-strong);border-width:0 1.5px 1.5px 0;transform:rotate(45deg);margin-top:-1px}
+/* limit 字段 */
+.md-limit{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding-top:11px;border-top:1px solid var(--border-weak);margin-top:4px}
+.md-limit .mf{display:flex;flex-direction:column;gap:5px}
+.md-limit .mf label{font-size:10px;color:var(--text-weak);letter-spacing:.06em;text-transform:uppercase}
+.md-limit .mf .inp{max-width:none;font-size:11px}
+.oc-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.oc-add .hint{font-size:10px;color:var(--text-weak)}
+/* 注释丢失横幅 */
+.comment-banner{display:flex;align-items:center;gap:10px;padding:9px 13px;margin-bottom:14px;border:1px solid #c0703a;border-radius:var(--r-md);background:rgba(192,112,58,.04);font-size:11px;color:var(--text);line-height:1.6}
+.comment-banner .ic{color:#c0703a;flex-shrink:0;font-weight:600}
+.comment-banner b{color:var(--text-strong);font-weight:500}
+.comment-banner .dismiss{margin-left:auto;flex-shrink:0}
+
 /* 底部 */
 .footer{padding:32px 80px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;border-top:1px solid var(--border-weak)}
 .footer .meta{font-size:11px;color:var(--text-weak)}
@@ -586,6 +693,29 @@ body{
       <circle cx="2" cy="12" r="1.4" fill="currentColor"/>
       <circle cx="8" cy="12" r="1.4" fill="currentColor"/>
     </symbol>
+    <!-- OpenCode 配置页 · 文档花括号 -->
+    <symbol id="ic-oc" viewBox="0 0 512 512">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z" fill="currentColor"/>
+      <path d="M320 352V224H192V352H320Z" fill="currentColor" opacity="0.45"/>
+    </symbol>
+    <!-- 右箭头（折叠 chevron） -->
+    <symbol id="ic-chev" viewBox="0 0 10 10">
+      <path d="M3.5 2L7 5L3.5 8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" stroke-linejoin="miter"/>
+    </symbol>
+    <!-- 同步 -->
+    <symbol id="ic-sync" viewBox="0 0 14 14">
+      <path d="M11.5 4.5A4.5 4.5 0 0 0 3.5 3.5M2.5 9.5A4.5 4.5 0 0 0 10.5 10.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M2 2v3h3M12 12V9H9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" stroke-linejoin="miter"/>
+    </symbol>
+    <!-- 文件 -->
+    <symbol id="ic-file" viewBox="0 0 14 14">
+      <path d="M3 1.5h6l2 2v9H3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="miter"/>
+      <path d="M5 6h4M5 8.5h4M5 4.2h2" stroke="currentColor" stroke-width="1" stroke-linecap="square"/>
+    </symbol>
+    <!-- 加号 -->
+    <symbol id="ic-plus" viewBox="0 0 10 10">
+      <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -710,8 +840,8 @@ body{
   <section class="section">
     <div class="section-head">
       <span class="kicker">03 · 界面</span>
-      <h2>应用窗口 — 六个页面</h2>
-      <p>完整桌面应用预览。点击左侧导航切换页面，所有界面复刻 opencode.ai 美学：暖白底、等宽字、1px 分隔、近黑按钮、极简无彩。选区高亮蓝色，聚焦仅描边近黑（已禁用淡黄绿光晕）。</p>
+      <h2>应用窗口 — 七个页面</h2>
+      <p>完整桌面应用预览。点击左侧导航切换页面，所有界面复刻 opencode.ai 美学：暖白底、等宽字、1px 分隔、近黑按钮、极简无彩。选区高亮蓝色，聚焦仅描边近黑（已禁用淡黄绿光晕）。新增「OpenCode」页编辑 opencode.jsonc。</p>
     </div>
     <div class="window">
       <div class="titlebar">
@@ -732,6 +862,7 @@ body{
             <a class="nav-item" data-tab="usage"><svg class="ic"><use href="#ic-stat"/></svg>用量统计</a>
             <a class="nav-item" data-tab="provider-usage"><svg class="ic"><use href="#ic-pstat"/></svg>供量统计</a>
             <a class="nav-item" data-tab="settings"><svg class="ic"><use href="#ic-set"/></svg>设置</a>
+            <a class="nav-item" data-tab="opencode"><svg class="ic"><use href="#ic-oc"/></svg>OpenCode</a>
           </div>
           <div class="sb-spacer"></div>
           <div class="sb-foot"><span class="dot on"></span>运行中</div>
@@ -1129,6 +1260,248 @@ body{
             <div class="toast ok">配置已保存</div>
           </div>
 
+          <!-- OpenCode 配置 -->
+          <div class="tabpane" data-pane="opencode">
+            <div class="page-title">OpenCode 配置 <span class="file-tag">opencode.jsonc</span></div>
+            <div class="page-sub">编辑 OpenCode 工具配置 · 与本网关联动</div>
+
+            <!-- 注释丢失提示横幅 -->
+            <div class="comment-banner">
+              <span class="ic">⚠</span>
+              <span>当前文件含 <b>手工注释</b>。表单保存后会丢失注释，已自动备份为 <b>opencode.jsonc.bak</b>。</span>
+              <button class="btn btn-ghost btn-sm dismiss" id="oc-dismiss-banner">知道了</button>
+            </div>
+
+            <!-- 工具栏 -->
+            <div class="oc-toolbar">
+              <div class="oc-path">
+                <span style="color:var(--text-weak);flex-shrink:0"><svg width="14" height="14"><use href="#ic-file"/></svg></span>
+                <span class="pth">~/.config/opencode/opencode.jsonc</span>
+                <span class="meta">· 6.0 KB · 已修改 2 分钟前</span>
+              </div>
+              <div class="oc-actions">
+                <div class="dropdown">
+                  <button class="btn btn-ghost btn-sm" id="oc-sync-btn">
+                    <svg width="12" height="12"><use href="#ic-sync"/></svg>
+                    从网关同步
+                    <svg width="8" height="8" style="opacity:.6"><use href="#ic-chev"/></svg>
+                  </button>
+                  <div class="dropdown-menu" id="oc-sync-menu">
+                    <div class="dm-item" data-mode="append">
+                      <b>↧ 追加合并</b>
+                      <span>保留现有 provider，仅补充新增的</span>
+                    </div>
+                    <div class="dm-item" data-mode="overwrite">
+                      <b>↻ 覆盖 provider 段</b>
+                      <span>用网关数据重建全部 provider+models</span>
+                    </div>
+                    <div class="dm-sep"></div>
+                    <div class="dm-item" data-mode="models">
+                      <b>≡ 仅同步 model 列表</b>
+                      <span>只更新模型名，不动 baseURL</span>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn btn-ghost btn-sm">重新加载</button>
+                <button class="btn btn-sm">保存</button>
+              </div>
+            </div>
+
+            <!-- 01 基础 -->
+            <div class="group">
+              <h3><span class="gn">01</span>基础</h3>
+              <div class="row">
+                <label>主模型 model</label>
+                <select class="oc-sel">
+                  <option selected>Local-oai/glm-5.2</option>
+                  <option>Local-oai/glm-5.1</option>
+                  <option>Local-oai/kimi-k2.7-code</option>
+                  <option>Local-ant/minimax-m3</option>
+                  <option>Local-Responses/gpt-5.5</option>
+                </select>
+              </div>
+              <div class="row">
+                <label>轻量模型 small_model</label>
+                <select class="oc-sel">
+                  <option value="" style="color:var(--text-weak)">— 未设置（回退主模型）—</option>
+                  <option>Local-oai/deepseek-v4-flash</option>
+                  <option>Local-oai/mimo-v2.5</option>
+                  <option>Local-ant/qwen3.6-plus</option>
+                </select>
+              </div>
+              <div class="row">
+                <label>默认 agent</label>
+                <input class="inp" value="build" placeholder="build / plan / 自定义" />
+              </div>
+            </div>
+
+            <!-- 02 Provider -->
+            <div class="group">
+              <h3><span class="gn">02</span>Provider <span class="cnt">· 3 个 · 14 个模型</span></h3>
+              <div class="oc-notice">
+                <span class="ic">↹</span>
+                <span><b>npm</b> 下拉决定协议 SDK：<code>@ai-sdk/openai-compatible</code>=chat · <code>@ai-sdk/openai</code>=responses · <code>@ai-sdk/anthropic</code>=anthropic。「从网关同步」按网关 protocol 自动选择。</span>
+              </div>
+
+              <div class="oc-providers">
+                <!-- Provider 1: Local-oai (展开) -->
+                <div class="pv-card expanded">
+                  <div class="pv-head">
+                    <span class="pv-chevron"><svg width="10" height="10"><use href="#ic-chev"/></svg></span>
+                    <span class="pv-id">Local-oai</span>
+                    <span class="pv-npm">@ai-sdk/openai-compatible</span>
+                    <span class="pv-modelcount">8 models</span>
+                    <button class="btn btn-ghost btn-sm">删除</button>
+                  </div>
+                  <div class="pv-body">
+                    <div class="pv-fields">
+                      <div class="mf"><label>name</label><input class="inp" value="Local Chat"></div>
+                      <div class="mf">
+                        <label>npm <span style="font-weight:400;color:var(--text-weaker)">· 协议 SDK</span></label>
+                        <select class="oc-sel">
+                          <option selected>@ai-sdk/openai-compatible</option>
+                          <option>@ai-sdk/openai</option>
+                          <option>@ai-sdk/anthropic</option>
+                          <option>@ai-sdk/google</option>
+                          <option value="custom">自定义…</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="pv-fields full">
+                      <div class="mf"><label>baseURL</label><input class="inp" value="http://127.0.0.1:8000/v1"></div>
+                    </div>
+                    <div class="pv-fields">
+                      <div class="mf"><label>apiKey</label><input class="inp" value="sk-opencode"></div>
+                      <div class="mf"><label>timeout (ms)</label><input class="inp" type="number" value="300000"></div>
+                    </div>
+
+                    <!-- models 子列表 -->
+                    <div class="pv-models-head">
+                      <span class="lbl">Models <span class="ct">8 个</span></span>
+                      <button class="btn btn-ghost btn-sm"><svg width="9" height="9"><use href="#ic-plus"/></svg> 添加模型</button>
+                    </div>
+
+                    <!-- model 1: glm-5.2 (展开) -->
+                    <div class="md-row expanded">
+                      <div class="md-row-head">
+                        <span class="md-chevron"><svg width="9" height="9"><use href="#ic-chev"/></svg></span>
+                        <span class="md-id">glm-5.2</span>
+                        <span class="md-name">GLM-5.2</span>
+                        <span class="md-flags">
+                          <span class="md-flag on">reasoning</span>
+                          <span class="md-flag on">tool</span>
+                          <span class="md-flag">no-attach</span>
+                        </span>
+                        <button class="btn btn-ghost btn-sm">×</button>
+                      </div>
+                      <div class="md-body">
+                        <div class="md-grid">
+                          <div class="mf"><label>id</label><input class="inp" value="glm-5.2"></div>
+                          <div class="mf"><label>name</label><input class="inp" value="GLM-5.2"></div>
+                        </div>
+                        <div class="md-toggles">
+                          <div class="md-tg-item"><label class="toggle mini"><input type="checkbox"><span class="sl"></span></label>attachment</div>
+                          <div class="md-tg-item"><label class="toggle mini"><input type="checkbox" checked><span class="sl"></span></label>reasoning</div>
+                          <div class="md-tg-item"><label class="toggle mini"><input type="checkbox" checked><span class="sl"></span></label>tool_call</div>
+                        </div>
+                        <div class="md-mods">
+                          <div class="md-mods-lab">Modalities</div>
+                          <div class="md-mods-group">
+                            <span class="md-mods-sublab">input</span>
+                            <div class="mod-tags">
+                              <span class="mod-tag on"><span class="chk"></span>text</span>
+                              <span class="mod-tag"><span class="chk"></span>image</span>
+                              <span class="mod-tag"><span class="chk"></span>audio</span>
+                              <span class="mod-tag"><span class="chk"></span>video</span>
+                              <span class="mod-tag"><span class="chk"></span>pdf</span>
+                            </div>
+                          </div>
+                          <div class="md-mods-group">
+                            <span class="md-mods-sublab">output</span>
+                            <div class="mod-tags">
+                              <span class="mod-tag on"><span class="chk"></span>text</span>
+                              <span class="mod-tag"><span class="chk"></span>image</span>
+                              <span class="mod-tag"><span class="chk"></span>audio</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="md-limit">
+                          <div class="mf"><label>limit.context</label><input class="inp" type="number" value="1000000"></div>
+                          <div class="mf"><label>limit.output</label><input class="inp" type="number" value="131072"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- model 2: kimi-k2.7-code (折叠) -->
+                    <div class="md-row">
+                      <div class="md-row-head">
+                        <span class="md-chevron"><svg width="9" height="9"><use href="#ic-chev"/></svg></span>
+                        <span class="md-id">kimi-k2.7-code</span>
+                        <span class="md-name">Kimi K2.7 Code</span>
+                        <span class="md-flags">
+                          <span class="md-flag on">reasoning</span>
+                          <span class="md-flag on">tool</span>
+                          <span class="md-flag on">attach</span>
+                        </span>
+                        <button class="btn btn-ghost btn-sm">×</button>
+                      </div>
+                    </div>
+
+                    <!-- model 3 (折叠) -->
+                    <div class="md-row">
+                      <div class="md-row-head">
+                        <span class="md-chevron"><svg width="9" height="9"><use href="#ic-chev"/></svg></span>
+                        <span class="md-id">deepseek-v4-pro</span>
+                        <span class="md-name">DeepSeek V4 Pro</span>
+                        <span class="md-flags">
+                          <span class="md-flag on">reasoning</span>
+                          <span class="md-flag on">tool</span>
+                          <span class="md-flag">no-attach</span>
+                        </span>
+                        <button class="btn btn-ghost btn-sm">×</button>
+                      </div>
+                    </div>
+
+                    <div style="font-size:10px;color:var(--text-weaker);padding:6px 2px;text-align:center">… 还有 5 个模型（glm-5.1 · kimi-k2.6 · deepseek-v4-flash · mimo-v2.5 · mimo-v2.5-pro）</div>
+                  </div>
+                </div>
+
+                <!-- Provider 2: Local-ant (折叠) -->
+                <div class="pv-card">
+                  <div class="pv-head">
+                    <span class="pv-chevron"><svg width="10" height="10"><use href="#ic-chev"/></svg></span>
+                    <span class="pv-id">Local-ant</span>
+                    <span class="pv-npm">@ai-sdk/anthropic</span>
+                    <span class="pv-modelcount">5 models</span>
+                    <button class="btn btn-ghost btn-sm">删除</button>
+                  </div>
+                </div>
+
+                <!-- Provider 3: Local-Responses (折叠) -->
+                <div class="pv-card">
+                  <div class="pv-head">
+                    <span class="pv-chevron"><svg width="10" height="10"><use href="#ic-chev"/></svg></span>
+                    <span class="pv-id">Local-Responses</span>
+                    <span class="pv-npm">@ai-sdk/openai</span>
+                    <span class="pv-modelcount">1 model</span>
+                    <button class="btn btn-ghost btn-sm">删除</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="oc-add">
+                <button class="btn btn-ghost btn-sm"><svg width="9" height="9"><use href="#ic-plus"/></svg> 添加 Provider</button>
+                <span class="hint">provider id 即 model 字段前缀（如 Local-oai/glm-5.2）</span>
+              </div>
+            </div>
+
+            <div class="actions">
+              <span style="font-size:11px;color:var(--text-weak)">按 key 合并写入 · mcp / permission / agent 等未表单字段原样保留 · 自动备份 .bak</span>
+              <button class="btn btn-ghost">放弃更改</button>
+              <button class="btn">保存到 opencode.jsonc</button>
+            </div>
+          </div>
+
         </main>
       </div>
     </div>
@@ -1489,6 +1862,47 @@ renderProviderUsage();
     clone.scrollIntoView({behavior:'smooth', block:'nearest'});
   });
   recompute();
+})();
+
+/* ===== OpenCode 配置页交互 ===== */
+/* 关闭注释横幅 */
+(function(){
+  const btn = document.getElementById('oc-dismiss-banner');
+  if(btn) btn.addEventListener('click', () => btn.closest('.comment-banner').style.display = 'none');
+})();
+
+/* 从网关同步 · 下拉菜单 */
+(function(){
+  const btn = document.getElementById('oc-sync-btn');
+  const menu = document.getElementById('oc-sync-menu');
+  if(!btn || !menu) return;
+  btn.addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('show'); });
+  document.addEventListener('click', () => menu.classList.remove('show'));
+  menu.addEventListener('click', e => {
+    const item = e.target.closest('.dm-item');
+    if(!item) return;
+    menu.classList.remove('show');
+    btn.style.color = 'var(--green)';
+    setTimeout(() => btn.style.color = '', 1200);
+  });
+})();
+
+/* Provider / Model 卡片折叠 */
+(function(){
+  document.querySelectorAll('.pv-head, .md-row-head').forEach(head => {
+    head.addEventListener('click', e => {
+      if(e.target.closest('button, input, .toggle, .seg, .chip-input, .mod-tag, .inp, select, textarea, .oc-sel')) return;
+      const card = head.closest('.pv-card, .md-row');
+      if(card) card.classList.toggle('expanded');
+    });
+  });
+})();
+
+/* modalities 多选 tag 切换 */
+(function(){
+  document.querySelectorAll('.mod-tag').forEach(tag => {
+    tag.addEventListener('click', e => { e.stopPropagation(); tag.classList.toggle('on'); });
+  });
 })();
 </script>
 </body>

@@ -178,6 +178,78 @@ export const getProviderUsage = (
  */
 export const getLastUsedModels = () => invoke<Record<string, string>>('last_used_models')
 
+// ===================== OpenCode 配置编辑 =====================
+
+/** OpenCode model 的 modalities 配置 */
+export interface OcModalities {
+  input: string[]
+  output: string[]
+}
+
+/** OpenCode model 的 token 限制 */
+export interface OcLimit {
+  context: number
+  output: number
+}
+
+/** OpenCode model 配置 */
+export interface OcModel {
+  id: string
+  name?: string | null
+  attachment: boolean
+  reasoning: boolean
+  tool_call: boolean
+  modalities: OcModalities
+  limit?: OcLimit | null
+}
+
+/** OpenCode provider 的 options 段 */
+export interface OcOptions {
+  baseURL?: string | null
+  apiKey?: string | null
+}
+
+/** OpenCode provider 配置（id 对应 model 字段前缀） */
+export interface OcProvider {
+  id: string
+  name?: string | null
+  /** npm 包名，决定协议 SDK（下拉项） */
+  npm?: string | null
+  options: OcOptions
+  models: OcModel[]
+}
+
+/** OpenCode 配置表单（仅管理 model / small_model / default_agent / provider） */
+export interface OcForm {
+  model?: string | null
+  small_model?: string | null
+  default_agent?: string | null
+  providers: OcProvider[]
+}
+
+/** opencode_config_load 返回结构 */
+export interface OcLoadResult {
+  /** 配置文件绝对路径 */
+  path: string
+  /** 文件是否存在（不存在时 form 为空默认值） */
+  exists: boolean
+  /** 原文件是否含 JSONC 注释（前端据此提示「注释将丢失」） */
+  has_comments: boolean
+  /** 表单数据 */
+  form: OcForm
+}
+
+/** 从网关同步的模式 */
+export type OcSyncMode = 'append' | 'overwrite' | 'models'
+
+/** 读取并解析 opencode 配置文件，提取表单字段 */
+export const opencodeConfigLoad = () =>
+  invoke<OcLoadResult>('opencode_config_load')
+
+/** 把表单按 key 合并写回配置文件（保存前自动备份 .bak） */
+export const opencodeConfigSave = (form: OcForm) =>
+  invoke<void>('opencode_config_save', { form })
+
 // ===================== 事件监听 =====================
 
 /** 监听网关日志事件，返回取消监听函数 */
@@ -201,19 +273,23 @@ export function normalizeKey(entry: ApiKeyEntry): { key: string; enabled: boolea
 }
 
 /**
- * 统一的密钥掩码函数（与后端 provider.rs::mask_key 行为一致）：
- *   - 长度 <= 12：保留首 4 个字符 + "**"
- *   - 长度 > 12：保留首 6 + 尾 6 个字符，中间以 "**" 替代
+ * 统一的密钥掩码函数（与后端 provider.rs::mask_key 行为一致）。
+ * 短 key 也保证首尾都露一部分：
+ *   - len <= 2  → 首1 + "**"
+ *   - len <= 6  → 首1 + "**" + 尾1
+ *   - len <= 12 → 首3 + "**" + 尾3
+ *   - len > 12  → 首6 + "**" + 尾6
  * 全程按 Unicode code point 切分，emoji / 多字节字符不会切坏。
  */
 export function maskKey(key: string): string {
   // 使用 Array.from 按 code point 拆分，避免 JS 字符串按 UTF-16 码元切到 emoji 中间
   const chars = Array.from(key)
   const len = chars.length
-  if (len <= 12) {
-    return chars.slice(0, 4).join('') + '**'
+  if (len <= 2) {
+    return chars[0] + '**'
   }
-  const head = chars.slice(0, 6).join('')
-  const tail = chars.slice(-6).join('')
+  const [hl, tl] = len <= 6 ? [1, 1] : len <= 12 ? [3, 3] : [6, 6]
+  const head = chars.slice(0, hl).join('')
+  const tail = chars.slice(len - tl).join('')
   return `${head}**${tail}`
 }

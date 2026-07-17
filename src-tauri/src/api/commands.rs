@@ -10,6 +10,7 @@ use crate::gateway::manager::{
 };
 use crate::infra::db;
 use crate::infra::error::IpcError;
+use crate::infra::opencode::{self, OcForm, OcLoadResult};
 
 #[tauri::command]
 pub fn get_config(app: tauri::AppHandle) -> Config {
@@ -297,4 +298,20 @@ pub fn get_provider_usage(
         total_output_tokens: total_output,
         total_tokens,
     }
+}
+
+// ===================== OpenCode 配置编辑 =====================
+
+/// 读取并解析 `~/.config/opencode/opencode.jsonc`，提取表单字段。
+/// 文件不存在时返回空表单（exists=false），前端可据此新建。
+#[tauri::command]
+pub fn opencode_config_load() -> Result<OcLoadResult, IpcError> {
+    opencode::load().map_err(|e| IpcError(format!("读取 opencode 配置失败: {e}")))
+}
+
+/// 把表单按 key 合并写回配置文件（仅覆盖 model / small_model / default_agent /
+/// provider，其余字段原样保留；保存前自动备份 .bak）。
+#[tauri::command]
+pub fn opencode_config_save(form: OcForm) -> Result<(), IpcError> {
+    opencode::save(&form).map_err(|e| IpcError(format!("保存 opencode 配置失败: {e}")))
 }

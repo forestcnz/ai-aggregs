@@ -9,6 +9,7 @@ import ConfigEditor from './features/settings/index.vue'
 import ChatView from './features/chat/index.vue'
 import UsageView from './features/usage/index.vue'
 import ProviderUsageView from './features/provider-usage/index.vue'
+import OpencodeConfigView from './features/opencode-config/index.vue'
 
 // 全局弹窗状态注入（在挂载子组件前完成 provide）
 provideDialog()
@@ -121,7 +122,8 @@ const {
             { id: 'chat', label: 'AI聊天' },
             { id: 'usage', label: '用量统计' },
             { id: 'provider-usage', label: '供量统计' },
-            { id: 'settings', label: '设置' }
+            { id: 'settings', label: '设置' },
+            { id: 'opencode', label: 'OpenCode' }
           ]"
           :key="tab.id"
           href="#"
@@ -280,6 +282,21 @@ const {
               stroke-width="1.3"
             />
           </svg>
+          <svg
+            v-else-if="tab.id === 'opencode'"
+            class="nav-icon"
+            viewBox="0 0 512 512"
+            fill="none"
+          >
+            <!-- OpenCode 官方 logo：方形外框（带孔）+ 孔下半部方块 -->
+            <path
+              fill-rule="evenodd"
+              clip-rule="evenodd"
+              d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z"
+              fill="currentColor"
+            />
+            <path d="M320 352V224H192V352H320Z" fill="currentColor" opacity="0.45" />
+          </svg>
           <svg v-else class="nav-icon" viewBox="0 0 14 14" fill="none">
             <circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3" />
             <path
@@ -311,7 +328,8 @@ const {
         <ChatView v-else-if="activeTab === 'chat'" :status="status" />
         <UsageView v-else-if="activeTab === 'usage'" :status="status" />
         <ProviderUsageView v-else-if="activeTab === 'provider-usage'" :status="status" />
-        <ConfigEditor v-else />
+        <ConfigEditor v-else-if="activeTab === 'settings'" />
+        <OpencodeConfigView v-else-if="activeTab === 'opencode'" />
       </main>
     </div>
   </div>
