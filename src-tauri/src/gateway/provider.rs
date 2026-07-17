@@ -350,22 +350,67 @@ impl Provider {
 
 fn mask_key(key: &str) -> String {
     // 全程按字符（Unicode scalar）切分，避免落在 UTF-8 多字节字符中间导致 panic
-    let len = key.chars().count();
-    if len <= 12 {
-        // 短 key：只保留首 4 个字符（不足则全部），后接 **
-        let head: String = key.chars().take(4).collect();
-        return format!("{head}**");
+    // 短 key 也保证首尾都露一部分：
+    //   len <= 2  → 首1 + **
+    //   len <= 6  → 首1 + ** + 尾1
+    //   len <= 12 → 首3 + ** + 尾3
+    //   len > 12  → 首6 + ** + 尾6
+    let chars: Vec<char> = key.chars().collect();
+    let len = chars.len();
+    if len <= 2 {
+        return format!("{}**", chars[0]);
     }
-    let head: String = key.chars().take(6).collect();
-    let tail: String = key
-        .chars()
-        .rev()
-        .take(6)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect();
+    let (hl, tl) = if len <= 6 {
+        (1, 1)
+    } else if len <= 12 {
+        (3, 3)
+    } else {
+        (6, 6)
+    };
+    let head: String = chars[..hl].iter().collect();
+    let tail: String = chars[len - tl..].iter().collect();
     format!("{head}**{tail}")
+}
+
+#[cfg(test)]
+mod mask_tests {
+    use super::mask_key;
+
+    #[test]
+    fn very_short_key_shows_head_only() {
+        // len <= 2：首1 + **（首尾分离无意义）
+        assert_eq!(mask_key("a"), "a**");
+        assert_eq!(mask_key("ab"), "a**");
+    }
+
+    #[test]
+    fn short_key_shows_head_and_tail() {
+        // len 3..=6：首1 + ** + 尾1
+        assert_eq!(mask_key("abc"), "a**c");
+        assert_eq!(mask_key("sk-1"), "s**1");
+        assert_eq!(mask_key("abcdef"), "a**f");
+    }
+
+    #[test]
+    fn medium_key_shows_3_and_3() {
+        // len 7..=12：首3 + ** + 尾3
+        assert_eq!(mask_key("sk-abcdef"), "sk-**def");
+        assert_eq!(mask_key("1234567890ab"), "123**0ab");
+    }
+
+    #[test]
+    fn long_key_shows_6_and_6() {
+        // len > 12：首6 + ** + 尾6
+        // "sk-prj-1234567890abcdef"（23 字符）→ 首6 "sk-prj" + ** + 尾6 "abcdef"
+        assert_eq!(mask_key("sk-prj-1234567890abcdef"), "sk-prj**abcdef");
+    }
+
+    #[test]
+    fn multibyte_chars_not_corrupted() {
+        // emoji / 中文按 Unicode scalar 切分，不会切坏
+        // "🔑secret🔑"（8 字符）→ 落在 7..=12 档：首3 "🔑se" + ** + 尾3 "et🔑"
+        assert_eq!(mask_key("🔑secret🔑"), "🔑se**et🔑");
+    }
 }
 
 /// 构建透传到上游的请求头集合：
