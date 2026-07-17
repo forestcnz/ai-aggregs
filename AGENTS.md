@@ -43,8 +43,14 @@ lint/format 顺序：编辑 → `bun run lint:fix` → `cargo clippy`(Rust) → 
 
 ```
 src/
-├── api/commands.ts       ← Tauri IPC 封装 + 类型（与 Rust 一一对应）
-├── App.{vue,ts,css}      ← 根组件，日志状态提升到此层级
+├── api/commands.ts       ← Tauri IPC 封装 + 类型（与 Rust 一一对应）+ 共享工具（maskKey/normalizeKey）
+├── App.{vue,ts,css}      ← 根组件，日志状态提升到此层级；provideDialog() 注入点
+├── components/           ← 全局通用组件
+│   ├── AppToast.vue      ← 全局 toast 容器（由 useDialog 驱动）
+│   ├── AppModal.vue      ← 通用遮罩 + 卡片壳（slot-based）
+│   └── AppConfirm.vue    ← 全局确认/提示框（由 useDialog 驱动）
+├── composables/
+│   └── useDialog.ts      ← 全局弹窗状态 + API（toast/alert/confirm）
 ├── features/             ← 按功能拆分
 │   ├── dashboard/        ← 网关状态（仪表盘）
 │   ├── providers/        ← 提供商管理
@@ -68,11 +74,25 @@ src/
 
 日志状态提升到 `App.vue`，避免切页丢失。通过 `gateway-log` 事件接收，最多保留 500 条。
 
+### 弹窗（toast / alert / confirm）
+
+**统一通过 `useDialog()` 调用，禁止在 feature 内自建 `msg` ref / `dialogMsg` / 本地 overlay。** `App.vue` 启动时 `provideDialog()` 注入全局状态，`<AppToast/>` + `<AppConfirm/>` 挂在根节点。
+
+```ts
+const { toast, alert, confirm } = useDialog()
+toast('保存成功', 'success')          // info | success | error，默认 2400ms 自动消失
+await alert({ title: '失败', message: String(e) })  // 单按钮，返回 Promise<void>
+const ok = await confirm({ message: '删除？', danger: true, confirmText: '删除' })  // 返回 boolean
+```
+
+- provider 拖拽排序后用 `save(true)` 静默保存（成功不提示，失败才提示）
+- feature 内需要模态框（如 providers 编辑表单）用 `<AppModal>`，通过 `open` prop + `@close` 控制，内容走 slot
+
 ## 后端 (`src-tauri/src/`)
 
 ### 模块布局
 
-- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 13 个 IPC 命令 + 2 个事件
+- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 14 个 IPC 命令 + 2 个事件
 - `api/commands.rs` — 所有 `#[tauri::command]` 函数
 - `api/handler.rs` — Axum HTTP 请求处理（鉴权、model 路由、协议判定、failover）
 - `api/router.rs` — Axum 路由表 + CORS
@@ -92,6 +112,9 @@ src/
 - 网关不暴露独立端口，Axum 嵌在 Tauri 进程内
 - 关闭窗口→隐藏到系统托盘，不从进程退出（托盘菜单退出）
 - `--minimized` 标志：启动时隐藏窗口（开机自启用此标志）
+- **async 命令中的 DB 操作必须用 `tauri::async_runtime::spawn_blocking` 包裹**（`save_config`、`UsageCtx::record` 已遵循此模式）。DB 连接是 `Arc<Mutex<rusqlite::Connection>>`（同步 rusqlite，非 async），在 async 路径直接 `.lock()` 会阻塞 tokio worker
+- 流式请求（SSE）不应用总超时：`Provider::client` 只设 `connect_timeout`，非流式请求通过 `RequestBuilder::timeout()` 单独设置
+- consumer key 比较用 `constant_time_eq`（防 timing attack）；未配置 key 时放行但启动告警
 
 ### 协议自动检测 (URL 路径)
 
@@ -128,6 +151,6 @@ src/
 
 ## CI
 
-`.github/workflows/build.yml` — 推送 `v*` tag 触发，在 Windows + macOS (Intel + ARM) 上并行构建。产物上传到 GitHub Release（draft），使用 `tauri-action`。
+`.github/workflows/build.yml` — 推送 `v*` tag 触发，在 Windows + macOS (Intel + ARM) 上并行构建。产物上传到 GitHub Release（非 draft），使用 `tauri-action`。
 - 触发：`git tag v0.1.0 && git push origin v0.1.0`
 - 手动触发：GitHub 页面 → Actions → Build → Run workflow
