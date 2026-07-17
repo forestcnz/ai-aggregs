@@ -258,6 +258,16 @@ body{
 .pc{border:1px solid var(--border-weak);border-radius:var(--r-md);overflow:hidden;transition:var(--t)}
 .pc:hover{border-color:var(--border)}
 .pc.off{opacity:.45}
+/* 拖动中的源卡片 */
+.pc.dragging{opacity:.4;transform:scale(.98)}
+/* 拖动悬停目标 — 顶部高亮提示放置位置 */
+.pc.drag-over{box-shadow:0 -2px 0 0 var(--text-strong);border-color:var(--text-strong)}
+/* 拖动进行中：全区域 grabbing 光标 + 禁止选中 */
+.pc-grid.dragging,.pc-grid.dragging *{cursor:grabbing!important;user-select:none!important}
+/* 拖动排序手柄 */
+.drag-handle{display:flex;align-items:center;justify-content:center;width:14px;flex-shrink:0;color:var(--text-weak);cursor:grab;opacity:.5;transition:var(--t);user-select:none}
+.drag-handle:hover{opacity:1;color:var(--text-strong)}
+.drag-handle:active{cursor:grabbing}
 .pc-head{display:flex;align-items:center;justify-content:space-between;padding:12px 15px}
 .pc-left{display:flex;align-items:center;gap:10px;min-width:0}
 .pc-icon{width:28px;height:28px;border:1px solid var(--border-weak);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
@@ -567,6 +577,15 @@ body{
       <line x1="3.5" y1="8" x2="3.5" y2="12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="square"/>
       <rect x="7" y="7" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/>
     </symbol>
+    <!-- 拖动排序手柄 · 六点 grip -->
+    <symbol id="ic-grip" viewBox="0 0 10 14">
+      <circle cx="2" cy="2" r="1.4" fill="currentColor"/>
+      <circle cx="8" cy="2" r="1.4" fill="currentColor"/>
+      <circle cx="2" cy="7" r="1.4" fill="currentColor"/>
+      <circle cx="8" cy="7" r="1.4" fill="currentColor"/>
+      <circle cx="2" cy="12" r="1.4" fill="currentColor"/>
+      <circle cx="8" cy="12" r="1.4" fill="currentColor"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -751,15 +770,15 @@ body{
           <!-- 提供商 -->
           <div class="tabpane" data-pane="providers">
             <div class="ph-row">
-              <div class="left"><div class="page-title">供应商管理</div><div class="page-sub">管理上游 API 提供商及密钥</div></div>
+              <div class="left"><div class="page-title">供应商管理</div><div class="page-sub">管理上游 API 提供商及密钥 · 拖动手柄调整顺序</div></div>
               <div style="display:flex;gap:9px;align-items:center">
                 <span class="badge run"><span class="dot on"></span>已保存</span>
                 <button class="btn btn-sm" id="btn-add-provider">+ 添加提供商</button>
               </div>
             </div>
-            <div class="pc-grid">
+            <div class="pc-grid" id="pc-grid">
               <div class="pc">
-                <div class="pc-head"><div class="pc-left"><div class="pc-icon">💬</div><div class="pc-name"><span class="nm">openai</span><span class="proto-tag">chat</span></div></div><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label></div>
+                <div class="pc-head"><div class="pc-left"><div class="drag-handle" title="拖动以排序"><svg width="10" height="14"><use href="#ic-grip"/></svg></div><div class="pc-icon">💬</div><div class="pc-name"><span class="nm">openai</span><span class="proto-tag">chat</span></div></div><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label></div>
                 <div class="pc-body">
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://api.openai.com/v1</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>gpt-4o-mini</span><span>o1</span><span>o3-mini</span><span>gpt-4.1</span></div></span></div>
@@ -773,8 +792,21 @@ body{
                   </div>
                 </div>
               </div>
+              <div class="pc off">
+                <div class="pc-head"><div class="pc-left"><div class="drag-handle" title="拖动以排序"><svg width="10" height="14"><use href="#ic-grip"/></svg></div><div class="pc-icon">🔄</div><div class="pc-name"><span class="nm">azure-openai</span><span class="proto-tag">responses</span></div></div><label class="toggle"><input type="checkbox"><span class="sl"></span></label></div>
+                <div class="pc-body">
+                  <div class="pf"><span class="fl">Base URL</span><span class="fv">https://my-azure.openai.azure.com</span></div>
+                  <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>o1</span></div></span></div>
+                  <div class="pf"><span class="fl">Reasoning</span><span class="fv">high</span></div>
+                  <div class="pf"><span class="fl">超时</span><span class="fv">120s</span></div>
+                  <div class="keys-sec">
+                    <div class="kh">API KEYS (1)</div>
+                    <div class="key-row"><label class="toggle"><input type="checkbox"><span class="sl"></span></label><span class="kv">azure**c7D2</span><span class="ks ds">已禁用</span></div>
+                  </div>
+                </div>
+              </div>
               <div class="pc">
-                <div class="pc-head"><div class="pc-left"><div class="pc-icon">🧠</div><div class="pc-name"><span class="nm">anthropic</span><span class="proto-tag">anthropic</span></div></div><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label></div>
+                <div class="pc-head"><div class="pc-left"><div class="drag-handle" title="拖动以排序"><svg width="10" height="14"><use href="#ic-grip"/></svg></div><div class="pc-icon">🧠</div><div class="pc-name"><span class="nm">anthropic</span><span class="proto-tag">anthropic</span></div></div><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label></div>
                 <div class="pc-body">
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://api.anthropic.com</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>claude-3-5-sonnet</span><span>claude-3-opus</span><span>claude-3-haiku</span><span>claude-sonnet-4</span></div></span></div>
@@ -788,7 +820,7 @@ body{
                 </div>
               </div>
               <div class="pc">
-                <div class="pc-head"><div class="pc-left"><div class="pc-icon">💬</div><div class="pc-name"><span class="nm">glm</span><span class="proto-tag">chat</span></div></div><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label></div>
+                <div class="pc-head"><div class="pc-left"><div class="drag-handle" title="拖动以排序"><svg width="10" height="14"><use href="#ic-grip"/></svg></div><div class="pc-icon">💬</div><div class="pc-name"><span class="nm">glm</span><span class="proto-tag">chat</span></div></div><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label></div>
                 <div class="pc-body">
                   <div class="pf"><span class="fl">Base URL</span><span class="fv">https://open.bigmodel.cn/api/paas/v4</span></div>
                   <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>glm-4-plus</span><span>glm-4-air</span><span>glm-4-flash</span></div></span></div>
@@ -797,19 +829,6 @@ body{
                   <div class="keys-sec">
                     <div class="kh">API KEYS (1)</div>
                     <div class="key-row"><label class="toggle"><input type="checkbox" checked><span class="sl"></span></label><span class="kv">xxxxxxxx**f2a1</span><span class="ks ok">正常</span></div>
-                  </div>
-                </div>
-              </div>
-              <div class="pc off">
-                <div class="pc-head"><div class="pc-left"><div class="pc-icon">🔄</div><div class="pc-name"><span class="nm">azure-openai</span><span class="proto-tag">responses</span></div></div><label class="toggle"><input type="checkbox"><span class="sl"></span></label></div>
-                <div class="pc-body">
-                  <div class="pf"><span class="fl">Base URL</span><span class="fv">https://my-azure.openai.azure.com</span></div>
-                  <div class="pf"><span class="fl">Models</span><span class="fv"><div class="tags"><span>gpt-4o</span><span>o1</span></div></span></div>
-                  <div class="pf"><span class="fl">Reasoning</span><span class="fv">high</span></div>
-                  <div class="pf"><span class="fl">超时</span><span class="fv">120s</span></div>
-                  <div class="keys-sec">
-                    <div class="kh">API KEYS (1)</div>
-                    <div class="key-row"><label class="toggle"><input type="checkbox"><span class="sl"></span></label><span class="kv">azure**c7D2</span><span class="ks ds">已禁用</span></div>
                   </div>
                 </div>
               </div>
@@ -1143,6 +1162,61 @@ btnClose.addEventListener('click', closeModal);
 btnCancel.addEventListener('click', closeModal);
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* 供应商卡片拖拽排序（纯鼠标事件，与真实应用一致） */
+const pcGrid = document.getElementById('pc-grid');
+let dragIdx = -1, dragOverIdx = -1, pendingIdx = -1, sx = 0, sy = 0;
+function findCardAtPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (!el) return -1;
+  const card = el.closest('.pc');
+  if (!card || !pcGrid.contains(card)) return -1;
+  return [...pcGrid.children].indexOf(card);
+}
+function clearDragState() {
+  if (dragIdx !== -1) pcGrid.children[dragIdx]?.classList.remove('dragging');
+  if (dragOverIdx !== -1) pcGrid.children[dragOverIdx]?.classList.remove('drag-over');
+  pcGrid.classList.remove('dragging');
+  dragIdx = dragOverIdx = pendingIdx = -1;
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragUp);
+}
+function onDragMove(e) {
+  if (pendingIdx !== -1) {
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (dx * dx + dy * dy < 16) return;
+    dragIdx = pendingIdx; pendingIdx = -1;
+    pcGrid.classList.add('dragging');
+    pcGrid.children[dragIdx]?.classList.add('dragging');
+  }
+  if (dragIdx === -1) return;
+  e.preventDefault();
+  const newOver = findCardAtPoint(e.clientX, e.clientY);
+  if (newOver !== dragOverIdx) {
+    if (dragOverIdx !== -1) pcGrid.children[dragOverIdx]?.classList.remove('drag-over');
+    dragOverIdx = newOver;
+    if (dragOverIdx !== -1 && dragOverIdx !== dragIdx) pcGrid.children[dragOverIdx]?.classList.add('drag-over');
+  }
+}
+function onDragUp() {
+  if (dragIdx !== -1 && dragOverIdx !== -1 && dragIdx !== dragOverIdx) {
+    const moved = pcGrid.children[dragIdx];
+    const target = pcGrid.children[dragOverIdx];
+    pcGrid.insertBefore(moved, dragOverIdx > dragIdx ? target.nextSibling : target);
+  }
+  clearDragState();
+}
+pcGrid.addEventListener('mousedown', e => {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle) return;
+  if (e.button !== 0) return;
+  e.preventDefault();
+  const card = handle.closest('.pc');
+  pendingIdx = [...pcGrid.children].indexOf(card);
+  sx = e.clientX; sy = e.clientY;
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragUp);
+});
 
 document.querySelectorAll('.chip-input').forEach(ci => {
   const input = ci.querySelector('.chip-field');
