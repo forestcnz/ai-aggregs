@@ -5,7 +5,7 @@ import { type GatewayStatus } from '../../api/commands'
 const props = defineProps<{ status: GatewayStatus }>()
 const {
   protocol, selectedModel, selectedKey, input, sending, dialogMsg,
-  messages, scrollEl, textareaRef, models, apiKeys, maskKey,
+  messages, scrollEl, textareaRef, models, apiKeys,
   closeDialog, send, stop, clearChat, onKeydown
 } = useChat(props)
 </script>
@@ -25,7 +25,7 @@ const {
         </select>
         <select v-model="selectedKey" class="key-select" :disabled="sending">
           <option v-if="apiKeys.length === 0" value="" disabled>未配置 Key</option>
-          <option v-for="k in apiKeys" :key="k" :value="k">{{ maskKey(k) }}</option>
+          <option v-for="k in apiKeys" :key="k" :value="k">{{ k }}</option>
         </select>
         <button
           class="btn btn-secondary sm"

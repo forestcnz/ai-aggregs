@@ -4,7 +4,7 @@ import { type GatewayStatus } from '../../api/commands'
 
 defineProps<{ status: GatewayStatus }>()
 
-const { config, summary, selectedKey, selectedDays, loading, loadUsage, fmtNum, maskKey, colorForModel } =
+const { config, summary, selectedKey, selectedDays, loading, loadUsage, fmtNum, colorForModel } =
   useUsage()
 </script>
 
@@ -24,7 +24,7 @@ const { config, summary, selectedKey, selectedDays, loading, loadUsage, fmtNum, 
             :key="key"
             :value="key"
           >
-            {{ maskKey(key) }}
+            {{ key }}
           </option>
         </select>
       </div>

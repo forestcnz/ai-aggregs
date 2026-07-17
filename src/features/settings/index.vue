@@ -9,7 +9,6 @@ const {
   keyInput,
   addKey,
   removeKey,
-  maskKey,
   save,
   toggleAutostart,
   mapInputs,
@@ -66,7 +65,7 @@ const {
         <label>API Keys</label>
         <div class="chip-input">
           <span v-for="(k, ki) in cfg.consumer.api_keys" :key="ki" class="chip">
-            <span class="chip-text">{{ maskKey(k) }}</span>
+            <span class="chip-text">{{ k }}</span>
             <button class="chip-x" @click="removeKey(ki)">×</button>
           </span>
           <input
