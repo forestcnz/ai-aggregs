@@ -255,6 +255,9 @@ export const opencodeConfigSave = (form: OcForm) =>
 /** 执行 `opencode models` 获取 opencode 可用的 provider id 列表（屏蔽下拉候选） */
 export const opencodeProviderIds = () => invoke<string[]>('opencode_provider_ids')
 
+/** 执行 `opencode -v` 获取版本号；未安装返回 null（控制侧边栏入口显示） */
+export const opencodeVersion = () => invoke<string | null>('opencode_version')
+
 // ===================== 事件监听 =====================
 
 /** 监听网关日志事件，返回取消监听函数 */

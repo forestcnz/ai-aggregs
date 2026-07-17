@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useApp } from './App'
 import { provideDialog } from './composables/useDialog'
 import AppToast from './components/AppToast.vue'
@@ -18,12 +19,27 @@ const {
   activeTab,
   status,
   isMaximized,
+  ocVersion,
   logs,
   refreshStatus,
   minimize,
   toggleMaximize,
   closeWindow
 } = useApp()
+
+// 侧边栏导航：仅当检测到 opencode 已安装（ocVersion 非空）时才显示 OpenCode 入口
+const navTabs = computed(() => {
+  const tabs: { id: string; label: string }[] = [
+    { id: 'dashboard', label: '网关状态' },
+    { id: 'providers', label: '供应商' },
+    { id: 'chat', label: 'AI聊天' },
+    { id: 'usage', label: '用量统计' },
+    { id: 'provider-usage', label: '供量统计' },
+    { id: 'settings', label: '设置' }
+  ]
+  if (ocVersion.value) tabs.push({ id: 'opencode', label: 'OpenCode' })
+  return tabs
+})
 </script>
 
 <template>
@@ -116,15 +132,7 @@ const {
       <!-- 侧边栏 -->
       <nav class="sidebar">
         <a
-          v-for="tab in [
-            { id: 'dashboard', label: '网关状态' },
-            { id: 'providers', label: '供应商' },
-            { id: 'chat', label: 'AI聊天' },
-            { id: 'usage', label: '用量统计' },
-            { id: 'provider-usage', label: '供量统计' },
-            { id: 'settings', label: '设置' },
-            { id: 'opencode', label: 'OpenCode' }
-          ]"
+          v-for="tab in navTabs"
           :key="tab.id"
           href="#"
           class="nav-item"
@@ -329,7 +337,7 @@ const {
         <UsageView v-else-if="activeTab === 'usage'" :status="status" />
         <ProviderUsageView v-else-if="activeTab === 'provider-usage'" :status="status" />
         <ConfigEditor v-else-if="activeTab === 'settings'" />
-        <OpencodeConfigView v-else-if="activeTab === 'opencode'" />
+        <OpencodeConfigView v-else-if="activeTab === 'opencode'" :version="ocVersion" />
       </main>
     </div>
   </div>

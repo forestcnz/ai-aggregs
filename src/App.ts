@@ -4,16 +4,19 @@ import {
   gatewayStatus,
   onGatewayStateChanged,
   onLog,
+  opencodeVersion,
   type GatewayStatus,
   type LogEntry
 } from './api/commands'
 
 export function useApp() {
   const activeTab = ref<
-    'dashboard' | 'providers' | 'chat' | 'usage' | 'provider-usage' | 'settings'
+    'dashboard' | 'providers' | 'chat' | 'usage' | 'provider-usage' | 'settings' | 'opencode'
   >('dashboard')
   const status = ref<GatewayStatus>({ running: false, listen_addr: '' })
   const isMaximized = ref(false)
+  /** opencode 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
+  const ocVersion = ref<string | null>(null)
   let unlistenStatus: (() => void) | null = null
   let unlistenResize: (() => void) | null = null
   let unlistenLog: (() => void) | null = null
@@ -58,6 +61,12 @@ export function useApp() {
 
     await refreshStatus()
     await checkMaximized()
+    // 检测 opencode 是否安装（决定侧边栏入口显隐），失败静默置 null
+    try {
+      ocVersion.value = await opencodeVersion()
+    } catch {
+      ocVersion.value = null
+    }
     unlistenStatus = await onGatewayStateChanged((running) => {
       status.value.running = running
       refreshStatus()
@@ -81,6 +90,7 @@ export function useApp() {
     activeTab,
     status,
     isMaximized,
+    ocVersion,
     logs,
     refreshStatus,
     minimize,

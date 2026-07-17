@@ -551,7 +551,23 @@ pub fn save(form: &OcForm) -> std::io::Result<()> {
     Ok(())
 }
 
-// ===================== provider id 列表（执行 opencode 命令） =====================
+// ===================== 执行 opencode 命令 =====================
+
+/// 通过系统 shell 执行 `opencode <args>`，由 shell 负责按 PATH / PATHEXT 解析
+/// （Windows 上 opencode 是 npm/bun 生成的 .cmd shim，需经 cmd.exe；Unix 经 sh）。
+fn run_opencode(args: &str) -> std::io::Result<std::process::Output> {
+    let (shell, flag) = if cfg!(target_os = "windows") {
+        ("cmd.exe", "/c")
+    } else {
+        ("sh", "-c")
+    };
+    std::process::Command::new(shell)
+        .arg(flag)
+        .arg(format!("opencode {args}"))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()
+}
 
 /// 执行 `opencode models`，从其输出（每行 `provider/model`）中提取去重、
 /// 按字母序排列的 provider id 列表。这些是 opencode 当前可加载的 provider，
@@ -559,19 +575,7 @@ pub fn save(form: &OcForm) -> std::io::Result<()> {
 ///
 /// 失败原因：opencode 不在 PATH、命令退出非 0 等。
 pub fn list_provider_ids() -> std::io::Result<Vec<String>> {
-    // 通过系统 shell 执行，由 shell 负责按 PATH / PATHEXT 解析 `opencode`
-    // （Windows 上 opencode 是 npm/bun 生成的 .cmd shim，需经 cmd.exe；Unix 经 sh）。
-    let (shell, flag) = if cfg!(target_os = "windows") {
-        ("cmd.exe", "/c")
-    } else {
-        ("sh", "-c")
-    };
-    let output = std::process::Command::new(shell)
-        .arg(flag)
-        .arg("opencode models")
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .output()?;
+    let output = run_opencode("models")?;
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         let suffix = if err.trim().is_empty() {
@@ -596,6 +600,21 @@ pub fn list_provider_ids() -> std::io::Result<Vec<String>> {
         }
     }
     Ok(set.into_iter().collect())
+}
+
+/// 执行 `opencode -v` 获取版本号；未安装或执行失败时返回 None。
+/// 前端据此决定是否显示「OpenCode 配置」侧边栏入口。
+pub fn version() -> Option<String> {
+    let output = run_opencode("-v").ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let v = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if v.is_empty() {
+        None
+    } else {
+        Some(v)
+    }
 }
 
 // ===================== 测试 =====================

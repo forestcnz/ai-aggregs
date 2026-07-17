@@ -328,3 +328,12 @@ pub async fn opencode_provider_ids() -> Result<Vec<String>, IpcError> {
     .await
     .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
 }
+
+/// 执行 `opencode -v` 获取版本号；未安装返回 None。
+/// 前端据此决定是否显示「OpenCode 配置」侧边栏入口。
+#[tauri::command]
+pub async fn opencode_version() -> Result<Option<String>, IpcError> {
+    tauri::async_runtime::spawn_blocking(|| Ok(opencode::version()))
+        .await
+        .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
+}

@@ -4,6 +4,8 @@ import ModelCombobox from './ModelCombobox.vue'
 import MultiCombobox from './MultiCombobox.vue'
 import type { OcModel } from '../../api/commands'
 
+const props = defineProps<{ version?: string | null }>()
+
 const {
   form,
   loading,
@@ -65,6 +67,7 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
   <div v-else-if="form" class="oc-page">
     <h1 class="page-title">
       OpenCode 配置
+      <span v-if="props.version" class="file-tag" title="opencode 版本">v{{ props.version }}</span>
       <span class="file-tag">{{ fileBaseName }}</span>
     </h1>
     <p class="page-sub">编辑 OpenCode 工具配置 · 与本网关联动</p>

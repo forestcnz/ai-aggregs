@@ -188,6 +188,7 @@ pub fn run() {
             opencode_config_load,
             opencode_config_save,
             opencode_provider_ids,
+            opencode_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
