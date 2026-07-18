@@ -20,7 +20,7 @@ tauri-plugin-autostart = "2"
 # 网关运行时
 axum = { version = "0.7", features = ["json"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "gzip", "brotli", "deflate"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 # TOML 解析（Codex 配置 ~/.codex/config.toml）；preserve_order 避免重排用户表格

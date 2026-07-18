@@ -217,7 +217,6 @@ mod tests {
             api_keys: vec![ApiKeyEntry::Plain("sk-test".into())],
             models: models.iter().map(|m| (*m).to_string()).collect(),
             timeout_secs: 10,
-            extra_headers: HashMap::new(),
             enabled: true,
             reasoning_effort: None,
         };

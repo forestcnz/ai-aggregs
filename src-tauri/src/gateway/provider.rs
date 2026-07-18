@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
 
 use crate::config::types::{ApiKeyEntry, Protocol, ProviderConfig};
@@ -36,7 +36,6 @@ pub struct Provider {
     pub protocol: Protocol,
     pub base_url: String,
     pub models: Vec<String>,
-    pub extra_headers: Vec<(String, String)>,
     pub reasoning_effort: Option<String>,
     keys: Vec<ApiKeyEntry>,
     blacklist: Mutex<HashMap<usize, Instant>>,
@@ -66,11 +65,6 @@ impl Provider {
             protocol: cfg.protocol,
             base_url: cfg.base_url.trim_end_matches('/').to_string(),
             models: cfg.models.clone(),
-            extra_headers: cfg
-                .extra_headers
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect(),
             reasoning_effort: cfg.reasoning_effort.clone(),
             keys: cfg.api_keys.clone(),
             blacklist: Mutex::new(HashMap::new()),
@@ -169,11 +163,27 @@ impl Provider {
         stream: bool,
         incoming: &HeaderMap,
     ) -> Result<(reqwest::Response, String), UpstreamError> {
-        // 预构建透传 + 补充请求头（auth 单独 per-key 处理）：
-        //   1. 透传 incoming 所有非认证 / 非 hop-by-hop 头（小写比较）
-        //   2. extra_headers 仅补充 consumer 未带的 key（不覆盖已透传的值）
-        //   认证头（authorization / x-api-key / anthropic-version）由 auth_headers_for 注入，不透传
-        let forward = build_forward_headers(incoming, &self.extra_headers);
+        // 请求头策略：Consumer 请求头完整透传，但必须剥离两类头：
+        //   1. 认证头（authorization / x-api-key / anthropic-version）— 由 auth_headers_for
+        //      按协议注入 provider 自己的 key（key 替换是唯一改写点）。
+        //   2. 传输相关头（host / content-length / content-type）— reqwest 必须基于实际
+        //      上游 URL 和最终 body 重新计算，否则会触发上游路由失败 / 长度不一致 / 编码错误：
+        //        - host：透传 consumer 的 127.0.0.1:8849 会让 nginx 路由失败返回 403
+        //        - content-length：body 可能被改写（别名重定向 / stream_options / reasoning_effort）
+        //        - content-type：.json() 会自动设为 application/json
+        //   accept-encoding 完整透传：reqwest 已启用 gzip/brotli/deflate feature，
+        //   会按响应的 content-encoding 自动解压，无需关心上游压缩策略变化。
+        let mut forward = incoming.clone();
+        for h in [
+            "authorization",
+            "x-api-key",
+            "anthropic-version",
+            "host",
+            "content-length",
+            "content-type",
+        ] {
+            forward.remove(h);
+        }
         let url = format!("{}{}", self.base_url, endpoint);
         let send_body: serde_json::Value = if let Some(eff) = &self.reasoning_effort {
             let mut b = body.clone();
@@ -217,9 +227,9 @@ impl Provider {
 
                 let key = self.keys[idx].key();
                 let masked = mask_key(key);
-                // 构建完整上游请求头：auth（优先级最低）→ 透传+补充（forward，覆盖同名 auth 以防用户故意覆盖认证）
+                // 最终请求头 = provider 认证（按 p_proto）+ Consumer 透传头
                 let mut headers = self.auth_headers_for(key);
-                for (name, val) in &forward {
+                for (name, val) in forward.iter() {
                     headers.append(name.clone(), val.clone());
                 }
                 // debug：输出最终发送给上游的请求头（剔除认证头，避免泄漏密钥）
@@ -411,77 +421,4 @@ mod mask_tests {
         // "🔑secret🔑"（8 字符）→ 落在 7..=12 档：首3 "🔑se" + ** + 尾3 "et🔑"
         assert_eq!(mask_key("🔑secret🔑"), "🔑se**et🔑");
     }
-}
-
-/// 构建透传到上游的请求头集合：
-///
-/// 1. 透传 incoming 所有非认证 / 非 hop-by-hop 头（小写比较）
-/// 2. extra_headers 仅补充 consumer 未携带的 key（不覆盖已透传的值）
-/// 3. 认证头（authorization / x-api-key / anthropic-version）由 auth_headers_for 注入，不透传
-fn build_forward_headers(
-    incoming: &HeaderMap,
-    extra: &[(String, String)],
-) -> Vec<(HeaderName, HeaderValue)> {
-    // 跳过：认证 + 协议/传输相关（hop-by-hop & reqwest 自动设置）+ 隐私敏感头
-    // - 认证：由 auth_headers_for 单独注入，避免 consumer 的认证头泄漏给上游
-    // - hop-by-hop：HTTP/1.1 规范要求代理剥离的头
-    // - cookie / forwarded：consumer 端的会话信息，禁止透传给第三方上游
-    const SKIP: &[&str] = &[
-        "authorization",
-        "x-api-key",
-        "anthropic-version",
-        "host",
-        "content-length",
-        "content-type",
-        "connection",
-        "keep-alive",
-        "proxy-authorization",
-        "proxy-authenticate",
-        "te",
-        "trailer",
-        "transfer-encoding",
-        "upgrade",
-        // 内容编码：reqwest 未启用 gzip/brotli feature，不会自动解压。
-        // 若透传客户端的 accept-encoding，上游会返回压缩响应，
-        // 网关无法解析（非流式 JSON 解析失败 / 流式 SSE 字节被压缩且 content-encoding 头在重建响应时丢失）。
-        // 本地网关场景（client → gateway 为 localhost）无需压缩，禁用透传最稳妥。
-        "accept-encoding",
-        // 会话/隐私头：禁止泄漏给第三方上游
-        "cookie",
-        "cookie2",
-        // 代理/转发链路头：上游不应感知 consumer 端的代理路径
-        "forwarded",
-        "x-forwarded-for",
-        "x-forwarded-host",
-        "x-forwarded-proto",
-        "x-forwarded-port",
-        "x-real-ip",
-        // 安全相关头：不应被 consumer 覆盖上游的安全策略
-        "strict-transport-security",
-        "content-security-policy",
-        "x-content-type-options",
-        "x-frame-options",
-    ];
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut out: Vec<(HeaderName, HeaderValue)> = Vec::new();
-    for (name, val) in incoming.iter() {
-        let lname = name.as_str().to_lowercase();
-        if SKIP.contains(&lname.as_str()) {
-            continue;
-        }
-        // 跳过 consumer 自身的 consumer key（防泄漏），但网关本身不校验这些头，保留即可
-        seen.insert(lname.clone());
-        out.push((name.clone(), val.clone()));
-    }
-    // extra_headers 补充：仅添加 consumer 未携带的 key
-    for (k, v) in extra {
-        if seen.contains(&k.to_lowercase()) {
-            continue;
-        }
-        if let (Ok(name), Ok(val)) = (HeaderName::try_from(k.as_str()), HeaderValue::from_str(v)) {
-            seen.insert(k.to_lowercase());
-            out.push((name, val));
-        }
-    }
-    out
 }

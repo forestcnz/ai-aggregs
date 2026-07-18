@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -99,8 +97,6 @@ pub struct ProviderConfig {
     pub models: Vec<String>,
     #[serde(default = "default_timeout")]
     pub timeout_secs: u64,
-    #[serde(default)]
-    pub extra_headers: HashMap<String, String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
