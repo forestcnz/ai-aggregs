@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;450;500;600;700&display=swap" rel="stylesheet">
+<title>AI聊天 · ai-aggregs 重设计稿</title>
+<link rel="stylesheet" href="../styles.css">
+</head>
+<body class="detail">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- 主 Logo · 四凸饱满 — 四圆弧凸起 + 三数据方块（定稿 PRIMARY） -->
+    <symbol id="ico" viewBox="0 0 64 64">
+      <path d="M10 40 A7 7 0 0 1 19 30 A9 9 0 0 1 32 26 A9 9 0 0 1 45 30 A7 7 0 0 1 54 40 L16 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 反白版 — 用于深色背景（托盘 / 深色按钮） -->
+    <symbol id="ico-inv" viewBox="0 0 64 64">
+      <path d="M10 40 A7 7 0 0 1 19 30 A9 9 0 0 1 32 26 A9 9 0 0 1 45 30 A7 7 0 0 1 54 40 L16 40" fill="none" stroke="#fcfafa" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#fcfafa"/>
+      <rect x="29" y="46" width="6" height="6" fill="#fcfafa"/>
+      <rect x="37" y="46" width="6" height="6" fill="#fcfafa"/>
+    </symbol>
+    <!-- 01 · 两凸扁平 — 只两个凸起，更扁更克制 -->
+    <symbol id="logo-2" viewBox="0 0 64 64">
+      <path d="M14 40 A10 10 0 0 1 32 30 A10 10 0 0 1 50 40 L20 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 02 · 四凸饱满 — 四个凸起，更蓬松 -->
+    <symbol id="logo-3" viewBox="0 0 64 64">
+      <path d="M10 40 A7 7 0 0 1 19 30 A9 9 0 0 1 32 26 A9 9 0 0 1 45 30 A7 7 0 0 1 54 40 L16 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 03 · 单穹顶 — 一个大圆顶，极简 -->
+    <symbol id="logo-4" viewBox="0 0 64 64">
+      <path d="M12 40 A20 20 0 0 1 52 40 L18 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 04 · 回钩收笔 — 三凸 + 末端向内回钩，书法感 -->
+    <symbol id="logo-5" viewBox="0 0 64 64">
+      <path d="M12 40 A8 8 0 0 1 22 28 A13 13 0 0 1 42 28 A8 8 0 0 1 52 40 L18 40 L23 35" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 05 · 闭合轮廓 — 底部完全闭合，不开放留口 -->
+    <symbol id="logo-6" viewBox="0 0 64 64">
+      <path d="M12 40 A8 8 0 0 1 22 28 A13 13 0 0 1 42 28 A8 8 0 0 1 52 40 Z" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 06 · 不对称 — 凸起左大右小，打破对称更有机 -->
+    <symbol id="logo-7" viewBox="0 0 64 64">
+      <path d="M12 40 A11 11 0 0 1 25 28 A12 12 0 0 1 43 30 A7 7 0 0 1 52 40 L18 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <!-- 07 · 虚线笔触 — 云用虚线勾勒，数字/数据感 -->
+    <symbol id="logo-8" viewBox="0 0 64 64">
+      <path d="M12 40 A8 8 0 0 1 22 28 A13 13 0 0 1 42 28 A8 8 0 0 1 52 40 L18 40" fill="none" stroke="#1f1e1e" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="4 2.5"/>
+      <rect x="21" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="29" y="46" width="6" height="6" fill="#1f1e1e"/>
+      <rect x="37" y="46" width="6" height="6" fill="#1f1e1e"/>
+    </symbol>
+    <symbol id="ic-dash" viewBox="0 0 14 14">
+      <rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <rect x="8" y="1.5" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <rect x="1.5" y="8" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <rect x="8" y="8" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+    </symbol>
+    <symbol id="ic-prov" viewBox="0 0 14 14">
+      <path d="M2 3.5h10M2 7h10M2 10.5h6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+      <rect x="10.5" y="9.5" width="3" height="3" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </symbol>
+    <symbol id="ic-chat" viewBox="0 0 14 14">
+      <path d="M2 2.5h10v6.5H6L4 11V9H2z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="miter"/>
+      <path d="M4.5 5h5M4.5 7h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="square"/>
+    </symbol>
+    <symbol id="ic-set" viewBox="0 0 14 14">
+      <circle cx="7" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M7 1.5v1.7M7 10.8v1.7M12.5 7h-1.7M3.2 7H1.5M10.9 3.1l-1.2 1.2M4.3 9.7l-1.2 1.2M10.9 10.9l-1.2-1.2M4.3 4.3L3.1 3.1" stroke="currentColor" stroke-width="1.2" stroke-linecap="square"/>
+    </symbol>
+    <symbol id="ic-stat" viewBox="0 0 14 14">
+      <line x1="2.5" y1="11.5" x2="2.5" y2="8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"/>
+      <line x1="6" y1="11.5" x2="6" y2="4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"/>
+      <line x1="9.5" y1="11.5" x2="9.5" y2="6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="square"/>
+      <line x1="1.5" y1="12.5" x2="12.5" y2="12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="square"/>
+    </symbol>
+    <symbol id="ic-pstat" viewBox="0 0 14 14">
+      <rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="3.5" x2="12.5" y2="3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="square"/>
+      <line x1="3.5" y1="8" x2="3.5" y2="12.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="square"/>
+      <rect x="7" y="7" width="5.5" height="5.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </symbol>
+    <!-- 拖动排序手柄 · 六点 grip -->
+    <symbol id="ic-grip" viewBox="0 0 10 14">
+      <circle cx="2" cy="2" r="1.4" fill="currentColor"/>
+      <circle cx="8" cy="2" r="1.4" fill="currentColor"/>
+      <circle cx="2" cy="7" r="1.4" fill="currentColor"/>
+      <circle cx="8" cy="7" r="1.4" fill="currentColor"/>
+      <circle cx="2" cy="12" r="1.4" fill="currentColor"/>
+      <circle cx="8" cy="12" r="1.4" fill="currentColor"/>
+    </symbol>
+    <!-- OpenCode 配置页 · 文档花括号 -->
+    <symbol id="ic-oc" viewBox="0 0 512 512">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z" fill="currentColor"/>
+      <path d="M320 352V224H192V352H320Z" fill="currentColor" opacity="0.45"/>
+    </symbol>
+    <!-- Claude Code 配置页 · 官方 sunburst（simple-icons） -->
+    <symbol id="ic-cc" viewBox="0 0 24 24">
+      <path d="m4.714 15.956l4.718-2.648l.079-.23l-.08-.128h-.23l-.79-.048l-2.695-.073l-2.337-.097l-2.265-.122l-.57-.121l-.535-.704l.055-.353l.48-.321l.685.06l1.518.104l2.277.157l1.651.098l2.447.255h.389l.054-.158l-.133-.097l-.103-.098l-2.356-1.596l-2.55-1.688l-1.336-.972l-.722-.491L2 6.223l-.158-1.008l.656-.722l.88.06l.224.061l.893.686l1.906 1.476l2.49 1.833l.364.304l.146-.104l.018-.072l-.164-.274l-1.354-2.446l-1.445-2.49l-.644-1.032l-.17-.619a3 3 0 0 1-.103-.729L6.287.133L6.7 0l.995.134l.42.364l.619 1.415L9.735 4.14l1.555 3.03l.455.898l.243.832l.09.255h.159V9.01l.127-1.706l.237-2.095l.23-2.695l.08-.76l.376-.91l.747-.492l.583.28l.48.685l-.067.444l-.286 1.851l-.558 2.903l-.365 1.942h.213l.243-.242l.983-1.306l1.652-2.064l.728-.82l.85-.904l.547-.431h1.032l.759 1.129l-.34 1.166l-1.063 1.347l-.88 1.142l-1.263 1.7l-.79 1.36l.074.11l.188-.02l2.853-.606l1.542-.28l1.84-.315l.832.388l.09.395l-.327.807l-1.967.486l-2.307.462l-3.436.813l-.043.03l.049.061l1.548.146l.662.036h1.62l3.018.225l.79.522l.473.638l-.08.485l-1.213.62l-1.64-.389l-3.825-.91l-1.31-.329h-.183v.11l1.093 1.068l2.003 1.81l2.508 2.33l.127.578l-.321.455l-.34-.049l-2.204-1.657l-.85-.747l-1.925-1.62h-.127v.17l.443.649l2.343 3.521l.122 1.08l-.17.353l-.607.213l-.668-.122l-1.372-1.924l-1.415-2.168l-1.141-1.943l-.14.08l-.674 7.254l-.316.37l-.728.28l-.607-.461l-.322-.747l.322-1.476l.388-1.924l.316-1.53l.285-1.9l.17-.632l-.012-.042l-.14.018l-1.432 1.967l-2.18 2.945l-1.724 1.845l-.413.164l-.716-.37l.066-.662l.401-.589l2.386-3.036l1.439-1.882l.929-1.086l-.006-.158h-.055L4.138 18.56l-1.13.146l-.485-.456l.06-.746l.231-.243l1.907-1.312Z" fill="currentColor"/>
+    </symbol>
+    <!-- 右箭头（折叠 chevron） -->
+    <symbol id="ic-chev" viewBox="0 0 10 10">
+      <path d="M3.5 2L7 5L3.5 8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" stroke-linejoin="miter"/>
+    </symbol>
+    <!-- 同步 -->
+    <symbol id="ic-sync" viewBox="0 0 14 14">
+      <path d="M11.5 4.5A4.5 4.5 0 0 0 3.5 3.5M2.5 9.5A4.5 4.5 0 0 0 10.5 10.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M2 2v3h3M12 12V9H9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" stroke-linejoin="miter"/>
+    </symbol>
+    <!-- 文件 -->
+    <symbol id="ic-file" viewBox="0 0 14 14">
+      <path d="M3 1.5h6l2 2v9H3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="miter"/>
+      <path d="M5 6h4M5 8.5h4M5 4.2h2" stroke="currentColor" stroke-width="1" stroke-linecap="square"/>
+    </symbol>
+    <!-- 加号 -->
+    <symbol id="ic-plus" viewBox="0 0 10 10">
+      <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/>
+    </symbol>
+    <!-- Codex 配置页 · 官方 logo（lobe-icons mono）：云形主体 + 终端下划线 -->
+    <symbol id="ic-codex" viewBox="0 0 24 24">
+      <path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M8.086.457a6.105 6.105 0 013.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 00.107.029c1.408-.346 2.762-.224 4.061.366l.063.03.154.076c1.357.703 2.33 1.77 2.918 3.198.278.679.418 1.388.421 2.126a5.655 5.655 0 01-.18 1.631.167.167 0 00.04.155 5.982 5.982 0 011.578 2.891c.385 1.901-.01 3.615-1.183 5.14l-.182.22a6.063 6.063 0 01-2.934 1.851.162.162 0 00-.108.102c-.255.736-.511 1.364-.987 1.992-1.199 1.582-2.962 2.462-4.948 2.451-1.583-.008-2.986-.587-4.21-1.736a.145.145 0 00-.14-.032c-.518.167-1.04.191-1.604.185a5.924 5.924 0 01-2.595-.622 6.058 6.058 0 01-2.146-1.781c-.203-.269-.404-.522-.551-.821a7.74 7.74 0 01-.495-1.283 6.11 6.11 0 01-.017-3.064.166.166 0 00.008-.074.115.115 0 00-.037-.064 5.958 5.958 0 01-1.38-2.202 5.196 5.196 0 01-.333-1.589 6.915 6.915 0 01.188-2.132c.45-1.484 1.309-2.648 2.577-3.493.282-.188.55-.334.802-.438.286-.12.573-.22.861-.304a.129.129 0 00.087-.087A6.016 6.016 0 015.635 2.31C6.315 1.464 7.132.846 8.086.457zm-.804 7.85a.848.848 0 00-1.473.842l1.694 2.965-1.688 2.848a.849.849 0 001.46.864l1.94-3.272a.849.849 0 00.007-.854l-1.94-3.393zm5.446 6.24a.849.849 0 000 1.695h4.848a.849.849 0 000-1.696h-4.848z"/>
+    </symbol>
+  </defs>
+</svg>
+<div class="detail-wrap">
+  <div class="back-bar">
+    <a href="../index.html">← 返回总览</a>
+    <span class="crumb">AI聊天</span>
+  </div>
+  <div class="window">
+<div class="titlebar">
+        <div class="tl-left"><svg width="16" height="16" style="vertical-align:-3px;margin-right:7px"><use href="#ico"/></svg>AI 聚合网关</div>
+        <div class="tl-center"><span class="tl-pill"><span class="dot on"></span><span class="ptext">运行中</span><span class="paddr">127.0.0.1:8849</span></span></div>
+        <div class="tl-ctrl">
+          <button class="win-btn" title="最小化"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="5" x2="9" y2="5" stroke="currentColor" stroke-width="1"/></svg></button>
+          <button class="win-btn" title="最大化"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1"/></svg></button>
+          <button class="win-btn win-close" title="关闭"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1"/><line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1"/></svg></button>
+        </div>
+      </div>
+      
+      <div class="app">
+        <nav class="sidebar">
+          <div class="sb-nav" id="nav">
+          <a class="nav-item" data-tab="dashboard" href="dashboard.html"><svg class="ic"><use href="#ic-dash"/></svg>网关状态</a>
+          <a class="nav-item" data-tab="providers" href="providers.html"><svg class="ic"><use href="#ic-prov"/></svg>供应商</a>
+          <a class="nav-item active" data-tab="chat" href="chat.html"><svg class="ic"><use href="#ic-chat"/></svg>AI聊天</a>
+          <a class="nav-item" data-tab="usage" href="usage.html"><svg class="ic"><use href="#ic-stat"/></svg>用量统计</a>
+          <a class="nav-item" data-tab="provider-usage" href="provider-usage.html"><svg class="ic"><use href="#ic-pstat"/></svg>供量统计</a>
+          <a class="nav-item" data-tab="codex" href="codex.html"><svg class="ic"><use href="#ic-codex"/></svg>Codex</a>
+          <a class="nav-item" data-tab="opencode" href="opencode.html"><svg class="ic"><use href="#ic-oc"/></svg>OpenCode</a>
+          <a class="nav-item" data-tab="claude-code" href="claude-code.html"><svg class="ic"><use href="#ic-cc"/></svg>Claude Code</a>
+          <a class="nav-item" data-tab="settings" href="settings.html"><svg class="ic"><use href="#ic-set"/></svg>设置</a>
+          </div>
+          <div class="sb-spacer"></div>
+          <div class="sb-foot"><span class="dot on"></span>运行中</div>
+        </nav>
+        <main class="content">
+<div class="tabpane active" data-pane="chat">
+            <div class="chat-page">
+              <div class="chat-head">
+                <select class="sel"><option>Chat</option><option>Responses</option><option>Anthropic</option></select>
+                <select class="sel" style="min-width:190px"><option>claude-3-5-sonnet</option><option>gpt-4o</option><option>glm-4-plus</option></select>
+                <select class="sel" style="min-width:140px"><option>sk-co...0001</option><option>sk-co...0002</option></select>
+                <button class="btn btn-ghost btn-sm">清空</button>
+              </div>
+              <div class="msgs">
+                <div class="msg-row user"><div class="av">我</div><div class="bub">简单解释这个网关做了什么，以及三种协议的区别。</div></div>
+                <div class="msg-row ai">
+                  <div class="av">AI</div>
+                  <div class="bub">
+                    <div class="think"><div class="think-h">THINKING <span class="pulse"><i></i><i></i><i></i></span></div><div class="think-c">用户问的是网关作用和三种协议差异。需要从聚合、转换、故障转移三点切入，再对比 Chat / Responses / Anthropic 的请求结构。</div></div>
+                    <div class="mc">ai-aggregs 网关在本地起一个 HTTP 端点，把你的请求按顺序转发到多个上游提供商，并在 429 / 5xx / 超时时自动切换到下一个提供商或下一把密钥（故障转移）。
+
+三种协议的区别：
+• Chat — OpenAI 经典 messages 结构，/v1/chat/completions
+• Responses — OpenAI 新版 input 结构，/v1/responses
+• Anthropic — messages + max_tokens，/v1/messages，用 x-api-key 鉴权
+
+网关会在三种协议间做转换，所以你可以用任意一种协议消费，后端提供商可以是任意协议。</div>
+                  </div>
+                </div>
+              </div>
+              <div class="input-area">
+                <textarea class="tarea" rows="3" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+                <button class="btn send-btn">发送</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 用量统计 -->
+        </main>
+      </div>
+  </div>
+</div>
+<script src="../app.js"></script>
+</body>
+</html>

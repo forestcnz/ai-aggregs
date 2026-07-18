@@ -49,6 +49,8 @@ Tauri v2 壳 + Vue 3 前端 + Rust/Axum 网关嵌入同一进程。
 
 ![设置（二）](preview/设置2.png)
 
+**交互式设计稿**：完整的重设计稿（复刻 opencode.ai 美学）位于 [`preview/redesign/`](preview/redesign/)，浏览器打开 `preview/redesign/index.html` 即可——汇总页链接到九个功能页（`pages/`），每页一个独立的完整界面预览，侧边栏可在各功能间切换。
+
 ---
 
 ## 功能特性
@@ -131,6 +133,9 @@ ai-aggregs/
 │       ├── chat/             # AI 聊天
 │       ├── usage/            # consumer 用量统计
 │       ├── provider-usage/   # 供应商用量统计
+│       ├── opencode-config/  # opencode.jsonc 表单编辑
+│       ├── claude-code-config/ # ~/.claude/settings.json env 编辑
+│       ├── codex-config/     # ~/.codex/config.toml 编辑
 │       └── settings/         # 设置
 ├── src-tauri/src/            # 后端（Rust/Axum）
 │   ├── lib.rs                # Tauri 入口（日志/数据库/托盘/IPC 命令）
@@ -138,7 +143,13 @@ ai-aggregs/
 │   ├── gateway/              # 网关生命周期 / provider / 协议转换 / 流式
 │   ├── config/               # 配置类型与状态
 │   └── infra/                # 数据库 / 错误 / 日志桥接 / 托盘
-├── preview/                  # 界面截图
+├── preview/                  # 界面截图 + 重设计稿
+│   ├── *.png                 # 各页面截图
+│   └── redesign/             # 交互式重设计稿（汇总页 + 每功能一页）
+│       ├── index.html        # 汇总页（hero / logo / 设计系统 / 九页导航）
+│       ├── styles.css        # 共享样式
+│       ├── app.js            # 共享交互（导航 / 弹窗 / 拖拽 / 用量）
+│       └── pages/            # 九个功能各一页（dashboard · providers · …）
 └── data/config.db            # SQLite 持久化（运行时生成）
 ```
 
