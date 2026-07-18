@@ -19,80 +19,43 @@ Tauri v2 壳 + Vue 3 前端 + Rust/Axum 网关嵌入同一进程。
 
 ## 截图预览
 
-**网关状态**
-
-![网关状态](preview/网关状态.png)
-
-**供应商管理**
-
-![供应商管理](preview/供应商管理.png)
-
-**编辑/新增供应商**
-
-![编辑新增供应商](preview/编辑新增供应商.png)
-
-**AI 聊天**
-
-![AI聊天](preview/AI聊天.png)
-
-**用量统计**
-
-![用量统计](preview/用量统计.png)
-
-**供量统计**
-
-![供量统计](preview/供量统计.png)
-
-**设置**
-
-![设置（一）](preview/设置1.png)
-
-![设置（二）](preview/设置2.png)
-
-**重设计稿**（复刻 opencode.ai 美学；[交互式版本](preview/redesign/index.html)，每个功能独立成页）：
-
-![设计稿总览 — hero / logo / 设计系统 / 九页导航](preview/redesign/_overview.png)
-
-<details>
-<summary><b>九个功能页预览（点开查看）</b></summary>
-
-**网关状态**
+**网关状态** — 启停控制、监听地址、实时运行日志
 
 ![网关状态](preview/redesign/dashboard.png)
 
-**供应商**
+**供应商** — 多提供商列表、启用/禁用、密钥池、拖拽排序
 
 ![供应商](preview/redesign/providers.png)
 
-**AI 聊天**
+**AI 聊天** — 内置调试客户端，直连网关验证路由与协议转换
 
 ![AI聊天](preview/redesign/chat.png)
 
-**用量统计**
+**用量统计** — Consumer API Key 各模型 Token 用量明细
 
 ![用量统计](preview/redesign/usage.png)
 
-**供量统计**
+**供量统计** — 各 Provider 的请求量与 Token 消耗
 
 ![供量统计](preview/redesign/provider-usage.png)
 
-**Codex 配置**
-
-![Codex](preview/redesign/codex.png)
-
-**OpenCode 配置**
-
-![OpenCode](preview/redesign/opencode.png)
-
-**Claude Code 配置**
+**Claude Code 配置** — 同步网关端点到 `~/.claude/settings.json` 的 `env` 段
 
 ![Claude Code](preview/redesign/claude-code.png)
 
-**设置**
+**Codex 配置** — 受管 Provider 写入 `~/.codex/config.toml`
+
+![Codex](preview/redesign/codex.png)
+
+**OpenCode 配置** — 表单编辑 `opencode.json`
+
+![OpenCode](preview/redesign/opencode.png)
+
+**设置** — Consumer Key / 网关参数 / 开机自启
 
 ![设置](preview/redesign/settings.png)
 
-</details>
+> 完整界面预览（含设计系统与导航）见 [`preview/redesign/_overview.png`](preview/redesign/_overview.png)，交互式版本 `preview/redesign/index.html`。
 
 ---
 
@@ -186,13 +149,7 @@ ai-aggregs/
 │   ├── gateway/              # 网关生命周期 / provider / 协议转换 / 流式
 │   ├── config/               # 配置类型与状态
 │   └── infra/                # 数据库 / 错误 / 日志桥接 / 托盘
-├── preview/                  # 界面截图 + 重设计稿
-│   ├── *.png                 # 各页面截图
-│   └── redesign/             # 交互式重设计稿（汇总页 + 每功能一页）
-│       ├── index.html        # 汇总页（hero / logo / 设计系统 / 九页导航）
-│       ├── styles.css        # 共享样式
-│       ├── app.js            # 共享交互（导航 / 弹窗 / 拖拽 / 用量）
-│       └── pages/            # 九个功能各一页（dashboard · providers · …）
+├── preview/redesign/         # 界面截图（README 引用）
 └── data/config.db            # SQLite 持久化（运行时生成）
 ```
 
