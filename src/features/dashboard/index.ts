@@ -1,4 +1,4 @@
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, nextTick, onActivated } from 'vue'
 import { startGateway, stopGateway, type GatewayStatus, type LogEntry } from '../../api/commands'
 
 export function useDashboard(
@@ -45,8 +45,9 @@ export function useDashboard(
     })
   }
 
-  // 切回该页时组件重新挂载（v-if），scrollTop 会归零 → 挂载后拉到底部
-  onMounted(scrollToBottom)
+  // KeepAlive 下，组件首次挂载和切回都会触发 onActivated；
+  // 切回时组件已被缓存（不是新建），原生 onMounted 不会再触发，必须用 onActivated 兜底
+  onActivated(scrollToBottom)
   // 实时日志增长时自动滚动
   watch(() => props.logs.length, scrollToBottom)
 

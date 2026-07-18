@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue'
 import {
   getConfig,
   saveConfig,
@@ -312,10 +312,25 @@ export function useProviderList() {
     return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
   }
 
+  // KeepAlive 下，setInterval 改由 onActivated/onDeactivated 控制：
+  // 切走时定时器仍会触发 IPC 拉运行时状态，纯浪费 CPU/数据库连接，
+  // 应在切走（onDeactivated）时清理，切回（onActivated）时按需重建。
+  // onMounted 仅做一次性初始化（拉首屏数据 + 全局 keydown 监听）。
   onMounted(() => {
     refresh()
-    timer = setInterval(refreshRuntime, 5000)
     document.addEventListener('keydown', onDocumentKeydown)
+  })
+  onActivated(() => {
+    if (!timer) timer = setInterval(refreshRuntime, 5000)
+  })
+  onDeactivated(() => {
+    if (timer) {
+      clearInterval(timer)
+      timer = null
+    }
+    // 切走时也清理可能残留的拖拽监听，避免下一页收到鼠标事件
+    document.removeEventListener('mousemove', onDocMouseMove)
+    document.removeEventListener('mouseup', onDocMouseUp)
   })
   onUnmounted(() => {
     if (timer) clearInterval(timer)

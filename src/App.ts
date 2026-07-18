@@ -102,7 +102,7 @@ export function useApp() {
     // 日志监听在 App 层级注册，整个应用生命周期内保持活跃
     unlistenLog = await onLog((entry) => {
       logs.value.push(entry)
-      if (logs.value.length > 500) logs.value.shift()
+      if (logs.value.length > 10) logs.value.shift()
     })
 
     // 页面就绪、事件监听已注册后，再按配置自动恢复网关。
