@@ -188,3 +188,19 @@ body {
 .badge.stopped .dot {
   background: var(--text-weaker);
 }
+
+/* Beta 徽章 — 中性灰描边（不抢色彩，与极简风格一致） */
+.beta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--text-weak);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  white-space: nowrap;
+}

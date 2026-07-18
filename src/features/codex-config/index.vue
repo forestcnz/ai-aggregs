@@ -31,6 +31,7 @@ const {
   <div v-else class="oc-page">
     <h1 class="page-title">
       Codex 配置
+      <span class="beta-badge">beta</span>
       <span v-if="version" class="file-tag" title="codex 版本">v{{ version }}</span>
       <span class="file-tag">{{ fileBaseName }}</span>
     </h1>
