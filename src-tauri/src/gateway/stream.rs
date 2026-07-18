@@ -54,7 +54,8 @@ impl UsageCtx {
 }
 
 /// 从任意 JSON 值中提取 token 用量（兼容 Chat / Anthropic / Responses 三种格式）。
-/// 返回 (input, output, total)。
+/// 返回 (input, output, total)。Anthropic 的 cache_creation/cache_read 也计入 input，
+/// 与上游计费规则一致（prompt cache 写入/读取的 token 同样按输入价计费）。
 pub fn extract_usage(v: &Value) -> Option<(u64, u64, u64)> {
     // Chat 风格：usage.prompt_tokens / completion_tokens / total_tokens
     if let Some(u) = v.get("usage") {
@@ -70,16 +71,35 @@ pub fn extract_usage(v: &Value) -> Option<(u64, u64, u64)> {
             return Some((pt, ct, tt));
         }
         // Anthropic / Responses 风格：usage.input_tokens / output_tokens
+        // 加上 cache_creation_input_tokens / cache_read_input_tokens
         if let Some(it) = u.get("input_tokens").and_then(|x| x.as_u64()) {
+            let cache_creation = u
+                .get("cache_creation_input_tokens")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
+            let cache_read = u
+                .get("cache_read_input_tokens")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
             let ot = u.get("output_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
-            return Some((it, ot, it + ot));
+            let total_input = it + cache_creation + cache_read;
+            return Some((total_input, ot, total_input + ot));
         }
     }
     // Responses completed 事件：response.usage.input_tokens
     if let Some(u) = v.get("response").and_then(|r| r.get("usage")) {
         if let Some(it) = u.get("input_tokens").and_then(|x| x.as_u64()) {
+            let cache_creation = u
+                .get("cache_creation_input_tokens")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
+            let cache_read = u
+                .get("cache_read_input_tokens")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
             let ot = u.get("output_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
-            return Some((it, ot, it + ot));
+            let total_input = it + cache_creation + cache_read;
+            return Some((total_input, ot, total_input + ot));
         }
     }
     None
@@ -327,6 +347,8 @@ struct AnthropicToChatStream {
     in_thinking: bool,
     chat_id: Option<String>,
     model: Option<String>,
+    /// 累积 thinking 块的 signature_delta，message_delta 时一次性回传
+    signatures: Vec<String>,
 }
 
 impl AnthropicToChatStream {
@@ -340,6 +362,7 @@ impl AnthropicToChatStream {
             in_thinking: false,
             chat_id: None,
             model: None,
+            signatures: Vec::new(),
         }
     }
 
@@ -382,9 +405,17 @@ impl StreamConverter for AnthropicToChatStream {
                         self.model = Some(model.to_string());
                     }
                     if let Some(u) = m.get("usage") {
-                        if let Some(it) = u.get("input_tokens").and_then(|x| x.as_u64()) {
-                            self.input_tokens = Some(it);
-                        }
+                        // input + cache_creation + cache_read 合计为 prompt_tokens
+                        let it = u.get("input_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+                        let cc = u
+                            .get("cache_creation_input_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(0);
+                        let cr = u
+                            .get("cache_read_input_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(0);
+                        self.input_tokens = Some(it + cc + cr);
                     }
                 }
                 vec![self
@@ -406,9 +437,52 @@ impl StreamConverter for AnthropicToChatStream {
                             "tool_calls":[{"index":idx,"id":id,"type":"function","function":{"name":name,"arguments":""}}]
                         }), None).to_string()]
                     }
-                    "thinking" => {
+                    "thinking" | "redacted_thinking" => {
                         self.in_thinking = true;
+                        // redacted_thinking 没有 thinking_delta，直接补一条占位 reasoning_content
+                        if cb_type == "redacted_thinking" {
+                            vec![self
+                                .chunk(json!({"reasoning_content":"[redacted_thinking]"}), None)
+                                .to_string()]
+                        } else {
+                            vec![]
+                        }
+                    }
+                    "server_tool_use" => {
+                        // 服务端工具调用（web_search/code_execution 等），转文本说明
+                        self.in_thinking = false;
+                        let name = cb
+                            .get("name")
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("server_tool");
+                        vec![self
+                            .chunk(
+                                json!({"content":format!("[server_tool_use: {name}]")}),
+                                None,
+                            )
+                            .to_string()]
+                    }
+                    "web_search_tool_result"
+                    | "web_fetch_tool_result"
+                    | "code_execution_tool_result"
+                    | "bash_code_execution_tool_result"
+                    | "text_editor_code_execution_tool_result" => {
+                        // 服务端工具结果块（流式中内容不可读），跳过
+                        self.in_thinking = false;
                         vec![]
+                    }
+                    "fallback" => {
+                        // 服务端 fallback 块（无 deltas），按 text 处理
+                        self.in_thinking = false;
+                        if let Some(t) = cb.get("text").and_then(|x| x.as_str()) {
+                            if !t.is_empty() {
+                                vec![self.chunk(json!({"content":t}), None).to_string()]
+                            } else {
+                                vec![]
+                            }
+                        } else {
+                            vec![]
+                        }
                     }
                     _ => {
                         self.in_thinking = false;
@@ -429,6 +503,15 @@ impl StreamConverter for AnthropicToChatStream {
                         vec![self
                             .chunk(json!({"reasoning_content":text}), None)
                             .to_string()]
+                    }
+                    // thinking 块的签名增量：累积，等 message_delta 时回传
+                    "signature_delta" => {
+                        if let Some(s) = delta.get("signature").and_then(|x| x.as_str()) {
+                            if !s.is_empty() {
+                                self.signatures.push(s.to_string());
+                            }
+                        }
+                        vec![]
                     }
                     "input_json_delta" => {
                         let pj = delta.get("partial_json").cloned().unwrap_or(json!(""));
@@ -460,10 +543,13 @@ impl StreamConverter for AnthropicToChatStream {
                     .and_then(|x| x.as_str())
                     .unwrap_or("end_turn");
                 let finish = map_stop_reason_anthropic_to_chat(stop_reason);
-                let mut frame = self.chunk(
-                    json!({"content":"","reasoning_content":null}),
-                    Some(&finish),
-                );
+                // 把累积的 thinking signature 一次性放在这一帧的 delta 中（多轮 thinking 完整性）
+                let mut delta_obj = json!({"content":"","reasoning_content":null});
+                if !self.signatures.is_empty() {
+                    delta_obj["reasoning_signature"] =
+                        json!(std::mem::take(&mut self.signatures).join("\n"));
+                }
+                let mut frame = self.chunk(delta_obj, Some(&finish));
                 if let Some(u) = v.get("usage") {
                     let mut usage = json!({});
                     let input_tok = u
@@ -512,6 +598,9 @@ struct ChatToAnthropicStream {
     sent_done: bool,
     next_block: usize,
     cur_block: Option<(usize, String)>,
+    /// 上游（chat）在 finish_reason 帧发来的 reasoning_signature；
+    /// 关闭 thinking 块前用它发 signature_delta，保证多轮 thinking 完整性
+    pending_signature: Option<String>,
 }
 
 impl ChatToAnthropicStream {
@@ -521,6 +610,20 @@ impl ChatToAnthropicStream {
             sent_done: false,
             next_block: 0,
             cur_block: None,
+            pending_signature: None,
+        }
+    }
+
+    /// 关闭当前 block；若是 thinking 块且有累积的 signature，
+    /// 在 content_block_stop 之前先发 signature_delta 事件
+    fn close_cur_block(&mut self, out: &mut Vec<String>) {
+        if let Some((idx, ty)) = self.cur_block.take() {
+            if ty == "thinking" {
+                if let Some(sig) = self.pending_signature.take() {
+                    out.push(signature_delta_event(idx, &sig));
+                }
+            }
+            out.push(content_block_stop_frame(idx));
         }
     }
 
@@ -529,7 +632,7 @@ impl ChatToAnthropicStream {
             if ty == "text" {
                 return idx;
             }
-            out.push(content_block_stop_frame(idx));
+            self.close_cur_block(out);
         }
         self.cur_block.take();
         let idx = self.next_block;
@@ -544,7 +647,7 @@ impl ChatToAnthropicStream {
             if ty == "thinking" {
                 return idx;
             }
-            out.push(content_block_stop_frame(idx));
+            self.close_cur_block(out);
         }
         self.cur_block.take();
         let idx = self.next_block;
@@ -559,9 +662,7 @@ impl StreamConverter for ChatToAnthropicStream {
     fn on_event(&mut self, _event: Option<&str>, data: &str) -> Vec<String> {
         if data == "[DONE]" {
             let mut out = vec![];
-            if let Some((idx, _)) = self.cur_block.take() {
-                out.push(content_block_stop_frame(idx));
-            }
+            self.close_cur_block(&mut out);
             out.push(message_stop_event());
             self.sent_done = true;
             return out;
@@ -586,6 +687,13 @@ impl StreamConverter for ChatToAnthropicStream {
         };
         let delta = choice.get("delta").cloned().unwrap_or(json!({}));
 
+        // 累积上游 chat 的 reasoning_signature（finish_reason 那一帧才出现）
+        if let Some(sig) = delta.get("reasoning_signature").and_then(|x| x.as_str()) {
+            if !sig.is_empty() {
+                self.pending_signature = Some(sig.to_string());
+            }
+        }
+
         if let Some(rc) = delta.get("reasoning_content") {
             if let Some(t) = rc.as_str() {
                 if !t.is_empty() {
@@ -608,9 +716,7 @@ impl StreamConverter for ChatToAnthropicStream {
             for tc in tcs {
                 let has_id = tc.get("id").is_some();
                 if has_id {
-                    if let Some((idx, _)) = self.cur_block.take() {
-                        out.push(content_block_stop_frame(idx));
-                    }
+                    self.close_cur_block(&mut out);
                     let bidx = self.next_block;
                     self.next_block += 1;
                     self.cur_block = Some((bidx, "tool_use".into()));
@@ -632,9 +738,7 @@ impl StreamConverter for ChatToAnthropicStream {
         }
 
         if let Some(fr) = choice.get("finish_reason").and_then(|x| x.as_str()) {
-            if let Some((idx, _)) = self.cur_block.take() {
-                out.push(content_block_stop_frame(idx));
-            }
+            self.close_cur_block(&mut out);
             let stop_reason = map_finish_reason_chat_to_anthropic(fr);
             let mut usage = json!({});
             if let Some(u) = v.get("usage") {
@@ -657,9 +761,7 @@ impl StreamConverter for ChatToAnthropicStream {
         }
         self.sent_done = true;
         let mut out = vec![];
-        if let Some((idx, _)) = self.cur_block.take() {
-            out.push(content_block_stop_frame(idx));
-        }
+        self.close_cur_block(&mut out);
         out.push(message_stop_event());
         out
     }
@@ -689,7 +791,7 @@ fn content_block_start_text_frame(idx: usize) -> String {
 fn content_block_start_thinking_frame(idx: usize) -> String {
     json!({
         "type":"content_block_start","index":idx,
-        "content_block":{"type":"thinking","thinking":""}
+        "content_block":{"type":"thinking","thinking":"","signature":""}
     })
     .to_string()
 }
@@ -697,6 +799,14 @@ fn thinking_delta_event(idx: usize, text: &str) -> String {
     json!({
         "type":"content_block_delta","index":idx,
         "delta":{"type":"thinking_delta","thinking":text}
+    })
+    .to_string()
+}
+/// thinking 块的签名增量；客户端在多轮 thinking 中必须把它和 thinking 一起回传
+fn signature_delta_event(idx: usize, signature: &str) -> String {
+    json!({
+        "type":"content_block_delta","index":idx,
+        "delta":{"type":"signature_delta","signature":signature}
     })
     .to_string()
 }
@@ -764,15 +874,29 @@ impl StreamConverter for ResponsesToChatStream {
         };
         let t = v.get("type").and_then(|x| x.as_str()).unwrap_or("");
         match t {
-            "response.created" => {
-                self.sent_role = true;
-                vec![json!({
-                    "choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]
-                })
-                .to_string()]
+            "response.created" | "response.in_progress" => {
+                if !self.sent_role {
+                    self.sent_role = true;
+                    vec![json!({
+                        "choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]
+                    })
+                    .to_string()]
+                } else {
+                    vec![]
+                }
             }
-            "response.reasoning_summary_text.delta" => {
-                let d = v.get("delta").and_then(|x| x.as_str()).unwrap_or("");
+            // 推理增量（多种事件名兼容）：
+            //   response.reasoning.delta / .done（旧格式，delta 是字符串）
+            //   response.reasoning_summary.delta / .done（旧格式）
+            //   response.reasoning_summary_text.delta / .done（新格式）
+            "response.reasoning.delta"
+            | "response.reasoning_summary.delta"
+            | "response.reasoning_summary_text.delta" => {
+                let d = match v.get("delta") {
+                    Some(Value::String(s)) => s.clone(),
+                    Some(other) => other.to_string(),
+                    None => String::new(),
+                };
                 if d.is_empty() {
                     vec![]
                 } else {
@@ -782,26 +906,68 @@ impl StreamConverter for ResponsesToChatStream {
                     .to_string()]
                 }
             }
-            "response.reasoning_summary_text.done" => {
+            "response.reasoning.done"
+            | "response.reasoning_summary.done"
+            | "response.reasoning_summary_text.done"
+            | "response.reasoning_summary_part.added"
+            | "response.reasoning_summary_part.done" => {
+                // 这些是终止/分部事件，chat 协议无对应，忽略
                 vec![]
             }
-            "response.output_item.added" => {
-                let item = v.get("item").cloned().unwrap_or(json!({}));
-                if item.get("type").and_then(|x| x.as_str()) == Some("function_call") {
-                    let oi = v.get("output_index").and_then(|x| x.as_u64()).unwrap_or(0);
-                    let call_id = item.get("call_id").cloned().unwrap_or(json!(""));
-                    let name = item.get("name").cloned().unwrap_or(json!(""));
-                    let tc_idx = self.next_tc;
-                    self.next_tc += 1;
-                    self.tool_map.insert(oi, tc_idx);
+            // 拒绝内容（refusal）
+            "response.refusal.delta" => {
+                let d = v.get("delta").and_then(|x| x.as_str()).unwrap_or("");
+                if d.is_empty() {
+                    vec![]
+                } else {
                     vec![json!({
-                        "choices":[{"index":0,"delta":{
-                            "tool_calls":[{"index":tc_idx,"id":call_id,"type":"function","function":{"name":name,"arguments":""}}]
-                        },"finish_reason":null}]
+                        "choices":[{"index":0,"delta":{"content":d},"finish_reason":null}]
                     })
                     .to_string()]
-                } else {
-                    vec![]
+                }
+            }
+            "response.refusal.done" => vec![],
+            // 服务端工具事件（web_search / file_search / image_generation / code_interpreter），
+            // Chat 协议无法表达，忽略
+            "response.output_item.added" => {
+                let item = v.get("item").cloned().unwrap_or(json!({}));
+                let itype = item.get("type").and_then(|x| x.as_str()).unwrap_or("");
+                match itype {
+                    "function_call" => {
+                        let oi = v.get("output_index").and_then(|x| x.as_u64()).unwrap_or(0);
+                        let call_id = item.get("call_id").cloned().unwrap_or(json!(""));
+                        let name = item.get("name").cloned().unwrap_or(json!(""));
+                        let tc_idx = self.next_tc;
+                        self.next_tc += 1;
+                        self.tool_map.insert(oi, tc_idx);
+                        vec![json!({
+                            "choices":[{"index":0,"delta":{
+                                "tool_calls":[{"index":tc_idx,"id":call_id,"type":"function","function":{"name":name,"arguments":""}}]
+                            },"finish_reason":null}]
+                        })
+                        .to_string()]
+                    }
+                    "web_search_call"
+                    | "file_search_call"
+                    | "image_generation_call"
+                    | "code_interpreter_call"
+                    | "computer_call"
+                    | "mcp_call" => {
+                        // 服务端工具调用 item，转文本说明
+                        let label = match itype {
+                            "web_search_call" => "web_search",
+                            "file_search_call" => "file_search",
+                            "image_generation_call" => "image_generation",
+                            "code_interpreter_call" => "code_interpreter",
+                            "computer_call" => "computer",
+                            _ => "mcp",
+                        };
+                        vec![json!({
+                            "choices":[{"index":0,"delta":{"content":format!("[{label}]")},"finish_reason":null}]
+                        })
+                        .to_string()]
+                    }
+                    _ => vec![],
                 }
             }
             "response.output_text.delta" => {
@@ -815,6 +981,14 @@ impl StreamConverter for ResponsesToChatStream {
                     .to_string()]
                 }
             }
+            // 终止/收尾事件，忽略（content 由 delta 增量累积，客户端自行拼接）
+            "response.output_text.done"
+            | "response.output_text.annotation.added"
+            | "response.output_text.annotation.done"
+            | "response.content_part.added"
+            | "response.content_part.done"
+            | "response.output_item.done"
+            | "response.function_call_arguments.done" => vec![],
             "response.function_call_arguments.delta" => {
                 let oi = v.get("output_index").and_then(|x| x.as_u64()).unwrap_or(0);
                 let d = v.get("delta").and_then(|x| x.as_str()).unwrap_or("");
@@ -829,32 +1003,62 @@ impl StreamConverter for ResponsesToChatStream {
                     vec![]
                 }
             }
-            "response.completed" => {
+            "response.completed"
+            | "response.incomplete"
+            | "response.failed"
+            | "response.cancelled" => {
                 let has_tool = !self.tool_map.is_empty();
-                let finish = if has_tool { "tool_calls" } else { "stop" };
+                let finish = if t == "response.failed" || t == "response.cancelled" {
+                    // 失败/取消没有完美对应，回退 stop 避免客户端报错
+                    "stop"
+                } else if has_tool {
+                    "tool_calls"
+                } else if t == "response.incomplete" {
+                    "length"
+                } else {
+                    "stop"
+                };
                 let mut frame = json!({
                     "choices":[{"index":0,"delta":{},"finish_reason":finish}]
                 });
                 if let Some(resp) = v.get("response") {
                     if let Some(u) = resp.get("usage") {
-                        let mut usage = json!({});
-                        if let Some(it) = u.get("input_tokens") {
-                            usage["prompt_tokens"] = it.clone();
+                        let it = u.get("input_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+                        let cc = u
+                            .get("cache_creation_input_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(0);
+                        let cr = u
+                            .get("cache_read_input_tokens")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(0);
+                        let ot = u.get("output_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+                        let total_input = it + cc + cr;
+                        let mut usage = json!({
+                            "prompt_tokens": total_input,
+                            "completion_tokens": ot,
+                            "total_tokens": total_input + ot
+                        });
+                        if cc > 0 {
+                            usage["cache_creation_input_tokens"] = json!(cc);
                         }
-                        if let Some(ot) = u.get("output_tokens") {
-                            usage["completion_tokens"] = ot.clone();
-                        }
-                        if let (Some(a), Some(b)) = (
-                            u.get("input_tokens").and_then(|x| x.as_u64()),
-                            u.get("output_tokens").and_then(|x| x.as_u64()),
-                        ) {
-                            usage["total_tokens"] = json!(a + b);
+                        if cr > 0 {
+                            usage["cache_read_input_tokens"] = json!(cr);
                         }
                         frame["usage"] = usage;
                     }
                 }
                 self.sent_done = true;
                 vec![frame.to_string(), "[DONE]".to_string()]
+            }
+            // 服务端工具增量（web_search_call.* / file_search_call.* / 等）忽略
+            _ if t.starts_with("response.web_search_call.")
+                || t.starts_with("response.file_search_call.")
+                || t.starts_with("response.image_generation_call.")
+                || t.starts_with("response.code_interpreter_call.")
+                || t.starts_with("response.computer_call.") =>
+            {
+                vec![]
             }
             _ => vec![],
         }

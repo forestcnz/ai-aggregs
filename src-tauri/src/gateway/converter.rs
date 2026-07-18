@@ -81,6 +81,119 @@ fn chat_content_to_text(content: &Value) -> String {
     }
 }
 
+/// 把 Chat 协议下的 content（string 或 part array）转为 Anthropic 块数组，
+/// 同时处理 text 与 image_url（data:URL 解码为 base64，http(s) 走 url 源）。
+fn chat_content_to_anthropic_blocks(content: &Value) -> Vec<Value> {
+    let mut blocks = Vec::new();
+    match content {
+        Value::String(s) => {
+            if !s.is_empty() {
+                blocks.push(json!({"type":"text","text":s}));
+            }
+        }
+        Value::Array(arr) => {
+            for b in arr {
+                let t = b.get("type").and_then(|x| x.as_str()).unwrap_or("text");
+                match t {
+                    "text" => {
+                        if let Some(txt) = b.get("text").and_then(|x| x.as_str()) {
+                            if !txt.is_empty() {
+                                blocks.push(json!({"type":"text","text":txt}));
+                            }
+                        }
+                    }
+                    "image_url" => {
+                        let url = b
+                            .get("image_url")
+                            .and_then(|iu| iu.get("url"))
+                            .and_then(|u| u.as_str())
+                            .unwrap_or("");
+                        if let Some(img) = url_to_anthropic_image(url) {
+                            blocks.push(img);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+    blocks
+}
+
+/// data:URL → base64 image 块；http(s) URL → url image 块（Anthropic 新版支持）。
+fn url_to_anthropic_image(url: &str) -> Option<Value> {
+    if url.is_empty() {
+        return None;
+    }
+    if let Some(rest) = url.strip_prefix("data:") {
+        // 格式：data:<media_type>;base64,<data>
+        if let (Some(semi), Some(comma)) = (rest.find(';'), rest.find(',')) {
+            if semi < comma && rest[semi..comma].eq_ignore_ascii_case(";base64") {
+                let media_type = &rest[..semi];
+                let data = &rest[comma + 1..];
+                if !media_type.is_empty() && !data.is_empty() {
+                    return Some(json!({
+                        "type":"image",
+                        "source":{"type":"base64","media_type":media_type,"data":data}
+                    }));
+                }
+            }
+        }
+        None
+    } else {
+        Some(json!({
+            "type":"image",
+            "source":{"type":"url","url":url}
+        }))
+    }
+}
+
+/// 把 Chat 协议下的 content 转为 Responses 协议的 content part 数组，
+/// user 用 input_text/input_image，assistant 用 output_text。
+fn chat_content_to_responses_blocks(content: &Value, role: &str) -> Vec<Value> {
+    let text_type = if role == "assistant" {
+        "output_text"
+    } else {
+        "input_text"
+    };
+    let mut blocks = Vec::new();
+    match content {
+        Value::String(s) => {
+            if !s.is_empty() {
+                blocks.push(json!({"type":text_type,"text":s}));
+            }
+        }
+        Value::Array(arr) => {
+            for b in arr {
+                let t = b.get("type").and_then(|x| x.as_str()).unwrap_or("text");
+                match t {
+                    "text" => {
+                        if let Some(txt) = b.get("text").and_then(|x| x.as_str()) {
+                            if !txt.is_empty() {
+                                blocks.push(json!({"type":text_type,"text":txt}));
+                            }
+                        }
+                    }
+                    "image_url" => {
+                        let url = b
+                            .get("image_url")
+                            .and_then(|iu| iu.get("url"))
+                            .and_then(|u| u.as_str())
+                            .unwrap_or("");
+                        if !url.is_empty() {
+                            blocks.push(json!({"type":"input_image","image_url":url}));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+    blocks
+}
+
 fn block_content_to_text(content: Option<&Value>) -> String {
     match content {
         Some(Value::String(s)) => s.clone(),
@@ -127,9 +240,10 @@ fn responses_content_to_text(content: Option<&Value>, role: &str) -> String {
 
 pub fn map_stop_reason_anthropic_to_chat(sr: &str) -> String {
     match sr {
-        "end_turn" | "stop_sequence" => "stop".into(),
+        "end_turn" | "stop_sequence" | "pause_turn" => "stop".into(),
         "tool_use" => "tool_calls".into(),
-        "max_tokens" => "length".into(),
+        "max_tokens" | "model_context_window_exceeded" => "length".into(),
+        "refusal" | "unsafe_content" => "content_filter".into(),
         _ => sr.into(),
     }
 }
@@ -139,6 +253,8 @@ pub fn map_finish_reason_chat_to_anthropic(fr: &str) -> String {
         "stop" => "end_turn".into(),
         "tool_calls" => "tool_use".into(),
         "length" => "max_tokens".into(),
+        "content_filter" => "refusal".into(),
+        "function_call" => "tool_use".into(),
         _ => fr.into(),
     }
 }
@@ -147,6 +263,7 @@ fn map_status_responses_to_chat(s: &str) -> String {
     match s {
         "completed" => "stop".into(),
         "incomplete" => "length".into(),
+        // cancelled / failed 没有 chat finish_reason 对应，回退到 stop 避免客户端报错
         _ => "stop".into(),
     }
 }
@@ -242,16 +359,27 @@ pub fn chat_to_anthropic_req(src: &Value) -> Value {
                 }
             }
             "user" => {
-                let text = chat_content_to_text(&m["content"]);
-                if !text.is_empty() {
-                    push_anthropic_user(
-                        &mut messages,
-                        json!({"role":"user","content":[{"type":"text","text":text}]}),
-                    );
+                let blocks = chat_content_to_anthropic_blocks(&m["content"]);
+                if !blocks.is_empty() {
+                    push_anthropic_user(&mut messages, json!({"role":"user","content":blocks}));
                 }
             }
             "assistant" => {
                 let mut blocks = Vec::new();
+                // reasoning_content + reasoning_signature → thinking 块（多轮 thinking 完整性）
+                if let Some(rc) = m.get("reasoning_content").and_then(|x| x.as_str()) {
+                    if !rc.is_empty() {
+                        let signature = m
+                            .get("reasoning_signature")
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("");
+                        let mut block = json!({"type":"thinking","thinking":rc});
+                        if !signature.is_empty() {
+                            block["signature"] = json!(signature);
+                        }
+                        blocks.push(block);
+                    }
+                }
                 let text = chat_content_to_text(&m["content"]);
                 if !text.is_empty() {
                     blocks.push(json!({"type":"text","text":text}));
@@ -402,6 +530,7 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                 "assistant" => {
                     let mut text_parts = Vec::new();
                     let mut reasoning_parts = Vec::new();
+                    let mut signatures: Vec<String> = Vec::new();
                     let mut tool_calls = Vec::new();
                     if let Some(s) = m.get("content").and_then(|c| c.as_str()) {
                         if !s.is_empty() {
@@ -418,7 +547,38 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                                 }
                                 "thinking" => {
                                     if let Some(t) = b.get("thinking").and_then(|x| x.as_str()) {
-                                        reasoning_parts.push(t.to_string());
+                                        if !t.is_empty() {
+                                            reasoning_parts.push(t.to_string());
+                                        }
+                                    }
+                                    // 提取 signature 用于多轮 thinking 完整性
+                                    if let Some(s) = b.get("signature").and_then(|x| x.as_str()) {
+                                        if !s.is_empty() {
+                                            signatures.push(s.to_string());
+                                        }
+                                    }
+                                }
+                                "redacted_thinking" => {
+                                    reasoning_parts.push("[redacted_thinking]".to_string());
+                                }
+                                "server_tool_use" => {
+                                    // 服务端工具调用历史，转为文本说明
+                                    let name = b
+                                        .get("name")
+                                        .and_then(|x| x.as_str())
+                                        .unwrap_or("server_tool");
+                                    text_parts.push(format!("[server_tool_use: {name}]"));
+                                }
+                                "web_search_tool_result"
+                                | "web_fetch_tool_result"
+                                | "code_execution_tool_result"
+                                | "bash_code_execution_tool_result"
+                                | "text_editor_code_execution_tool_result" => {
+                                    text_parts.push(format!("[{btype}]"));
+                                }
+                                "fallback" => {
+                                    if let Some(t) = b.get("text").and_then(|x| x.as_str()) {
+                                        text_parts.push(t.to_string());
                                     }
                                 }
                                 "tool_use" => {
@@ -446,7 +606,11 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                             json!(text_parts.join(""))
                         };
                         if !reasoning_parts.is_empty() {
-                            msg["reasoning_content"] = json!(reasoning_parts.join(""));
+                            msg["reasoning_content"] = json!(reasoning_parts.join("\n"));
+                        }
+                        if !signatures.is_empty() {
+                            // 多个 thinking 块时用换行分隔 signature
+                            msg["reasoning_signature"] = json!(signatures.join("\n"));
                         }
                         if !tool_calls.is_empty() {
                             msg["tool_calls"] = json!(tool_calls);
@@ -516,18 +680,27 @@ pub fn chat_to_responses_req(src: &Value) -> Value {
                 }
             }
             "user" => {
-                let text = chat_content_to_text(&m["content"]);
-                input.push(json!({
-                    "type":"message","role":"user",
-                    "content":[{"type":"input_text","text":text}]
-                }));
+                let blocks = chat_content_to_responses_blocks(&m["content"], "user");
+                if !blocks.is_empty() {
+                    input.push(json!({
+                        "type":"message","role":"user","content":blocks
+                    }));
+                }
             }
             "assistant" => {
-                let text = chat_content_to_text(&m["content"]);
-                if !text.is_empty() {
+                // reasoning_content → reasoning item（携带 summary，保证多轮推理回传）
+                if let Some(rc) = m.get("reasoning_content").and_then(|x| x.as_str()) {
+                    if !rc.is_empty() {
+                        input.push(json!({
+                            "type":"reasoning",
+                            "summary":[{"type":"summary_text","text":rc}]
+                        }));
+                    }
+                }
+                let blocks = chat_content_to_responses_blocks(&m["content"], "assistant");
+                if !blocks.is_empty() {
                     input.push(json!({
-                        "type":"message","role":"assistant",
-                        "content":[{"type":"output_text","text":text}]
+                        "type":"message","role":"assistant","content":blocks
                     }));
                 }
                 if let Some(tcs) = m["tool_calls"].as_array() {
@@ -619,6 +792,30 @@ pub fn responses_to_chat_req(src: &Value) -> Value {
                             messages.push(json!({"role": role, "content": text}));
                         }
                     }
+                    "reasoning" => {
+                        // Responses 上轮推理摘要回传，转成 assistant 的 reasoning_content
+                        let summary_text = item
+                            .get("summary")
+                            .and_then(|s| s.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|p| {
+                                        if p.get("type").and_then(|t| t.as_str())
+                                            == Some("summary_text")
+                                        {
+                                            p.get("text").and_then(|t| t.as_str()).map(String::from)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("")
+                            })
+                            .unwrap_or_default();
+                        if !summary_text.is_empty() {
+                            messages.push(json!({"role":"assistant","content":"","reasoning_content":summary_text}));
+                        }
+                    }
                     "function_call" => {
                         let id = item.get("call_id").cloned().unwrap_or(json!(""));
                         let name = item.get("name").cloned().unwrap_or(json!(""));
@@ -706,6 +903,7 @@ pub fn responses_to_chat_req(src: &Value) -> Value {
 pub fn anthropic_to_chat_resp(src: &Value) -> Value {
     let mut text_parts = Vec::new();
     let mut reasoning_parts = Vec::new();
+    let mut signatures: Vec<String> = Vec::new();
     let mut tool_calls = Vec::new();
     if let Some(blocks) = src.get("content").and_then(|c| c.as_array()) {
         for b in blocks {
@@ -718,7 +916,41 @@ pub fn anthropic_to_chat_resp(src: &Value) -> Value {
                 }
                 "thinking" => {
                     if let Some(t) = b.get("thinking").and_then(|x| x.as_str()) {
-                        reasoning_parts.push(t.to_string());
+                        if !t.is_empty() {
+                            reasoning_parts.push(t.to_string());
+                        }
+                    }
+                    // 提取 signature，保证多轮 thinking 完整性
+                    if let Some(s) = b.get("signature").and_then(|x| x.as_str()) {
+                        if !s.is_empty() {
+                            signatures.push(s.to_string());
+                        }
+                    }
+                }
+                "redacted_thinking" => {
+                    // 不可读的 thinking，用占位标记保留语义
+                    reasoning_parts.push("[redacted_thinking]".to_string());
+                }
+                "server_tool_use" => {
+                    // 服务端工具调用，转为文本说明（Chat 协议无对应概念）
+                    let name = b
+                        .get("name")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("server_tool");
+                    text_parts.push(format!("[server_tool_use: {name}]"));
+                }
+                "web_search_tool_result"
+                | "web_fetch_tool_result"
+                | "code_execution_tool_result"
+                | "bash_code_execution_tool_result"
+                | "text_editor_code_execution_tool_result" => {
+                    // 服务端工具结果，转为简短文本占位
+                    text_parts.push(format!("[{btype}]"));
+                }
+                "fallback" => {
+                    // 服务端 fallback 块（refusal 后的替代输出）
+                    if let Some(t) = b.get("text").and_then(|x| x.as_str()) {
+                        text_parts.push(t.to_string());
                     }
                 }
                 "tool_use" => {
@@ -748,25 +980,39 @@ pub fn anthropic_to_chat_resp(src: &Value) -> Value {
         json!(text_parts.join(""))
     };
     if !reasoning_parts.is_empty() {
-        message["reasoning_content"] = json!(reasoning_parts.join(""));
+        message["reasoning_content"] = json!(reasoning_parts.join("\n"));
+    }
+    // 多个 thinking 块时合并 signature（用换行分隔）
+    if !signatures.is_empty() {
+        message["reasoning_signature"] = json!(signatures.join("\n"));
     }
     if !tool_calls.is_empty() {
         message["tool_calls"] = json!(tool_calls);
     }
 
+    // usage：Anthropic 的 input + cache_creation + cache_read 三者合计对应 Chat 的 prompt_tokens
     let mut usage = json!({});
     if let Some(u) = src.get("usage") {
-        if let Some(it) = u.get("input_tokens") {
-            usage["prompt_tokens"] = it.clone();
+        let input_tokens = u.get("input_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+        let cache_creation = u
+            .get("cache_creation_input_tokens")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        let cache_read = u
+            .get("cache_read_input_tokens")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        let prompt_total = input_tokens + cache_creation + cache_read;
+        let output_tokens = u.get("output_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+        usage["prompt_tokens"] = json!(prompt_total);
+        usage["completion_tokens"] = json!(output_tokens);
+        usage["total_tokens"] = json!(prompt_total + output_tokens);
+        // 保留 cache 字段（非标准扩展），便于前端展示与计费对账
+        if cache_creation > 0 {
+            usage["cache_creation_input_tokens"] = json!(cache_creation);
         }
-        if let Some(ot) = u.get("output_tokens") {
-            usage["completion_tokens"] = ot.clone();
-        }
-        if let (Some(a), Some(b)) = (
-            u.get("input_tokens").and_then(|x| x.as_u64()),
-            u.get("output_tokens").and_then(|x| x.as_u64()),
-        ) {
-            usage["total_tokens"] = json!(a + b);
+        if cache_read > 0 {
+            usage["cache_read_input_tokens"] = json!(cache_read);
         }
     }
 
@@ -795,6 +1041,20 @@ pub fn chat_to_anthropic_resp(src: &Value) -> Value {
         .and_then(|a| a.first())
     {
         if let Some(msg) = choice.get("message") {
+            // reasoning_content → thinking 块（带头部 signature，保证多轮 thinking 完整性）
+            if let Some(rc) = msg.get("reasoning_content").and_then(|x| x.as_str()) {
+                if !rc.is_empty() {
+                    let signature = msg
+                        .get("reasoning_signature")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("");
+                    let mut block = json!({"type":"thinking","thinking":rc});
+                    if !signature.is_empty() {
+                        block["signature"] = json!(signature);
+                    }
+                    content.push(block);
+                }
+            }
             if let Some(t) = msg.get("content").and_then(|x| x.as_str()) {
                 if !t.is_empty() {
                     content.push(json!({"type":"text","text":t}));

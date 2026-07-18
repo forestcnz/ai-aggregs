@@ -351,7 +351,20 @@ impl Provider {
             }
             Protocol::Anthropic => {
                 if body.get("thinking").is_none() {
-                    body["thinking"] = json!({"type": "enabled"});
+                    let model = body.get("model").and_then(|m| m.as_str()).unwrap_or("");
+                    // Claude 4.6+ / Sonnet 5 / Fable 5 / Mythos 等新模型不支持 manual thinking，
+                    // 必须用 adaptive；旧模型（Claude 3.x、Opus 4.1/4.5、Haiku 4.5）用 enabled
+                    let needs_adaptive = model.contains("4-6")
+                        || model.contains("4-7")
+                        || model.contains("4-8")
+                        || model.contains("sonnet-5")
+                        || model.contains("fable")
+                        || model.contains("mythos");
+                    body["thinking"] = if needs_adaptive {
+                        json!({"type": "adaptive"})
+                    } else {
+                        json!({"type": "enabled"})
+                    };
                 }
             }
         }
