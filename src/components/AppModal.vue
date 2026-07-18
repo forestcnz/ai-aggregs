@@ -16,8 +16,10 @@ const props = withDefaults(
     open: boolean
     /** 点击遮罩是否关闭，默认 true */
     closeOnOverlay?: boolean
+    /** 遮罩层级，默认 2100；confirm 等需要盖在业务弹窗之上时调高 */
+    zIndex?: number
   }>(),
-  { closeOnOverlay: true }
+  { closeOnOverlay: true, zIndex: 2100 }
 )
 
 const emit = defineEmits<{ close: [] }>()
@@ -47,7 +49,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="open" class="app-modal-overlay" @click.self="onOverlayClick">
+      <div
+        v-if="open"
+        class="app-modal-overlay"
+        :style="{ zIndex: props.zIndex }"
+        @click.self="onOverlayClick"
+      >
         <div class="app-modal">
           <div v-if="$slots.header" class="app-modal-header">
             <slot name="header" />
@@ -73,7 +80,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2100;
   padding: 16px;
 }
 .app-modal {

@@ -20,7 +20,7 @@ function onConfirm() {
 </script>
 
 <template>
-  <AppModal :open="!!modal" :close-on-overlay="false" @close="onCancel">
+  <AppModal :open="!!modal" :close-on-overlay="false" :z-index="2200" @close="onCancel">
     <template v-if="modal?.options.title" #header>{{ modal.options.title }}</template>
 
     <p class="confirm-message">{{ modal?.options.message }}</p>
