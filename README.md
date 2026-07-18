@@ -49,7 +49,50 @@ Tauri v2 壳 + Vue 3 前端 + Rust/Axum 网关嵌入同一进程。
 
 ![设置（二）](preview/设置2.png)
 
-**交互式设计稿**：完整的重设计稿（复刻 opencode.ai 美学）位于 [`preview/redesign/`](preview/redesign/)，浏览器打开 `preview/redesign/index.html` 即可——汇总页链接到九个功能页（`pages/`），每页一个独立的完整界面预览，侧边栏可在各功能间切换。
+**重设计稿**（复刻 opencode.ai 美学；[交互式版本](preview/redesign/index.html)，每个功能独立成页）：
+
+![设计稿总览 — hero / logo / 设计系统 / 九页导航](preview/redesign/_overview.png)
+
+<details>
+<summary><b>九个功能页预览（点开查看）</b></summary>
+
+**网关状态**
+
+![网关状态](preview/redesign/dashboard.png)
+
+**供应商**
+
+![供应商](preview/redesign/providers.png)
+
+**AI 聊天**
+
+![AI聊天](preview/redesign/chat.png)
+
+**用量统计**
+
+![用量统计](preview/redesign/usage.png)
+
+**供量统计**
+
+![供量统计](preview/redesign/provider-usage.png)
+
+**Codex 配置**
+
+![Codex](preview/redesign/codex.png)
+
+**OpenCode 配置**
+
+![OpenCode](preview/redesign/opencode.png)
+
+**Claude Code 配置**
+
+![Claude Code](preview/redesign/claude-code.png)
+
+**设置**
+
+![设置](preview/redesign/settings.png)
+
+</details>
 
 ---
 
