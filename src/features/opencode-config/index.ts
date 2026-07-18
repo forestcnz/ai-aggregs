@@ -2,7 +2,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   opencodeConfigLoad,
   opencodeConfigSave,
-  opencodeProviderIds,
+  opencodeModelsCatalog,
   getConfig,
   maskKey,
   type OcForm,
@@ -85,8 +85,9 @@ export function useOpencodeConfig() {
   const fileExists = ref(false)
   /** 网关 baseURL（http://{listen}/v1），用于新建 provider 时预填 */
   const gatewayBaseUrl = ref('')
-  /** opencode 可用的 provider id 列表（执行 `opencode models` 获取），屏蔽下拉候选 */
-  const availableProviderIds = ref<string[]>([])
+  /** opencode 可用的完整 `provider/model` 列表（执行 `opencode models` 获取）。
+   *  供主/轻量模型下拉候选，也作为屏蔽下拉 provider id 的派生源。 */
+  const availableModels = ref<string[]>([])
   /** 正在获取 provider id 列表 */
   const loadingProviderIds = ref(false)
 
@@ -97,6 +98,9 @@ export function useOpencodeConfig() {
   const editingKeys = ref<Set<OcProvider>>(new Set())
 
   /** 所有 provider 的所有 model，聚合成 `providerId/modelId` 形式（供主模型下拉）。
+   * 来源：
+   *   - 用户在本页配置的本地 provider 的 model
+   *   - opencode 实际可用模型（执行 `opencode models` 得到的完整 `provider/model` 列表）
    * 若当前 model / small_model 值不在列表中（如 provider 已删），兜底包含进来，
    * 避免 <select> 找不到对应 option 而显示空白。 */
   const modelSelectOptions = computed(() => {
@@ -118,9 +122,21 @@ export function useOpencodeConfig() {
         }
       }
     }
+    for (const m of availableModels.value) push(m)
     push(form.value?.model)
     push(form.value?.small_model)
     return opts
+  })
+
+  /** opencode 可用 provider id 列表（从 `availableModels` 派生：取每条 `provider/model` 的前缀），
+   *  作为屏蔽下拉 disabled_providers 的候选。 */
+  const availableProviderIds = computed(() => {
+    const set = new Set<string>()
+    for (const m of availableModels.value) {
+      const p = m.split('/')[0]
+      if (p) set.add(p)
+    }
+    return Array.from(set)
   })
 
   /** 统计：provider 数 + model 总数 */
@@ -162,7 +178,8 @@ export function useOpencodeConfig() {
       }
       expandedProviders.value.clear()
       expandedModels.value.clear()
-      // 异步获取 opencode 可用 provider 列表（不阻塞页面加载，失败仅提示）
+      // 异步获取 opencode 可用模型目录（不阻塞页面整体加载）；
+      // 主/轻量模型下拉在 catalog 就绪前会显示「加载中」，避免候选突然增多抖动
       void refreshProviderIds()
     } catch (e) {
       await alertModal({ title: '读取失败', message: String(e) })
@@ -171,14 +188,15 @@ export function useOpencodeConfig() {
     }
   }
 
-  /** 执行 `opencode models` 刷新 opencode 可用 provider id 列表 */
+  /** 执行 `opencode models` 刷新 opencode 可用 provider + model 目录（一次调用） */
   async function refreshProviderIds() {
     loadingProviderIds.value = true
     try {
-      availableProviderIds.value = await opencodeProviderIds()
+      const catalog = await opencodeModelsCatalog()
+      availableModels.value = catalog.models
     } catch (e) {
-      toast('获取 opencode provider 列表失败: ' + String(e), 'error', 5000)
-      availableProviderIds.value = []
+      toast('获取 opencode 模型目录失败: ' + String(e), 'error', 5000)
+      availableModels.value = []
     } finally {
       loadingProviderIds.value = false
     }

@@ -258,8 +258,17 @@ export const opencodeConfigLoad = () =>
 export const opencodeConfigSave = (form: OcForm) =>
   invoke<void>('opencode_config_save', { form })
 
-/** 执行 `opencode models` 获取 opencode 可用的 provider id 列表（屏蔽下拉候选） */
-export const opencodeProviderIds = () => invoke<string[]>('opencode_provider_ids')
+/** opencode models 目录：一次执行 `opencode models` 同时返回的 provider + 完整模型列表 */
+export interface ModelsCatalog {
+  /** 去重 provider id 列表（屏蔽下拉候选） */
+  providers: string[]
+  /** 去重完整 `provider/model` 列表（主/轻量模型下拉候选） */
+  models: string[]
+}
+
+/** 执行 `opencode models` 一次返回 providers + models 目录 */
+export const opencodeModelsCatalog = () =>
+  invoke<ModelsCatalog>('opencode_models_catalog')
 
 /** 执行 `opencode -v` 获取版本号；未安装返回 null（控制侧边栏入口显示） */
 export const opencodeVersion = () => invoke<string | null>('opencode_version')

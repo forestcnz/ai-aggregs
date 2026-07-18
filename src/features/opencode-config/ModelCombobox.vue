@@ -5,6 +5,8 @@ const props = defineProps<{
   modelValue: string | null | undefined
   options: string[]
   placeholder?: string
+  /** 候选正在异步加载中（下拉面板显示加载提示，避免候选突然增多抖动） */
+  loading?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
 
@@ -62,16 +64,19 @@ function clearVal() {
     />
     <div v-if="open" class="combo-menu">
       <div class="combo-item combo-empty" @mousedown.prevent="clearVal">— 未设置 —</div>
-      <div v-if="!filtered.length" class="combo-item combo-none">无匹配项（可手动输入）</div>
-      <div
-        v-for="opt in filtered"
-        :key="opt"
-        class="combo-item"
-        :class="{ active: opt === modelValue }"
-        @mousedown.prevent="pick(opt)"
-      >
-        {{ opt }}
-      </div>
+      <div v-if="loading" class="combo-item combo-loading">加载候选中…</div>
+      <template v-else>
+        <div v-if="!filtered.length" class="combo-item combo-none">无匹配项（可手动输入）</div>
+        <div
+          v-for="opt in filtered"
+          :key="opt"
+          class="combo-item"
+          :class="{ active: opt === modelValue }"
+          @mousedown.prevent="pick(opt)"
+        >
+          {{ opt }}
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -162,5 +167,14 @@ function clearVal() {
 .combo-none:hover {
   background: transparent;
   color: var(--text-weaker);
+}
+.combo-loading {
+  color: var(--text-weak);
+  cursor: progress;
+  font-style: italic;
+}
+.combo-loading:hover {
+  background: transparent;
+  color: var(--text-weak);
 }
 </style>

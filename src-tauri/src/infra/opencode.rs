@@ -578,12 +578,14 @@ fn hide_console(cmd: &mut std::process::Command) {
     cmd.creation_flags(CREATE_NO_WINDOW);
 }
 
-/// 执行 `opencode models`，从其输出（每行 `provider/model`）中提取去重、
-/// 按字母序排列的 provider id 列表。这些是 opencode 当前可加载的 provider，
-/// 适合作为 `disabled_providers` 屏蔽下拉的候选项。
+/// 执行 `opencode models`，从其输出（每行 `provider/model`）中同时提取：
+///   - `providers`：去重后的 provider id 列表（屏蔽下拉候选）
+///   - `models`：去重后的完整 `provider/model` 列表（主/轻量模型下拉候选）
+///
+/// 一次命令调用同时产出两份数据，避免屏蔽下拉与模型下拉分别执行两次。
 ///
 /// 失败原因：opencode 不在 PATH、命令退出非 0 等。
-pub fn list_provider_ids() -> std::io::Result<Vec<String>> {
+pub fn list_models_catalog() -> std::io::Result<ModelsCatalog> {
     let output = run_opencode("models")?;
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
@@ -599,16 +601,31 @@ pub fn list_provider_ids() -> std::io::Result<Vec<String>> {
         )));
     }
     let text = String::from_utf8_lossy(&output.stdout);
-    let mut set = std::collections::BTreeSet::new();
+    let mut providers = std::collections::BTreeSet::new();
+    let mut models = std::collections::BTreeSet::new();
     for line in text.lines() {
-        if let Some((provider, _)) = line.trim().split_once('/') {
+        let l = line.trim();
+        if let Some((provider, _)) = l.split_once('/') {
             let p = provider.trim();
             if !p.is_empty() {
-                set.insert(p.to_string());
+                providers.insert(p.to_string());
+                models.insert(l.to_string());
             }
         }
     }
-    Ok(set.into_iter().collect())
+    Ok(ModelsCatalog {
+        providers: providers.into_iter().collect(),
+        models: models.into_iter().collect(),
+    })
+}
+
+/// opencode 可用 provider / model 目录（一次 `opencode models` 调用的解析结果）
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ModelsCatalog {
+    /// 去重 provider id 列表（按字母序）
+    pub providers: Vec<String>,
+    /// 去重完整 `provider/model` 列表（按字母序）
+    pub models: Vec<String>,
 }
 
 /// 执行 `opencode -v` 获取版本号；未安装或执行失败时返回 None。

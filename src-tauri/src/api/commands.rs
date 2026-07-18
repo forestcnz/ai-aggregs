@@ -340,14 +340,16 @@ pub fn opencode_config_save(form: OcForm) -> Result<(), IpcError> {
     opencode::save(&form).map_err(|e| IpcError(format!("保存 opencode 配置失败: {e}")))
 }
 
-/// 执行 `opencode models` 获取 opencode 当前可用的 provider id 列表，
-/// 作为屏蔽下拉（disabled_providers）的候选项。
+/// 执行 `opencode models` 获取 opencode 当前可用的：
+///   - provider id 列表（屏蔽下拉 disabled_providers 候选）
+///   - 完整 `provider/model` 列表（主/轻量模型下拉候选）
+/// 一次命令同时返回两份数据。
 /// 用 spawn_blocking 包裹，避免阻塞 tokio worker（opencode 为外部进程）。
 #[tauri::command]
-pub async fn opencode_provider_ids() -> Result<Vec<String>, IpcError> {
+pub async fn opencode_models_catalog() -> Result<opencode::ModelsCatalog, IpcError> {
     tauri::async_runtime::spawn_blocking(|| {
-        opencode::list_provider_ids()
-            .map_err(|e| IpcError(format!("获取 opencode provider 列表失败: {e}")))
+        opencode::list_models_catalog()
+            .map_err(|e| IpcError(format!("获取 opencode 模型目录失败: {e}")))
     })
     .await
     .map_err(|e| IpcError(format!("任务调度失败: {e}")))?

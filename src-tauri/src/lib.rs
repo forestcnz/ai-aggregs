@@ -171,7 +171,7 @@ pub fn run() {
             last_used_models,
             opencode_config_load,
             opencode_config_save,
-            opencode_provider_ids,
+            opencode_models_catalog,
             opencode_version,
             claude_code_config_load,
             claude_code_config_save,

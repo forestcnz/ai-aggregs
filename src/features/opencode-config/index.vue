@@ -116,6 +116,7 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
         <ModelCombobox
           v-model="form.model"
           :options="modelSelectOptions"
+          :loading="loadingProviderIds"
           placeholder="providerId/modelId（可下拉或手动输入）"
         />
       </div>
@@ -124,6 +125,7 @@ function onLimitInput(m: OcModel, field: 'context' | 'output', raw: string) {
         <ModelCombobox
           v-model="form.small_model"
           :options="modelSelectOptions"
+          :loading="loadingProviderIds"
           placeholder="留空回退主模型（可下拉或手动输入）"
         />
       </div>
