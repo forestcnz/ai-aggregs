@@ -1,4 +1,4 @@
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onActivated, watch } from 'vue'
 import { getConfig, getUsage, maskKey, type UsageSummary, type Config } from '../../api/commands'
 
 export function useUsage() {
@@ -53,6 +53,12 @@ export function useUsage() {
   onMounted(async () => {
     await loadConfig()
     await loadUsage()
+  })
+
+  // KeepAlive 组件重新激活时刷新数据（切换 tab 回来时实时获取）
+  onActivated(() => {
+    loadConfig()
+    loadUsage()
   })
 
   return {

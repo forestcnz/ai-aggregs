@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import {
   getConfig,
   getProviderUsage,
@@ -72,6 +72,12 @@ export function useProviderUsage() {
   onMounted(async () => {
     await loadConfig()
     await loadUsage()
+  })
+
+  // KeepAlive 组件重新激活时刷新数据（切换 tab 回来时实时获取）
+  onActivated(() => {
+    loadConfig()
+    loadUsage()
   })
 
   return {
