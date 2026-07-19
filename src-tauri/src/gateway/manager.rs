@@ -47,7 +47,13 @@ pub async fn start_gateway_inner(app: &tauri::AppHandle) -> Result<String, IpcEr
     sync_consumer_models(&mut cfg);
     let providers = build_providers(&cfg)?;
     let db = ctrl.db.clone();
-    let app_state = AppState::build(&cfg, providers.clone(), db, ctrl.last_model.clone())?;
+    let app_state = AppState::build(
+        &cfg,
+        providers.clone(),
+        db,
+        ctrl.last_model.clone(),
+        ctrl.metrics.clone(),
+    )?;
     let app_router = router::build(app_state);
 
     let listener = tokio::net::TcpListener::bind(&cfg.listen)

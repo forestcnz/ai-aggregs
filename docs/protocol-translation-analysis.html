@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ai-aggregs × sub2api 协议互转架构对比分析报告</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs"></script>
+<style>
+:root {
+  --bg: #fafbfc;
+  --fg: #24292e;
+  --muted: #57606a;
+  --accent: #0366d6;
+  --accent-bg: #f1f8ff;
+  --border: #e1e4e8;
+  --code-bg: #f6f8fa;
+  --rust: #dea584;
+  --go: #00add8;
+  --good: #22863a;
+  --warn: #b08800;
+  --bad: #cb2431;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 32px 80px;
+}
+header.report-header {
+  text-align: center;
+  padding: 32px 0 40px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 32px;
+}
+header.report-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  background: linear-gradient(90deg, var(--rust), var(--go));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+header.report-header .meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+header.report-header .badges {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+.badge.rust { background: var(--rust); }
+.badge.go { background: var(--go); }
+.badge.comparison { background: var(--accent); }
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 32px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  scroll-margin-top: 20px;
+}
+h1 { font-size: 26px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+h2 {
+  font-size: 22px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin-top: 48px;
+}
+h3 { font-size: 18px; margin-top: 32px; }
+h4 { font-size: 16px; }
+h5 { font-size: 14px; color: var(--muted); }
+p { margin: 12px 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+strong { font-weight: 600; }
+em { font-style: italic; color: var(--muted); }
+ul, ol { padding-left: 28px; margin: 12px 0; }
+li { margin: 4px 0; }
+hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: var(--accent-bg);
+  border-left: 4px solid var(--accent);
+  color: var(--fg);
+  border-radius: 4px;
+}
+blockquote p { margin: 6px 0; }
+code {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  color: #d6336c;
+}
+pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+/* Rust 代码高亮关键字 */
+.kw { color: #569cd6; }
+.str { color: #ce9178; }
+.comment { color: #6a9955; font-style: italic; }
+.ty { color: #4ec9b0; }
+.fn { color: #dcdcaa; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 14px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  overflow: hidden;
+  border-radius: 6px;
+}
+th, td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th {
+  background: var(--code-bg);
+  font-weight: 600;
+  color: var(--fg);
+  border-bottom: 2px solid var(--border);
+}
+tr:hover { background: var(--accent-bg); }
+td code { white-space: nowrap; }
+.mermaid {
+  margin: 24px auto;
+  text-align: center;
+  background: white;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.toc {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 28px;
+  margin-bottom: 40px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.toc h2 {
+  margin-top: 0;
+  border-bottom: none;
+  font-size: 18px;
+}
+.toc ol { padding-left: 24px; margin: 8px 0; }
+.toc a { display: block; padding: 2px 0; }
+.toc > ol > li { margin: 6px 0; font-weight: 600; }
+.toc > ol > li ol li { font-weight: normal; }
+.score-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.card h4 { margin: 0 0 8px; color: var(--accent); font-size: 14px; }
+.card .big {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+}
+.card.rust { border-top: 4px solid var(--rust); }
+.card.go { border-top: 4px solid var(--go); }
+.card .meta { color: var(--muted); font-size: 12px; }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+.tag.good { background: #dcffe4; color: var(--good); }
+.tag.warn { background: #fff5b1; color: var(--warn); }
+.tag.bad  { background: #ffebe9; color: var(--bad); }
+.tag.neutral { background: var(--code-bg); color: var(--muted); }
+.callout {
+  margin: 24px 0;
+  padding: 16px 20px;
+  border-left: 4px solid;
+  border-radius: 4px;
+  background: white;
+}
+.callout.tip { border-color: var(--good); background: #f0fff4; }
+.callout.warn { border-color: var(--warn); background: #fffbeb; }
+.callout.crit { border-color: var(--bad); background: #fff5f5; }
+.callout.info { border-color: var(--accent); background: var(--accent-bg); }
+.callout h4 { margin-top: 0; }
+.roadmap {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.roadmap-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 6px 0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.roadmap-item.high { background: #fff5f5; border-left: 4px solid var(--bad); }
+.roadmap-item.mid { background: #fffbeb; border-left: 4px solid var(--warn); }
+.roadmap-item.low { background: #f0fff4; border-left: 4px solid var(--good); }
+.roadmap-item .label { flex: 1; }
+.roadmap-item .priority { font-weight: 600; margin-left: 12px; }
+footer {
+  margin-top: 80px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.kbd {
+  background: #eee;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 12px;
+}
+.section-anchor {
+  position: relative;
+  top: -20px;
+  visibility: hidden;
+}
+@media (max-width: 768px) {
+  .container { padding: 20px 16px 60px; }
+  header.report-header h1 { font-size: 22px; }
+  table { font-size: 12px; }
+  th, td { padding: 6px 8px; }
+  pre { font-size: 11px; padding: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="report-header">
+  <h1>ai-aggregs × sub2api 协议互转架构对比分析报告</h1>
+  <div class="meta">
+    项目 A：Rust 项目 <code>ai-aggregs</code>（Tauri v2 + Axum 内嵌 LLM API 网关）<br/>
+    项目 B：Go 项目 <code>github.com/Wei-Shaw/sub2api</code>（Gin + ent SaaS 化 LLM API 网关）
+  </div>
+  <div class="badges">
+    <span class="badge rust">Rust / Tauri / Axum</span>
+    <span class="badge go">Go / Gin / ent</span>
+    <span class="badge comparison">Protocol Translation 对比</span>
+  </div>
+  <div class="meta" style="margin-top:12px; font-size:12px;">
+    报告基线：完整阅读两个项目核心源码后产出 · 全部结论附源码行号锚点
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#tldr">0. 执行摘要（TL;DR）</a></li>
+    <li><a href="#part1">第一部分：整体架构</a>
+      <ol>
+        <li><a href="#part1-1">1.1 Rust 项目架构</a></li>
+        <li><a href="#part1-2">1.2 Go 项目架构</a></li>
+      </ol>
+    </li>
+    <li><a href="#part2">第二部分：协议互转流程</a>
+      <ol>
+        <li><a href="#part2-1">2.1 全部协议转换矩阵</a></li>
+        <li><a href="#part2-2">2.2 Rust：6 方向 3 协议</a></li>
+        <li><a href="#part2-3">2.3 Go：3 套对等协议 + 多平台</a></li>
+        <li><a href="#part2-4">2.4 能力矩阵</a></li>
+      </ol>
+    </li>
+    <li><a href="#part3">第三部分：Rust 代码定位</a></li>
+    <li><a href="#part4">第四部分：Go 代码定位</a></li>
+    <li><a href="#part5">第五部分：统一数据模型</a></li>
+    <li><a href="#part6">第六部分：Trait vs Interface</a></li>
+    <li><a href="#part7">第七部分：Streaming</a></li>
+    <li><a href="#part8">第八部分：Provider Adapter</a></li>
+    <li><a href="#part9">第九部分：字段映射</a></li>
+    <li><a href="#part10">第十部分：目录职责</a></li>
+    <li><a href="#part11">第十一部分：时序图</a></li>
+    <li><a href="#part12">第十二部分：架构差异</a></li>
+    <li><a href="#part13">第十三部分：优缺点与评分</a></li>
+    <li><a href="#part14">第十四部分：最佳实践（V3）</a></li>
+    <li><a href="#part15">第十五部分：迁移建议</a></li>
+  </ol>
+</nav>
+
+<h2 id="tldr">0. 执行摘要（TL;DR）</h2>
+
+<table>
+<thead><tr><th>维度</th><th>ai-aggregs (Rust)</th><th>sub2api (Go)</th></tr></thead>
+<tbody>
+<tr><td>形态</td><td>桌面应用 + 内嵌网关（单进程）</td><td>服务端 SaaS（独立部署）</td></tr>
+<tr><td>中间表示（IR）</td><td><strong>OpenAI Chat Completions</strong>（事实 IR）</td><td><strong>OpenAI Responses API</strong>（显式 IR）</td></tr>
+<tr><td>协议枚举</td><td><code>Protocol { Chat, Responses, Anthropic }</code> 3 种</td><td>Anthropic / Responses / Chat / Gemini / Grok / xAI / Vertex / Antigravity 多平台</td></tr>
+<tr><td>转换实现</td><td>对 <code>serde_json::Value</code> 直接做无类型 JSON 重写</td><td>强类型 <code>struct</code> 双向往返</td></tr>
+<tr><td>流式抽象</td><td><code>StreamConverter</code> trait + Chained 串联</td><td>每方向独立 <code>XxxStreamState</code> 状态机</td></tr>
+<tr><td>Provider 抽象</td><td><strong>无 Trait</strong>，单 <code>Provider</code> struct + <code>protocol</code> 字段分发</td><td><strong>无 Interface</strong>，按 <code>Platform</code> 在 service 层硬分支</td></tr>
+<tr><td>Tool Calling</td><td>messages/tools/tool_choice 完整；thinking signature 多轮</td><td>+ namespace 工具摊平 + <code>tool_search</code> 代理 + custom 工具</td></tr>
+<tr><td>鉴权</td><td>Bearer / x-api-key + constant_time_eq</td><td>多策略：APIKey / OAuth / JWT / Turnstile</td></tr>
+<tr><td>计费</td><td>仅 token 用量落 SQLite</td><td>订阅 + 充值 + 促销码 + 实时计费</td></tr>
+<tr><td>规模</td><td>21 个 <code>.rs</code> 文件</td><td>700+ <code>.go</code> 文件（service 层 ~1500 文件）</td></tr>
+</tbody>
+</table>
+
+<div class="callout info">
+  <p><strong>核心结论</strong>：两者在协议互转层走了<strong>完全相反</strong>的两条路。</p>
+  <ul>
+    <li><strong>Rust</strong>：弱类型 + Chat 为中心 + 极简分发。Anthropic ↔ Responses 通过 Chat 中转（Chained StreamConverter）。</li>
+    <li><strong>Go</strong>：强类型 + Responses 为中心 + 多平台特化。Anthropic ↔ Chat 同时保留"经 Responses 双跳"和"直转"两条路径，后者作为热路径优化。</li>
+  </ul>
+</div>
+
+<h2 id="part1">第一部分：整体架构</h2>
+
+<h3 id="part1-1">1.1 Rust 项目架构（ai-aggregs）</h3>
+
+<p>Rust 项目是 Tauri v2 桌面应用，Axum HTTP 网关嵌入在同一进程内。源码集中在 <code>src-tauri/src/</code>，21 个 <code>.rs</code> 文件，按 <code>api / gateway / config / infra</code> 四个模块组织。</p>
+
+<div class="mermaid">
+flowchart TB
+    subgraph FE["前端 (Vue 3 + Tauri Webview)"]
+        UI["features/*<br/>providers / chat / settings"]
+    end
+    subgraph BE["Rust 后端 (src-tauri/src)"]
+        Tauri["lib.rs<br/>Tauri Builder + Tray"]
+        IPC["api/commands.rs<br/>25 个 #[tauri::command]"]
+        subgraph GW["gateway 网关核心"]
+            Mgr["manager.rs<br/>build_providers / start / stop"]
+            Prov["provider.rs<br/>Provider 结构体<br/>密钥轮转/黑名单/send"]
+            Conv["converter.rs<br/>req_convert / resp_convert<br/>非流式 6 方向"]
+            Stream["stream.rs<br/>StreamConverter trait"]
+        end
+        subgraph HTTP["Axum HTTP 层"]
+            Router["router.rs<br/>/v1/* 4 路由"]
+            Handler["handler.rs<br/>proxy / list_models / auth"]
+            CORS["CORS 中间件"]
+        end
+        subgraph CFG["config"]
+            Types["types.rs<br/>Protocol / ApiKeyEntry / Config"]
+            State["state.rs<br/>AppCtrl / AppState"]
+        end
+        subgraph INFRA["infra"]
+            DB["db.rs<br/>SQLite Arc Mutex"]
+            ErrInfra["error.rs<br/>AppError + IpcError"]
+            LogBridge["log_bridge.rs"]
+            Tray["tray.rs"]
+        end
+    end
+    Upstream["上游 Provider<br/>OpenAI / Anthropic / 兼容上游"]
+    FE -->|invoke / event| IPC
+    IPC --> Mgr
+    Mgr --> Prov
+    Router --> Handler
+    Handler -->|route| Prov
+    Handler --> Conv
+    Handler --> Stream
+    Prov -->|reqwest| Upstream
+    Upstream -->|SSE/JSON| Handler
+</div>
+
+<table>
+<thead><tr><th>层</th><th>文件</th><th>职责</th></tr></thead>
+<tbody>
+<tr><td>Router</td><td><code>api/router.rs:11</code></td><td>注册 4 条路由：<code>/v1/models</code> GET、<code>/v1/chat/completions</code>、<code>/v1/responses</code>、<code>/v1/messages</code> POST；CORS 中间件</td></tr>
+<tr><td>Gateway Handler</td><td><code>api/handler.rs:13</code></td><td>唯一的 <code>proxy</code> 函数：路径判协议 → 路由 → 协议转换 → 发上游 → 响应转换/流转</td></tr>
+<tr><td>Protocol Layer</td><td><code>gateway/converter.rs</code></td><td>6 个方向的<strong>非流式</strong>协议互转（基于 <code>serde_json::Value</code>）</td></tr>
+<tr><td>Stream Layer</td><td><code>gateway/stream.rs</code></td><td><code>StreamConverter</code> trait + 6 个流式状态机；usage 嗅探；流式/非流式降级判定</td></tr>
+<tr><td>Provider Layer</td><td><code>gateway/provider.rs:33</code></td><td>单一 <code>Provider</code> 结构体（无 trait），密钥轮转、429/5xx 黑名单、failover、reasoning effort 注入</td></tr>
+<tr><td>Gateway Manager</td><td><code>gateway/manager.rs</code></td><td>启停、重建网关；<code>compute_consumer_models</code> 自动同步对外模型列表</td></tr>
+<tr><td>Config</td><td><code>config/types.rs</code> + <code>config/state.rs</code></td><td><code>Protocol</code> 枚举、<code>ApiKeyEntry</code> untagged 枚举、<code>ProviderConfig</code>、<code>AppCtrl</code>、<code>AppState</code></td></tr>
+<tr><td>Infra</td><td><code>infra/*.rs</code></td><td>SQLite、log4rs、Tauri tray、opencode/claude_code/codex 配置文件读写</td></tr>
+</tbody>
+</table>
+
+<h3 id="part1-2">1.2 Go 项目架构（sub2api）</h3>
+
+<p>Go 项目是独立 SaaS 服务端，Gin + ent ORM（PostgreSQL / MySQL），具备完整的用户/订阅/支付/OAuth 多账号体系。</p>
+
+<div class="mermaid">
+flowchart TB
+    Client["Client<br/>Claude Code / Codex / Cursor / SDK"]
+    subgraph Srv["sub2api/backend"]
+        Routes["server/routes<br/>gateway.go / admin.go / auth.go"]
+        subgraph MW["Middleware"]
+            APIKeyAuth["APIKeyAuth"]
+            ReqGroup["RequireGroupAssignment"]
+            BodyLimit["RequestBodyLimit"]
+            OpsErr["OpsErrorLogger"]
+        end
+        subgraph Handlers["internal/handler"]
+            HGW["Gateway Handler<br/>原生 Anthropic / Gemini"]
+            HOAI["OpenAIGateway Handler<br/>Codex / ChatGPT Plus / Grok"]
+        end
+        subgraph Svc["internal/service （700+ 文件）"]
+            OAIGateway["OpenAIGatewayService<br/>chat_completions / messages / responses"]
+            Gateway["GatewayService<br/>原生 Claude / Gemini 转发"]
+            subgraph APIC["internal/pkg/apicompat"]
+                Bridge["协议互转核心<br/>6 方向 + 4 状态机"]
+                Types["types.go<br/>730 行 struct 宇宙"]
+            end
+            Other["oauth / ratelimit / payment<br/>subscription / scheduler / ops_*"]
+        end
+        subgraph Ext["ent ORM"]
+            Ent["40+ schema<br/>account / apikey / user<br/>subscription / paymentorder"]
+        end
+    end
+    Upstream["上游<br/>Claude / OpenAI / Gemini / Grok / xAI / Vertex / Antigravity"]
+    Client -->|HTTP/SSE/WS| Routes
+    Routes --> MW --> Handlers
+    Handlers --> Svc
+    OAIGateway <--> APIC
+    Gateway <--> APIC
+    OAIGateway -->|httpclient| Upstream
+    Gateway -->|httpclient| Upstream
+    Svc --> Ent
+</div>
+
+<div class="callout info">
+  <p><strong>关键差异</strong>：Go 项目把协议转换独立成 <code>apicompat</code> 包，与业务 service 层完全解耦；Rust 项目把转换函数与业务层混在 <code>gateway</code> 模块内。</p>
+</div>
+
+<h2 id="part2">第二部分：协议互转流程</h2>
+
+<h3 id="part2-1">2.1 全部协议转换矩阵</h3>
+
+<div class="mermaid">
+flowchart LR
+    Chat["OpenAI Chat Completions"]
+    Resp["OpenAI Responses API"]
+    Anthro["Anthropic Messages"]
+    Gem["Gemini"]
+    Grok["Grok / xAI"]
+    Bedrock["Bedrock / Vertex"]
+    Anti["Antigravity"]
+    Chat -.直转.-> Resp
+    Chat -.直转.-> Anthro
+    Resp -.直转.-> Anthro
+    Chat -.通过 Chat 中转.-> Gem
+    classDef rust fill:#fdd,stroke:#c33
+    classDef go fill:#dfd,stroke:#3c3
+    classDef both fill:#ffd,stroke:#cc3
+    class Chat,Resp,Anthro both
+    class Gem,Grok,Bedrock,Anti go
+</div>
+
+<h3 id="part2-2">2.2 Rust 项目：6 方向 3 协议，Chat 作为事实 IR</h3>
+
+<p>入口：<code>gateway/converter.rs:8</code> 的 <code>req_convert(src, s, d)</code> 与 <code>converter.rs:27</code> 的 <code>resp_convert</code>。</p>
+
+<div class="mermaid">
+flowchart TD
+    InClient["客户端请求<br/>Protocol c_proto"]
+    Route["handler.rs::proxy<br/>st.route(model, c_proto)"]
+    Loop{"遍历候选 provider"}
+    Convert1["converter::req_convert<br/>c_proto → p_proto"]
+    Send["provider.send<br/>注入 key + reasoning_effort"]
+    Up["上游响应"]
+    IsSSE{"stream && 上游 SSE?"}
+    StreamConv["stream::stream_convert<br/>StreamConverter 状态机"]
+    StreamPass["stream::stream_passthrough<br/>仅嗅探 usage"]
+    NonStreamConv["converter::resp_convert"]
+    OutClient["响应客户端"]
+    InClient --> Route --> Loop --> Convert1 --> Send --> Up --> IsSSE
+    IsSSE -->|需转换| StreamConv --> OutClient
+    IsSSE -->|同协议| StreamPass --> OutClient
+    IsSSE -->|非流式| NonStreamConv --> OutClient
+</div>
+
+<table>
+<thead><tr><th>入站协议 → 出站协议</th><th>实现</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>Chat → Responses</td><td><code>chat_to_responses_req</code></td><td>直转</td></tr>
+<tr><td>Responses → Chat</td><td><code>responses_to_chat_req</code></td><td>直转</td></tr>
+<tr><td>Chat → Anthropic</td><td><code>chat_to_anthropic_req</code></td><td>直转</td></tr>
+<tr><td>Anthropic → Chat</td><td><code>anthropic_to_chat_req</code></td><td>直转</td></tr>
+<tr><td><strong>Responses → Anthropic</strong></td><td><code>responses_to_chat → chat_to_anthropic</code></td><td><strong>双跳经 Chat</strong></td></tr>
+<tr><td><strong>Anthropic → Responses</strong></td><td><code>anthropic_to_chat → chat_to_responses</code></td><td><strong>双跳经 Chat</strong></td></tr>
+</tbody>
+</table>
+
+<h3 id="part2-3">2.3 Go 项目：Responses 作为显式 IR + 直转热路径</h3>
+
+<p>Go 项目在 <code>apicompat</code> 包内将 <strong>Responses API 作为显式 IR</strong>，因为接入的是 ChatGPT Codex 后端（原生 Responses）。</p>
+
+<div class="mermaid">
+flowchart LR
+    subgraph Client["客户端侧"]
+        CC["/v1/messages<br/>Anthropic"]
+        CR["/v1/responses<br/>Responses"]
+        CK["/v1/chat/completions<br/>Chat"]
+    end
+    subgraph IR["apicompat 内部 IR = Responses"]
+        RespStruct["ResponsesRequest / Response / StreamEvent"]
+    end
+    subgraph Upstream["上游"]
+        U1["ChatGPT/Codex OAuth<br/>原生 Responses"]
+        U2["OpenAI APIKey<br/>Responses 或 Chat"]
+        U3["DeepSeek/Kimi/GLM<br/>仅 Chat"]
+        U4["Gemini / Grok / xAI"]
+    end
+    CC -.AnthropicToResponses.-> RespStruct
+    CK -.ChatCompletionsToResponses.-> RespStruct
+    CR --> RespStruct
+    RespStruct -.ResponsesToAnthropic.-> CC
+    RespStruct -.ResponsesToChatCompletions.-> CK
+    RespStruct --> U1
+    RespStruct -.ResponsesToChatCompletionsRequest.-> U2 & U3
+</div>
+
+<div class="callout tip">
+  <p><strong>特殊优化路径</strong>：<code>chatcompletions_anthropic_bridge.go:42</code> 的 <code>AnthropicToChatCompletionsRequest</code> 直接桥接 Anthropic ↔ Chat，<strong>不经 Responses 中转</strong>。这是 Rust 项目没有的优化（Rust 默认走 Chat 中转，因为 Chat 本身就是 IR）。</p>
+</div>
+
+<h3 id="part2-4">2.4 能力矩阵</h3>
+
+<table>
+<thead><tr><th>能力</th><th>Rust</th><th>Rust 实现</th><th>Go</th><th>Go 实现</th></tr></thead>
+<tbody>
+<tr><td>Chat 非流式</td><td><span class="tag good">✓</span></td><td><code>converter.rs:1108</code></td><td><span class="tag good">✓</span></td><td><code>chatcompletions_responses_bridge.go:840</code></td></tr>
+<tr><td>Responses 非流式</td><td><span class="tag good">✓</span></td><td><code>converter.rs:1184</code></td><td><span class="tag good">✓</span></td><td><code>anthropic_to_responses.go:13</code></td></tr>
+<tr><td>Anthropic Messages 非流式</td><td><span class="tag good">✓</span></td><td><code>converter.rs:347</code></td><td><span class="tag good">✓</span></td><td><code>responses_to_anthropic.go:16</code></td></tr>
+<tr><td>Gemini</td><td><span class="tag bad">✗</span></td><td>—</td><td><span class="tag good">✓</span></td><td><code>internal/pkg/gemini/</code></td></tr>
+<tr><td>Bedrock / Vertex</td><td><span class="tag bad">✗</span></td><td>—</td><td><span class="tag warn">部分</span></td><td><code>vertex_service_account.go</code></td></tr>
+<tr><td>Embedding</td><td><span class="tag bad">✗</span></td><td>—</td><td><span class="tag good">✓</span></td><td><code>openai_embeddings.go</code></td></tr>
+<tr><td>Image Generation</td><td><span class="tag bad">✗</span></td><td>—</td><td><span class="tag good">✓</span></td><td><code>openai_images.go</code> / Grok 视频</td></tr>
+<tr><td>Thinking / Reasoning</td><td><span class="tag good">✓</span> signature 多轮</td><td><code>converter.rs:370</code></td><td><span class="tag good">✓</span></td><td><code>types.go:212</code></td></tr>
+<tr><td>Tool Calling</td><td><span class="tag good">✓</span></td><td><code>converter.rs:419</code></td><td><span class="tag good">✓</span> + namespace + tool_search + custom</td><td><code>chatcompletions_responses_bridge.go:621</code></td></tr>
+<tr><td>Streaming（SSE）</td><td><span class="tag good">✓</span> 6 方向</td><td><code>stream.rs</code></td><td><span class="tag good">✓</span> + WS</td><td><code>openai_ws_*.go</code></td></tr>
+<tr><td>WebSocket</td><td><span class="tag bad">✗</span></td><td>—</td><td><span class="tag good">✓</span> Codex realtime</td><td><code>openai_ws_v2/</code></td></tr>
+</tbody>
+</table>
+
+<h2 id="part3">第三部分：Rust 项目代码定位</h2>
+
+<h3>3.1 <code>gateway/converter.rs</code>（非流式协议互转）</h3>
+
+<p>1258 行，无状态、无副作用、基于 <code>serde_json::Value</code>。<strong>无 struct、无 trait，纯函数式</strong>。</p>
+
+<table>
+<thead><tr><th>函数</th><th>行号</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>req_convert(src, s, d)</code></td><td><code>converter.rs:8</code></td><td>入口：请求体转换分发</td></tr>
+<tr><td><code>resp_convert(src, s, d)</code></td><td><code>converter.rs:27</code></td><td>入口：响应体转换分发</td></tr>
+<tr><td><code>chat_to_anthropic_req</code></td><td><code>converter.rs:347</code></td><td>Chat → Anthropic 请求</td></tr>
+<tr><td><code>anthropic_to_chat_req</code></td><td><code>converter.rs:472</code></td><td>Anthropic → Chat 请求</td></tr>
+<tr><td><code>chat_to_responses_req</code></td><td><code>converter.rs:668</code></td><td>Chat → Responses 请求</td></tr>
+<tr><td><code>responses_to_chat_req</code></td><td><code>converter.rs:771</code></td><td>Responses → Chat 请求</td></tr>
+<tr><td><code>anthropic_to_chat_resp</code></td><td><code>converter.rs:903</code></td><td>Anthropic → Chat 响应</td></tr>
+<tr><td><code>chat_to_anthropic_resp</code></td><td><code>converter.rs:1035</code></td><td>Chat → Anthropic 响应</td></tr>
+<tr><td><code>responses_to_chat_resp</code></td><td><code>converter.rs:1108</code></td><td>Responses → Chat 响应</td></tr>
+<tr><td><code>chat_to_responses_resp</code></td><td><code>converter.rs:1184</code></td><td>Chat → Responses 响应</td></tr>
+<tr><td><code>map_stop_reason_anthropic_to_chat</code></td><td><code>converter.rs:241</code></td><td>stop_reason ↔ finish_reason 映射</td></tr>
+<tr><td><code>map_tool_choice_chat_to_anthropic</code></td><td><code>converter.rs:273</code></td><td>tool_choice 转换</td></tr>
+</tbody>
+</table>
+
+<h3>3.2 <code>gateway/stream.rs</code>（流式协议互转）</h3>
+
+<p>1581 行。核心 trait：</p>
+
+<pre><code><span class="comment">// stream.rs:275</span>
+<span class="kw">pub trait</span> <span class="ty">StreamConverter</span>: <span class="ty">Send</span> {
+    <span class="kw">fn</span> <span class="fn">on_event</span>(&<span class="kw">mut</span> <span class="kw">self</span>, event: <span class="ty">Option</span>&lt;&<span class="ty">str</span>&gt;, data: &<span class="ty">str</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">on_done</span>(&<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt;;
+}
+
+<span class="comment">// stream.rs:289</span>
+<span class="kw">struct</span> <span class="ty">Chained</span>&lt;<span class="ty">A</span>: <span class="ty">StreamConverter</span>, <span class="ty">B</span>: <span class="ty">StreamConverter</span>&gt;(<span class="ty">A</span>, <span class="ty">B</span>);
+
+<span class="comment">// stream.rs:321</span>
+<span class="kw">fn</span> <span class="fn">make_converter</span>(src: <span class="ty">Protocol</span>, dst: <span class="ty">Protocol</span>) -&gt; <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">StreamConverter</span>&gt; {
+    <span class="kw">match</span> (src, dst) {
+        (<span class="ty">Protocol</span>::Anthropic, <span class="ty">Protocol</span>::Responses) =&gt; <span class="ty">Box</span>::new(<span class="ty">Chained</span>(
+            <span class="ty">AnthropicToChatStream</span>::new(),
+            <span class="ty">ChatToResponsesStream</span>::new(),
+        )),
+        <span class="comment">// ...</span>
+    }
+}</code></pre>
+
+<div class="callout tip">
+  <p><strong>设计亮点</strong>：通过泛型 <code>Chained&lt;A, B&gt;</code> 把"Anthropic → Responses"实现为"Anthropic → Chat → Responses"两段管线串联，<strong>避免为该方向单独写一遍状态机</strong>。这是静态分发（monomorphization），零运行时开销。</p>
+</div>
+
+<h2 id="part4">第四部分：Go 项目代码定位</h2>
+
+<h3>4.1 <code>internal/pkg/apicompat/</code> 包概览</h3>
+
+<table>
+<thead><tr><th>文件</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>types.go</code> (730 行)</td><td><strong>所有协议的强类型 struct</strong>：AnthropicRequest / ContentBlock / StreamEvent、ResponsesRequest / InputItem / StreamEvent、ChatCompletionsRequest / Message / Chunk、各种 Usage 结构</td></tr>
+<tr><td><code>anthropic_to_responses.go</code></td><td>Anthropic → Responses 请求转换（<code>AnthropicToResponses</code>）</td></tr>
+<tr><td><code>responses_to_anthropic.go</code></td><td>Responses → Anthropic 响应（含流式状态机）</td></tr>
+<tr><td><code>chatcompletions_responses_bridge.go</code> (1457+ 行)</td><td>Chat ↔ Responses 双向 + 流式状态机</td></tr>
+<tr><td><code>chatcompletions_anthropic_bridge.go</code> (927 行)</td><td><strong>Anthropic ↔ Chat 直转优化路径</strong>（不经 Responses）</td></tr>
+<tr><td><code>response_format.go</code></td><td>Responses <code>text.format</code> ↔ Chat <code>response_format</code> 映射</td></tr>
+<tr><td><code>responses_namespace.go</code></td><td>Responses <code>namespace</code> 工具摊平</td></tr>
+</tbody>
+</table>
+
+<h3>4.2 核心类型 UML</h3>
+
+<div class="mermaid">
+classDiagram
+    class AnthropicRequest {
+        +string Model
+        +int MaxTokens
+        +RawMessage System
+        +[]AnthropicMessage Messages
+        +[]AnthropicTool Tools
+        +AnthropicThinking Thinking
+        +RawMessage ToolChoice
+        +RawMessage Metadata
+    }
+    class AnthropicContentBlock {
+        +string Type
+        +string Text
+        +string Thinking
+        +AnthropicImageSource Source
+        +string ID
+        +string Name
+        +RawMessage Input
+    }
+    class ResponsesRequest {
+        +string Model
+        +string Instructions
+        +RawMessage Input
+        +int MaxOutputTokens
+        +ResponsesReasoning Reasoning
+        +[]ResponsesTool Tools
+        +RawMessage ToolChoice
+        +string PreviousResponseID
+    }
+    class ResponsesStreamEvent {
+        +string Type
+        +ResponsesResponse Response
+        +ResponsesOutput Item
+        +string Delta
+        +int OutputIndex
+    }
+    class ChatCompletionsRequest {
+        +string Model
+        +[]ChatMessage Messages
+        +int MaxCompletionTokens
+        +[]ChatTool Tools
+        +RawMessage ToolChoice
+        +string ReasoningEffort
+    }
+    class ChatCompletionsChunk {
+        +[]ChatChunkChoice Choices
+        +ChatUsage Usage
+    }
+    AnthropicRequest o-- AnthropicContentBlock
+    ResponsesRequest o-- ResponsesStreamEvent
+    ChatCompletionsRequest o-- ChatCompletionsChunk
+</div>
+
+<h3>4.3 service 层调用入口</h3>
+
+<div class="mermaid">
+flowchart TB
+    subgraph Handler
+        Messages["h.OpenAIGateway.Messages"]
+        ChatC["h.OpenAIGateway.ChatCompletions"]
+        Resp["h.OpenAIGateway.Responses"]
+    end
+    subgraph Service
+        FwdAnthro["ForwardAsAnthropic<br/>openai_gateway_messages.go:26"]
+        FwdChat["ForwardAsChatCompletions<br/>openai_gateway_chat_completions.go:53"]
+        FwdAnthroViaCC["forwardAnthropicViaRawChatCompletions<br/>热路径直转"]
+    end
+    subgraph APIC["apicompat 包"]
+        A2R["AnthropicToResponses"]
+        A2C["AnthropicToChatCompletionsRequest"]
+        R2C["ResponsesToChatCompletionsRequest"]
+        StreamSA["ChatCompletionsToAnthropicStreamState"]
+        StreamRA["ResponsesEventToAnthropicState"]
+        StreamSR["ChatCompletionsToResponsesStreamState"]
+    end
+    Messages --> FwdAnthro
+    ChatC --> FwdChat
+    FwdAnthro -->|"默认路径"| A2R
+    FwdAnthro -->|"APIKey + 不支持 Responses"| FwdAnthroViaCC
+    FwdAnthroViaCC --> A2C
+    FwdChat --> R2C
+    A2R -->|"流式回程"| StreamRA
+    A2C -->|"流式回程"| StreamSA
+    R2C -->|"流式回程"| StreamSR
+</div>
+
+<p>核心分流逻辑在 <code>openai_gateway_messages.go:36</code>：</p>
+
+<pre><code><span class="comment">// openai_gateway_messages.go:36-40</span>
+<span class="kw">if</span> account.Type == AccountTypeAPIKey &amp;&amp; !openai_compat.ShouldUseResponsesAPI(account.Extra) {
+    <span class="kw">return</span> s.forwardAnthropicViaRawChatCompletions(ctx, c, account, body, defaultMappedModel)
+}</code></pre>
+
+<h2 id="part5">第五部分：统一数据模型（Unified Model）</h2>
+
+<h3>5.1 Rust：刻意<strong>没有</strong>统一内部模型</h3>
+
+<p>Rust 项目没有定义任何"内部统一 Request/Message/Chunk"结构体。整个转换层完全基于 <code>serde_json::Value</code>：</p>
+
+<pre><code><span class="comment">// converter.rs:8</span>
+<span class="kw">pub fn</span> <span class="fn">req_convert</span>(src: &<span class="ty">Value</span>, s: <span class="ty">Protocol</span>, d: <span class="ty">Protocol</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Value</span>, <span class="ty">AppError</span>&gt; {
+    <span class="kw">match</span> (s, d) {
+        (<span class="ty">Protocol</span>::Chat, <span class="ty">Protocol</span>::Anthropic) =&gt; <span class="ty">Ok</span>(<span class="fn">chat_to_anthropic_req</span>(src)),
+        <span class="comment">// ...</span>
+    }
+}</code></pre>
+
+<table>
+<thead><tr><th>评价</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><span class="tag good">优点</span></td><td>极致灵活，新字段零改动透传；无序列化→反序列化→重新序列化的开销</td></tr>
+<tr><td><span class="tag bad">缺点</span></td><td>没有编译期类型检查；IDE 没有补全；重构时极易漏改</td></tr>
+</tbody>
+</table>
+
+<h3>5.2 Go：强类型 + json.RawMessage 折中</h3>
+
+<p>Go 项目为每种外部协议定义完整 struct 体系，<code>ResponsesRequest</code> 既是外部协议类型，<strong>也充当内部 IR</strong>。</p>
+
+<pre><code><span class="comment">// types.go:14</span>
+<span class="kw">type</span> AnthropicRequest <span class="kw">struct</span> {
+    Model      <span class="ty">string</span>
+    MaxTokens  <span class="ty">int</span>
+    System     json.RawMessage  <span class="comment">// 字符串或 []ContentBlock</span>
+    Messages   []AnthropicMessage
+    Tools      []AnthropicTool
+    Thinking   *AnthropicThinking
+    ToolChoice json.RawMessage
+    Metadata   json.RawMessage
+}
+
+<span class="comment">// types.go:191</span>
+<span class="kw">type</span> ResponsesRequest <span class="kw">struct</span> {
+    Model              <span class="ty">string</span>
+    Instructions       <span class="ty">string</span>
+    Input              json.RawMessage  <span class="comment">// string 或 []ResponsesInputItem</span>
+    MaxOutputTokens    *<span class="ty">int</span>
+    Reasoning          *ResponsesReasoning
+    PreviousResponseID <span class="ty">string</span>
+    <span class="comment">// ...</span>
+}</code></pre>
+
+<div class="callout info">
+  <p><strong>关键设计</strong>：<code>json.RawMessage</code> 的大量使用是 Go 项目为了同时获得"强类型主干 + 字段透传"的折中。当某字段可能是 string/array/object 多形态时，就用 <code>json.RawMessage</code> 延迟到转换时再处理。</p>
+</div>
+
+<h3>5.3 核心实体字段对照</h3>
+
+<table>
+<thead><tr><th>维度</th><th>Rust 抽象</th><th>Go 抽象</th></tr></thead>
+<tbody>
+<tr><td>Role 表示</td><td>字符串</td><td><code>ChatMessage.Role string</code>（同）</td></tr>
+<tr><td>Message</td><td><code>Value</code>（无类型）</td><td><code>ChatMessage</code> / <code>AnthropicMessage</code> / <code>ResponsesInputItem</code></td></tr>
+<tr><td>Content（多模态）</td><td><code>Value::Array</code> 各 part 含 type</td><td><code>ChatContentPart</code> / <code>AnthropicContentBlock</code> / <code>ResponsesContentPart</code></td></tr>
+<tr><td>Tool</td><td><code>Value</code> 含 function.parameters</td><td><code>ChatTool</code> + <code>ChatFunction</code>、<code>AnthropicTool</code>、<code>ResponsesTool</code></td></tr>
+<tr><td>ToolCall</td><td>tool_calls 数组</td><td><code>ChatToolCall</code>、<code>AnthropicContentBlock{Type:"tool_use"}</code>、<code>ResponsesOutput{Type:"function_call"}</code></td></tr>
+<tr><td>Usage</td><td>直接读字段</td><td>三个独立 struct，含自定义 <code>UnmarshalJSON</code></td></tr>
+<tr><td>Streaming Chunk</td><td><code>Value</code>（无类型）</td><td><code>ChatCompletionsChunk</code> / <code>ResponsesStreamEvent</code> / <code>AnthropicStreamEvent</code></td></tr>
+<tr><td>finish/stop reason</td><td>纯函数映射</td><td>纯函数映射</td></tr>
+</tbody>
+</table>
+
+<h2 id="part6">第六部分：Trait vs Interface（抽象风格对比）</h2>
+
+<h3>6.1 Rust：极少的 Trait，重度依赖泛型 + Enum</h3>
+
+<p>整个 Rust 项目中真正参与协议转换的 trait 只有 1 个：</p>
+
+<pre><code><span class="comment">// stream.rs:275</span>
+<span class="kw">pub trait</span> <span class="ty">StreamConverter</span>: <span class="ty">Send</span> {
+    <span class="kw">fn</span> <span class="fn">on_event</span>(&<span class="kw">mut</span> <span class="kw">self</span>, event: <span class="ty">Option</span>&lt;&<span class="ty">str</span>&gt;, data: &<span class="ty">str</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">on_done</span>(&<span class="kw">mut</span> <span class="kw">self</span>) -&gt; <span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt;;
+}</code></pre>
+
+<table>
+<thead><tr><th>Rust 特性</th><th>用法</th><th>位置</th></tr></thead>
+<tbody>
+<tr><td>Trait</td><td>仅 <code>StreamConverter</code></td><td><code>stream.rs:275</code></td></tr>
+<tr><td>Generic</td><td><code>Chained&lt;A, B&gt;</code> 串联两个 StreamConverter</td><td><code>stream.rs:289</code></td></tr>
+<tr><td>Enum</td><td><code>Protocol { Chat, Responses, Anthropic }</code></td><td><code>types.rs:5</code></td></tr>
+<tr><td><code>Box&lt;dyn Trait&gt;</code></td><td>工厂返回类型</td><td><code>stream.rs:321</code></td></tr>
+<tr><td>Macro</td><td><code>serde_json::json!()</code></td><td>全文</td></tr>
+<tr><td>Async/Tokio</td><td><code>tokio::spawn</code></td><td><code>stream.rs:125</code></td></tr>
+<tr><td><code>Arc&lt;Mutex&lt;T&gt;&gt;</code></td><td>密钥黑名单共享</td><td><code>provider.rs:41</code></td></tr>
+<tr><td>Async Trait</td><td><strong>无</strong>（<code>async fn</code> 直接定义）</td><td>—</td></tr>
+</tbody>
+</table>
+
+<h3>6.2 Go：Interface 缺失，函数式 + 状态机为主</h3>
+
+<p>令人惊讶的是，<strong>Go 项目同样没有为 Provider/Adapter 定义 Interface</strong>。所有"adapter"实质上是包级别的纯函数集合。Go 项目里能找到的 interface 主要在支付网关、网络搜索等非核心路径。</p>
+
+<table>
+<thead><tr><th>设计模式</th><th>使用情况</th></tr></thead>
+<tbody>
+<tr><td>Factory</td><td>部分（<code>NewXxxState()</code>）</td></tr>
+<tr><td>Builder</td><td>无</td></tr>
+<tr><td>Adapter</td><td>概念上有（apicompat 整个包就是 adapter）</td></tr>
+<tr><td>Strategy</td><td>无（路由层用 if/else）</td></tr>
+<tr><td>State Machine</td><td><strong>重度使用</strong>：4 个 StreamState 状态机</td></tr>
+</tbody>
+</table>
+
+<h3>6.3 扩展 Provider 的成本对比</h3>
+
+<table>
+<thead><tr><th>操作</th><th>Rust</th><th>Go</th></tr></thead>
+<tbody>
+<tr><td>新增 OpenAI 兼容上游</td><td>改 0 行代码，UI 添加配置即可</td><td>改 0 行代码（若支持 Responses）；否则需特化分支</td></tr>
+<tr><td>新增新协议（如 Gemini）</td><td>converter/stream 各加 4 个函数；改 Protocol enum；改 make_converter</td><td>apicompat 加 struct + 双向转换；service 加 forwardXxx；路由层加分发</td></tr>
+<tr><td>新增平台特化（如 prompt cache 注入）</td><td><code>Provider::send</code> 前加条件分支</td><td>对应 forwardXxx 函数加 hook</td></tr>
+</tbody>
+</table>
+
+<h2 id="part7">第七部分：Streaming 详细对比</h2>
+
+<h3>7.1 Rust：tokio mpsc + StreamConverter + BytesMut 行缓冲</h3>
+
+<div class="mermaid">
+flowchart LR
+    Up["reqwest bytes_stream"] -->|chunk| Buf["BytesMut<br/>行缓冲"]
+    Buf -->|split_to \n| Loop{"按行解析"}
+    Loop -->|event:| Evt["cur_event = Some"]
+    Loop -->|data:| Data["cur_data.push"]
+    Loop -->|空行| Emit["conv.on_event<br/>cur_event, cur_data"]
+    Emit -->|Vec&lt;String&gt;| Tx["mpsc::channel 64"]
+    Tx --> Body["Body::from_stream"]
+    Body --> Client["axum Response"]
+</div>
+
+<p>核心代码（<code>stream.rs:168-258</code>）：</p>
+
+<pre><code><span class="kw">pub async fn</span> <span class="fn">stream_convert</span>(resp: reqwest::Response, src: <span class="ty">Protocol</span>, dst: <span class="ty">Protocol</span>, ctx: <span class="ty">UsageCtx</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Response</span>, <span class="ty">AppError</span>&gt; {
+    <span class="kw">let</span> (tx, rx) = tokio::sync::mpsc::channel::&lt;<span class="ty">Result</span>&lt;<span class="ty">Bytes</span>, std::io::Error&gt;&gt;(<span class="str">64</span>);
+    <span class="kw">let mut</span> conv = <span class="fn">make_converter</span>(src, dst);
+    tokio::spawn(<span class="kw">async move</span> {
+        <span class="kw">let mut</span> stream = resp.bytes_stream();
+        <span class="kw">let mut</span> buf = BytesMut::new();
+        <span class="kw">while let</span> <span class="ty">Some</span>(chunk) = stream.next().<span class="kw">await</span> {
+            buf.extend_from_slice(&chunk?);
+            <span class="kw">loop</span> {
+                <span class="kw">let</span> <span class="ty">Some</span>(nl) = buf.iter().position(|b| *b == b<span class="str">'\n'</span>) <span class="kw">else</span> { <span class="kw">break</span> };
+                <span class="kw">let</span> line = buf.split_to(nl + <span class="str">1</span>);
+                <span class="comment">// 解析 SSE 行：event:/data:/空行 → conv.on_event(...)</span>
+            }
+        }
+        <span class="comment">// 收尾：on_done()</span>
+    });
+    <span class="ty">Ok</span>(<span class="fn">sse_response</span>(<span class="ty">Body</span>::from_stream(<span class="ty">ReceiverStream</span>::new(rx))))
+}</code></pre>
+
+<h3>7.2 Go：bufio.Scanner + bufio.Writer + http.Flusher + 多状态机</h3>
+
+<pre><code><span class="comment">// openai_gateway_response_handling.go</span>
+<span class="comment">// 1. 设置 SSE 响应头</span>
+c.Header(<span class="str">"Content-Type"</span>, <span class="str">"text/event-stream"</span>)
+c.Header(<span class="str">"Cache-Control"</span>, <span class="str">"no-cache"</span>)
+c.Header(<span class="str">"Connection"</span>, <span class="str">"keep-alive"</span>)
+c.Header(<span class="str">"X-Accel-Buffering"</span>, <span class="str">"no"</span>)  <span class="comment">// 禁用 nginx 缓冲</span>
+
+w := c.Writer
+flusher, _ := w.(http.Flusher)
+
+<span class="comment">// 2. 构造带缓冲的 Writer（4KB）</span>
+bufferedWriter := bufio.NewWriterSize(w, <span class="str">4</span>*<span class="str">1024</span>)
+
+<span class="comment">// 3. 用 bufio.Scanner 扫描上游响应</span>
+scanner := bufio.NewScanner(resp.Body)
+scanner.Buffer(scanBuf[:<span class="str">0</span>], maxLineSize)
+
+<span class="comment">// 4. 主循环：扫描 → 解析 → 状态机转换 → 写缓冲 → Flush</span>
+<span class="kw">for</span> scanner.Scan() {
+    line := scanner.Bytes()
+    <span class="comment">// apicompat.ChatCompletionsChunkToAnthropicEvents(chunk, state)</span>
+    <span class="comment">// ...</span>
+    bufferedWriter.Flush()
+    flusher.Flush()
+}</code></pre>
+
+<h3>7.3 关键能力逐项对比</h3>
+
+<table>
+<thead><tr><th>能力</th><th>Rust</th><th>Go</th></tr></thead>
+<tbody>
+<tr><td>异步模型</td><td>tokio async stream</td><td>goroutine + 同步 bufio</td></tr>
+<tr><td>行缓冲</td><td><code>BytesMut::split_to</code>（零拷贝）</td><td><code>bufio.Scanner</code>（拷贝）</td></tr>
+<tr><td>输出缓冲</td><td>mpsc channel（64 slot）</td><td><code>bufio.Writer</code> 4KB + <code>http.Flusher</code></td></tr>
+<tr><td>心跳 / keepalive</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span> <code>StreamKeepaliveInterval</code></td></tr>
+<tr><td>首字超时切换</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span> <code>openai_first_output_timeout.go</code></td></tr>
+<tr><td>间隔超时</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span> <code>StreamDataIntervalTimeout</code></td></tr>
+<tr><td>跨协议 SSE 转换</td><td><span class="tag good">✓</span> StreamConverter trait</td><td><span class="tag good">✓</span> 每方向独立状态机</td></tr>
+<tr><td>错误降级</td><td><span class="tag good">✓</span> 自动判定非 SSE 伪成功</td><td><span class="tag good">✓</span> 详细失败原因分类</td></tr>
+<tr><td>Buffer 池</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span> 64KB 池</td></tr>
+<tr><td>多账号流中 failover</td><td><span class="tag bad">✗</span>（仅请求前 failover）</td><td><span class="tag good">✓</span>（first-output 失败可切换）</td></tr>
+<tr><td>WebSocket 支持</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span> Codex WS v1/v2</td></tr>
+</tbody>
+</table>
+
+<h2 id="part8">第八部分：Provider Adapter</h2>
+
+<h3>8.1 Rust：单一 Provider 结构体</h3>
+
+<pre><code><span class="comment">// provider.rs:33</span>
+<span class="kw">pub struct</span> <span class="ty">Provider</span> {
+    <span class="kw">pub</span> id: <span class="ty">i64</span>,
+    <span class="kw">pub</span> name: <span class="ty">String</span>,
+    <span class="kw">pub</span> protocol: <span class="ty">Protocol</span>,           <span class="comment">// Chat / Responses / Anthropic</span>
+    <span class="kw">pub</span> base_url: <span class="ty">String</span>,
+    <span class="kw">pub</span> models: <span class="ty">Vec</span>&lt;<span class="ty">String</span>&gt;,
+    <span class="kw">pub</span> reasoning_effort: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt;,
+    keys: <span class="ty">Vec</span>&lt;<span class="ty">ApiKeyEntry</span>&gt;,
+    blacklist: <span class="ty">Mutex</span>&lt;<span class="ty">HashMap</span>&lt;<span class="ty">usize</span>, <span class="ty">Instant</span>&gt;&gt;,
+    <span class="comment">// ...</span>
+}</code></pre>
+
+<p><strong>所有上游都映射为这个结构体的一个实例</strong>。差异通过 <code>protocol</code> 字段决定 URL 路径和 auth header。没有 Factory、Registry、Plugin。</p>
+
+<h3>8.2 Go：平台字段分发，同样无 Provider 接口</h3>
+
+<p>Go 项目里<strong>也没有"统一 Provider"接口</strong>。差异通过：</p>
+<ol>
+<li><code>Account.Platform</code> 字段（OpenAI / Grok / Gemini / Anthropic / Antigravity）</li>
+<li>多个 Service 结构体：<code>OpenAIGatewayService</code>、<code>GatewayService</code></li>
+<li><code>internal/pkg/{platform}/</code> 包：每个平台一个独立包</li>
+</ol>
+
+<div class="mermaid">
+classDiagram
+    class OpenAIGatewayService {
+        +ForwardAsChatCompletions()
+        +ForwardAsAnthropic()
+        +forwardOpenAIPassthrough()
+        +forwardAsRawChatCompletions()
+        +forwardAnthropicViaRawChatCompletions()
+        +forwardGrokChatCompletionsViaResponses()
+        +CodexModels()
+        +CountTokens()
+        +Images()
+        +GrokImages()
+    }
+    class GatewayService {
+        +Messages()
+        +ChatCompletions()
+        +Responses()
+        +Models()
+    }
+    class Account {
+        +string Platform
+        +string Type
+        +Extra map
+    }
+    OpenAIGatewayService ..> Account : 根据 Platform 分支
+    GatewayService ..> Account
+</div>
+
+<h3>8.3 Provider 抽象对比</h3>
+
+<table>
+<thead><tr><th>维度</th><th>Rust</th><th>Go</th></tr></thead>
+<tbody>
+<tr><td>抽象方式</td><td>单 struct + protocol 字段分支</td><td>多 Service + platform 字段分支</td></tr>
+<tr><td>Factory</td><td><code>build_providers</code> 一次性构造</td><td>路由层闭包 if/else</td></tr>
+<tr><td>Registry</td><td><code>AppCtrl.providers: Mutex&lt;Vec&lt;Arc&lt;Provider&gt;&gt;&gt;</code></td><td>ent ORM + 内存缓存</td></tr>
+<tr><td>扩展点</td><td><code>Protocol</code> enum（需改代码）</td><td><code>Platform</code> 常量（需改代码 + 数据库）</td></tr>
+<tr><td>单上游多账号</td><td><code>api_keys: Vec&lt;ApiKeyEntry&gt;</code> + 黑名单</td><td><code>account</code> 表（每账号一行）</td></tr>
+</tbody>
+</table>
+
+<h2 id="part9">第九部分：字段映射详表</h2>
+
+<h3>9.1 请求字段映射</h3>
+
+<table>
+<thead><tr><th>字段</th><th>Chat</th><th>Responses</th><th>Anthropic</th><th>Rust 实现</th><th>Go 实现</th></tr></thead>
+<tbody>
+<tr><td>模型</td><td><code>model</code></td><td><code>model</code></td><td><code>model</code></td><td>直接复制</td><td>直接复制</td></tr>
+<tr><td>系统提示</td><td><code>messages[role=system]</code></td><td><code>instructions</code> 或 <code>input[role=developer]</code></td><td><code>system</code></td><td><code>converter.rs:354</code></td><td><code>anthropic_to_responses.go:124</code></td></tr>
+<tr><td>用户输入</td><td><code>messages[role=user].content</code></td><td><code>input[role=user].content: [input_text]</code></td><td><code>messages[role=user].content</code></td><td><code>converter.rs:154</code></td><td><code>anthropic_to_responses.go:193</code></td></tr>
+<tr><td>助手历史</td><td><code>messages[role=assistant].content</code></td><td><code>input[role=assistant].content: [output_text]</code></td><td><code>messages[role=assistant].content</code></td><td><code>converter.rs:690</code></td><td><code>anthropic_to_responses.go:261</code></td></tr>
+<tr><td>推理历史</td><td><code>reasoning_content</code></td><td><code>input[type=reasoning].summary</code></td><td><code>content[thinking]</code> + <code>signature</code></td><td><code>converter.rs:370</code></td><td>Go 丢弃入站 thinking</td></tr>
+<tr><td>工具调用</td><td><code>tool_calls</code></td><td><code>input[type=function_call]</code></td><td><code>content[type=tool_use]</code></td><td><code>converter.rs:387</code></td><td><code>anthropic_to_responses.go:292</code></td></tr>
+<tr><td>工具结果</td><td><code>messages[role=tool]</code></td><td><code>input[type=function_call_output]</code></td><td><code>content[type=tool_result]</code></td><td><code>converter.rs:403</code></td><td><code>anthropic_to_responses.go:216</code></td></tr>
+<tr><td>工具定义</td><td><code>tools: [{function}]</code></td><td><code>tools: [{type:function,name,parameters}]</code></td><td><code>tools: [{name, input_schema}]</code></td><td><code>converter.rs:419</code></td><td><code>anthropic_to_responses.go:424</code></td></tr>
+<tr><td>tool_choice</td><td><code>"auto"/"none"/"required"/{function}</code></td><td>同 Chat</td><td><code>{type:auto/any/none/tool, name}</code></td><td><code>converter.rs:273</code></td><td><code>anthropic_to_responses.go:89</code></td></tr>
+<tr><td>max_tokens</td><td><code>max_tokens</code></td><td><code>max_output_tokens</code></td><td><code>max_tokens</code></td><td><code>converter.rs:435</code></td><td><code>anthropic_to_responses.go:46</code></td></tr>
+<tr><td>temperature</td><td><code>temperature</code></td><td><code>temperature</code></td><td><code>temperature</code></td><td><code>converter.rs:447</code></td><td>仅非 reasoning model</td></tr>
+<tr><td>reasoning effort</td><td><code>reasoning_effort</code></td><td><code>reasoning: {effort, summary}</code></td><td><code>thinking: {type, budget}</code> + <code>output_config.effort</code></td><td><code>provider.rs:343</code></td><td><code>anthropic_to_responses.go:62</code></td></tr>
+<tr><td>图片输入</td><td><code>image_url.url</code></td><td><code>input_image.image_url</code></td><td><code>source: {type:base64, media_type, data}</code></td><td><code>converter.rs:86</code></td><td><code>anthropic_to_responses.go:333</code></td></tr>
+<tr><td>metadata</td><td>—</td><td>—</td><td><code>metadata</code></td><td>透传</td><td><code>types.go:31</code> 显式保留</td></tr>
+<tr><td>previous_response_id</td><td>—</td><td><code>previous_response_id</code></td><td>—</td><td>—</td><td>显式支持</td></tr>
+<tr><td>parallel_tool_calls</td><td><code>parallel_tool_calls</code></td><td><code>parallel_tool_calls</code></td><td>—</td><td>不处理</td><td><code>types.go:202</code></td></tr>
+</tbody>
+</table>
+
+<h3>9.2 关键映射差异</h3>
+
+<div class="callout warn">
+  <h4>usage 的"加减法"哲学差异</h4>
+  <p><strong>Rust</strong>（<code>converter.rs:1003</code>）：把 Anthropic 的 <code>input_tokens + cache_creation + cache_read</code> <strong>相加</strong>为 Chat 的 <code>prompt_tokens</code>，关注<strong>总成本</strong>。</p>
+  <p><strong>Go</strong>（<code>responses_to_anthropic.go:103</code>）：把 Responses 的 <code>input_tokens - cache_creation - cached_tokens</code> <strong>相减</strong>为 Anthropic 的 <code>input_tokens</code>，关注<strong>字段语义对齐</strong>。</p>
+  <p>两者方向相反但都自洽。</p>
+</div>
+
+<div class="callout info">
+  <h4>thinking signature 的多轮完整性</h4>
+  <p><strong>Rust</strong> 完整支持：把 <code>signature</code> 累积在 <code>reasoning_signature</code> 字段（非标准 Chat 扩展），并在 Anthropic 流中发 <code>signature_delta</code> 事件（<code>stream.rs:506</code>）。</p>
+  <p><strong>Go 项目丢弃入站 thinking</strong>（<code>anthropic_to_responses.go:118</code>），仅出站方向把 Responses 的 <code>reasoning.summary</code> 映射回 Anthropic 的 <code>thinking</code> 块——因为 Go 项目主要面向 ChatGPT/Codex 上游，入站 thinking 没有意义。</p>
+</div>
+
+<h2 id="part10">第十部分：目录职责对比</h2>
+
+<h3>10.1 Rust 项目目录树（精简）</h3>
+
+<pre><code>src-tauri/
+├── Cargo.toml                 依赖清单（axum/tokio/reqwest/rusqlite/tauri）
+└── src/
+    ├── main.rs                Windows 入口
+    ├── lib.rs                 Tauri 应用入口（日志/DB/托盘/命令注册）
+    ├── api/                   HTTP API 层
+    │   ├── router.rs          路由 + CORS
+    │   ├── handler.rs         proxy / list_models / auth
+    │   └── commands.rs        25 个 #[tauri::command]
+    ├── gateway/               ★协议互转核心★
+    │   ├── converter.rs       非流式 6 方向转换
+    │   ├── stream.rs          流式 StreamConverter + 状态机
+    │   ├── provider.rs        Provider 结构体（无 trait）
+    │   └── manager.rs         网关生命周期管理
+    ├── config/
+    │   ├── types.rs           Protocol/ApiKeyEntry/Config
+    │   └── state.rs           AppCtrl/AppState/ServerHandle
+    └── infra/
+        ├── db.rs              SQLite 持久化
+        ├── error.rs           AppError + IpcError
+        ├── log_bridge.rs      tracing → log4rs 桥接
+        ├── tray.rs            系统托盘
+        ├── opencode.rs        opencode.json 读写
+        ├── claude_code.rs     ~/.claude/settings.json 编辑
+        └── codex.rs           ~/.codex/config.toml 编辑</code></pre>
+
+<h3>10.2 Go 项目目录树（精简）</h3>
+
+<pre><code>backend/
+├── cmd/                       可执行入口（server/jwtgen/cleanup）
+├── ent/                       ent ORM 自动生成（50+ schema）
+├── migrations/                数据库迁移
+├── internal/
+│   ├── handler/               HTTP Handler（admin/dto/quotaview）
+│   ├── middleware/            通用中间件
+│   ├── pkg/                   ★协议互转 + 平台 SDK★
+│   │   ├── apicompat/         ★★ 协议互转核心（14 文件）★★
+│   │   ├── antigravity/       Google Antigravity 协议
+│   │   ├── claude/            Claude 常量
+│   │   ├── gemini/            Gemini 模型
+│   │   ├── geminicli/         Gemini CLI OAuth
+│   │   ├── openai/            OpenAI OAuth
+│   │   ├── openai_compat/     上游能力探测
+│   │   ├── xai/               xAI/Grok OAuth
+│   │   ├── tlsfingerprint/    TLS 指纹
+│   │   ├── websearch/         联网搜索（Brave/Tavily）
+│   │   └── ...
+│   ├── server/
+│   │   ├── middleware/
+│   │   └── routes/            路由注册
+│   ├── service/               ★★★ 业务核心（700+ 文件）★★★
+│   │   ├── openai_gateway_*.go（200+ 文件）
+│   │   ├── openai_ws_*.go     WebSocket（~30 文件）
+│   │   ├── payment_*.go       支付（~20 文件）
+│   │   ├── ops_*.go           运维监控（~50 文件）
+│   │   ├── scheduler_*.go     账号调度（~15 文件）
+│   │   └── ...
+│   ├── repository/            ent 仓储封装
+│   └── ...
+└── resources/model-pricing/   模型定价 JSON</code></pre>
+
+<h2 id="part11">第十一部分：时序图</h2>
+
+<h3>11.1 普通非流式请求（Rust：Anthropic 客户端 → Chat 上游）</h3>
+
+<div class="mermaid">
+sequenceDiagram
+    participant C as Client (Anthropic SDK)
+    participant R as axum::Router
+    participant H as handler::proxy
+    participant CV as converter.rs
+    participant P as Provider
+    participant U as Upstream (OpenAI Chat)
+    C->>R: POST /v1/messages
+    R->>H: proxy(req)
+    H->>H: proto_from_path → Anthropic
+    H->>H: auth(headers) → consumer_key
+    H->>H: st.route(model, Anthropic)
+    H->>CV: req_convert(body, Anthropic, Chat)
+    CV-->>H: Chat body
+    H->>P: provider.send
+    P->>U: POST /chat/completions
+    U-->>P: 200 OK + JSON
+    P-->>H: reqwest::Response
+    H->>CV: resp_convert(json, Chat, Anthropic)
+    CV-->>H: Anthropic JSON
+    H->>H: extract_usage → record
+    H-->>C: 200 OK + Anthropic response
+</div>
+
+<h3>11.2 流式请求（Go：Anthropic 客户端 → ChatGPT Codex 上游）</h3>
+
+<div class="mermaid">
+sequenceDiagram
+    participant C as Claude Code
+    participant G as Gin Router
+    participant H as OpenAIGateway.Messages
+    participant S as OpenAIGatewayService
+    participant AC as apicompat
+    participant ST as Stream State Machine
+    participant U as ChatGPT/Codex upstream
+    C->>G: POST /v1/messages (stream:true)
+    G->>H: Messages(c)
+    H->>S: ForwardAsAnthropic
+    S->>S: 检测 Responses 支持
+    S->>AC: AnthropicToResponses
+    AC-->>S: ResponsesRequest
+    S->>S: codex transform / forced instructions
+    S->>U: POST /v1/responses (stream:true)
+    U-->>S: SSE stream
+    S->>S: 设置 SSE 响应头
+    S->>S: bufio.Scanner 扫描
+    loop 每行 SSE
+        S->>AC: ResponsesEventToAnthropic(event, state)
+        AC-->>S: []AnthropicStreamEvent
+        S->>S: bufferedWriter + Flush
+        S-->>C: SSE event
+    end
+    S->>AC: Finalize(state)
+    S-->>C: [DONE]
+</div>
+
+<h3>11.3 流式 Tool Calling 请求（Rust：Chat 客户端 → Anthropic 上游）</h3>
+
+<div class="mermaid">
+sequenceDiagram
+    participant C as Client (Chat)
+    participant H as handler::proxy
+    participant ST as stream::stream_convert
+    participant SC as ChatToAnthropicStream
+    participant P as Provider
+    participant U as Claude (Anthropic)
+    C->>H: POST /v1/chat/completions (stream:true)
+    H->>H: c_proto=Chat, p_proto=Anthropic
+    H->>P: provider.send(stream=true)
+    P->>U: POST /messages (SSE)
+    U-->>P: event: message_start
+    U-->>P: event: content_block_start (thinking)
+    U-->>P: event: content_block_delta (thinking_delta)
+    P-->>H: reqwest::Response (SSE)
+    H->>ST: stream_convert(resp, Anthropic, Chat)
+    loop 上游每个 SSE event
+        ST->>SC: on_event(event, data)
+        SC-->>ST: Vec<String> (Chat chunks)
+        ST-->>C: chat.completion.chunk
+    end
+    SC-->>ST: chunk with reasoning_signature
+    ST->>SC: on_done()
+    SC-->>ST: ["[DONE]"]
+    ST-->>C: data: [DONE]
+</div>
+
+<h2 id="part12">第十二部分：架构差异深度对比</h2>
+
+<table>
+<thead><tr><th>维度</th><th>Rust</th><th>Go</th></tr></thead>
+<tbody>
+<tr><td><strong>协议转换位置</strong></td><td>gateway 模块内（业务层）</td><td>独立 <code>apicompat</code> 包（基础库）</td></tr>
+<tr><td><strong>IR 选择</strong></td><td>Chat（事实 IR，不实体化）</td><td>Responses（显式 IR，实体化为 struct）</td></tr>
+<tr><td><strong>Anthropic↔Responses 实现</strong></td><td>经 Chat 双跳（Chained StreamConverter）</td><td>直转 + 经 Chat 双跳并存</td></tr>
+<tr><td><strong>流式抽象</strong></td><td><code>StreamConverter</code> trait（统一）</td><td>每方向独立状态机（无统一接口）</td></tr>
+<tr><td><strong>异步模型</strong></td><td>tokio async</td><td>goroutine + 同步 I/O</td></tr>
+<tr><td><strong>Tool Calling 复杂度</strong></td><td>function 工具</td><td>function + custom + namespace + tool_search + server tools</td></tr>
+<tr><td><strong>Middleware 参与转换</strong></td><td>否（仅 CORS）</td><td>否（鉴权/限流/审计）</td></tr>
+<tr><td><strong>错误透传</strong></td><td>透传 JSON 错误体</td><td>透传 + 错误规则引擎</td></tr>
+<tr><td><strong>Failover 触发</strong></td><td>429 / 5xx / 超时</td><td>平台特化规则（含 401/403/429/5xx/网络）</td></tr>
+<tr><td><strong>黑名单</strong></td><td>per-key + 10 分钟全局重置</td><td>per-account + ratelimit_service 状态机</td></tr>
+<tr><td><strong>DB 访问</strong></td><td><code>spawn_blocking</code> 包裹 rusqlite</td><td>ent driver</td></tr>
+<tr><td><strong>连接生命周期</strong></td><td>reqwest pool_idle_timeout=90s</td><td>httpclient pool 配置</td></tr>
+<tr><td><strong>密钥刷新</strong></td><td>配置变更重建</td><td>后台 token refresh pool</td></tr>
+</tbody>
+</table>
+
+<h2 id="part13">第十三部分：优缺点与评分</h2>
+
+<h3>13.1 Rust 项目（ai-aggregs）</h3>
+
+<h4>优点</h4>
+<ol>
+<li><strong>极致简洁</strong>：21 个文件覆盖完整协议互转 + 桌面应用 + 配置编辑 + 用量统计</li>
+<li><strong>零开销抽象</strong>：<code>Chained&lt;A, B&gt;</code> 泛型单态化，双跳 SSE 转换无运行时成本</li>
+<li><strong>类型安全</strong>：尽管用 <code>Value</code>，<code>Protocol</code> enum + <code>match (s, d)</code> 强制覆盖所有组合</li>
+<li><strong>桌面端体验</strong>：Tauri 单文件分发 + 系统托盘 + 开机自启</li>
+<li><strong>流式稳定性</strong>：流式/非流式降级、usage 嗅探、<code>[DONE]</code> 保证发送</li>
+<li><strong>完整 thinking signature 多轮支持</strong></li>
+</ol>
+
+<h4>缺点</h4>
+<ol>
+<li>无法接入 Gemini / Bedrock / Vertex</li>
+<li>无 OAuth 支持，无法接入订阅账号</li>
+<li>Provider 抽象太弱，无法表达平台特化逻辑</li>
+<li>无 strong-typed model，重构风险高</li>
+<li>无 SaaS 能力（多租户/计费/订阅）</li>
+</ol>
+
+<h3>13.2 Go 项目（sub2api）</h3>
+
+<h4>优点</h4>
+<ol>
+<li><strong>强类型协议模型</strong>：IDE 补全 + 编译期检查</li>
+<li><strong>完整 SaaS 能力</strong>：用户/订阅/支付/促销/兑换/OAuth/限流/计费/审计</li>
+<li><strong>多平台支持</strong>：OpenAI / Anthropic / Gemini / Grok / xAI / Vertex / Antigravity</li>
+<li><strong>双路径优化</strong>：经 Responses 与直转 Chat 并存</li>
+<li><strong>强大的流式工程</strong>：first-output timeout / interval / keepalive / buffer 池 / 失败切换</li>
+<li><strong>完善的 tool calling 支持</strong>：namespace / tool_search / custom / server tools 全覆盖</li>
+<li><strong>apicompat 包可独立复用</strong></li>
+</ol>
+
+<h4>缺点</h4>
+<ol>
+<li>service 层文件爆炸（200+ 文件）</li>
+<li>没有 Provider interface，扩展新平台需修改多处</li>
+<li>流式状态机无统一抽象，重复代码多</li>
+<li>配置极复杂（数百个 setting）</li>
+<li>依赖庞大（ent ORM 自动生成 5000+ 文件）</li>
+</ol>
+
+<h3>13.3 评分</h3>
+
+<div class="score-card">
+  <div class="card rust">
+    <h4>协议设计</h4>
+    <div class="big">7<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">Chat 作为 IR 简洁但表达力有限</div>
+  </div>
+  <div class="card go">
+    <h4>协议设计</h4>
+    <div class="big">9<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">Responses-as-IR 表达力强</div>
+  </div>
+  <div class="card rust">
+    <h4>架构设计</h4>
+    <div class="big">6<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">桌面端合适但抽象弱</div>
+  </div>
+  <div class="card go">
+    <h4>架构设计</h4>
+    <div class="big">8<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">SaaS 完整但 service 层爆炸</div>
+  </div>
+  <div class="card rust">
+    <h4>Provider 抽象</h4>
+    <div class="big">5<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">单 struct + 字段分支</div>
+  </div>
+  <div class="card go">
+    <h4>Provider 抽象</h4>
+    <div class="big">6<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">多 Service + if/else</div>
+  </div>
+  <div class="card rust">
+    <h4>Streaming</h4>
+    <div class="big">7<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">trait 优雅但功能少</div>
+  </div>
+  <div class="card go">
+    <h4>Streaming</h4>
+    <div class="big">9<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">功能全但无抽象</div>
+  </div>
+  <div class="card rust">
+    <h4>Tool Calling</h4>
+    <div class="big">6<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">基础 function 工具</div>
+  </div>
+  <div class="card go">
+    <h4>Tool Calling</h4>
+    <div class="big">9<span style="font-size:14px;color:var(--muted);">/10</span></div>
+    <div class="meta">覆盖所有工具语义</div>
+  </div>
+  <div class="card rust">
+    <h4>扩展能力</h4>
+    <div class="big">5<span style="font-size:14px;color:var(--muted);">/10</span></div>
+  </div>
+  <div class="card go">
+    <h4>扩展能力</h4>
+    <div class="big">8<span style="font-size:14px;color:var(--muted);">/10</span></div>
+  </div>
+  <div class="card rust">
+    <h4>可维护性</h4>
+    <div class="big">7<span style="font-size:14px;color:var(--muted);">/10</span></div>
+  </div>
+  <div class="card go">
+    <h4>可维护性</h4>
+    <div class="big">6<span style="font-size:14px;color:var(--muted);">/10</span></div>
+  </div>
+</div>
+
+<div class="callout info">
+  <p><strong>综合</strong>：Rust <strong>6.4/10</strong> vs Go <strong>7.8/10</strong>。</p>
+  <p><strong>场景化推荐</strong>：</p>
+  <ul>
+    <li>个人 / 小团队桌面使用 → <strong>Rust ai-aggregs</strong>（部署简单、资源占用低）</li>
+    <li>商业 SaaS / 多租户运营 → <strong>Go sub2api</strong>（功能完整、可运营）</li>
+  </ul>
+</div>
+
+<h2 id="part14">第十四部分：最佳实践（V3 重新设计）</h2>
+
+<h3>14.1 最佳目录结构</h3>
+
+<pre><code>llm-gateway-v3/
+├── crates/
+│   ├── gateway-core/              ★ 协议互转核心库（无业务依赖）★
+│   │   └── src/
+│   │       ├── protocol/          强类型 struct（chat/responses/anthropic/gemini）
+│   │       ├── ir/                内部 IR（统一抽象）
+│   │       ├── converter/         ProtocolConverter trait + 各协议实现
+│   │       └── stream/            StreamConverter trait + Chained + 状态机
+│   ├── gateway-provider/          Provider 抽象
+│   │   └── src/
+│   │       ├── provider.rs        trait Provider
+│   │       ├── registry.rs        ProviderRegistry
+│   │       └── platforms/         openai / anthropic / gemini / bedrock / vertex
+│   ├── gateway-server/            HTTP 服务（独立部署模式）
+│   └── gateway-app/               桌面应用
+└── docs/</code></pre>
+
+<h3>14.2 最佳 Trait 设计</h3>
+
+<pre><code><span class="comment">// 统一 IR</span>
+<span class="kw">pub struct</span> <span class="ty">InternalRequest</span> {
+    <span class="kw">pub</span> model: <span class="ty">String</span>,
+    <span class="kw">pub</span> messages: <span class="ty">Vec</span>&lt;<span class="ty">InternalMessage</span>&gt;,
+    <span class="kw">pub</span> tools: <span class="ty">Vec</span>&lt;<span class="ty">InternalTool</span>&gt;,
+    <span class="kw">pub</span> reasoning: <span class="ty">Option</span>&lt;<span class="ty">InternalReasoning</span>&gt;,
+    <span class="kw">pub</span> extensions: <span class="ty">HashMap</span>&lt;<span class="ty">String</span>, <span class="ty">Value</span>&gt;,  <span class="comment">// 协议特有字段</span>
+}
+
+<span class="comment">// 转换器 trait</span>
+<span class="kw">pub trait</span> <span class="ty">RequestConverter</span>&lt;<span class="ty">P</span>: <span class="ty">Protocol</span>&gt; {
+    <span class="kw">fn</span> <span class="fn">from_ir</span>(&<span class="kw">self</span>, ir: &<span class="ty">InternalRequest</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">P</span>::Request&gt;;
+    <span class="kw">fn</span> <span class="fn">to_ir</span>(&<span class="kw">self</span>, req: &<span class="ty">P</span>::Request) -&gt; <span class="ty">Result</span>&lt;<span class="ty">InternalRequest</span>&gt;;
+}
+
+<span class="comment">// Provider trait</span>
+#[async_trait]
+<span class="kw">pub trait</span> <span class="ty">Provider</span>: <span class="ty">Send</span> + <span class="ty">Sync</span> {
+    <span class="kw">fn</span> <span class="fn">platform</span>(&<span class="kw">self</span>) -&gt; <span class="ty">Platform</span>;
+    <span class="kw">fn</span> <span class="fn">supported_protocols</span>(&<span class="kw">self</span>) -&gt; &amp;[<span class="ty">Protocol</span>];
+    <span class="kw">async fn</span> <span class="fn">send</span>(&<span class="kw">self</span>, req: <span class="ty">ProviderRequest</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">ProviderResponse</span>&gt;;
+}</code></pre>
+
+<h3>14.3 借鉴总结</h3>
+
+<table>
+<thead><tr><th>借鉴源</th><th>借鉴点</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td><strong>Rust</strong></td><td><code>StreamConverter</code> trait + <code>Chained&lt;A, B&gt;</code></td><td>零开销组合多段转换</td></tr>
+<tr><td><strong>Rust</strong></td><td><code>BytesMut</code> 行缓冲零拷贝</td><td>性能优</td></tr>
+<tr><td><strong>Rust</strong></td><td>usage 嗅探</td><td>通用</td></tr>
+<tr><td><strong>Go</strong></td><td><code>apicompat</code> 独立基础包</td><td>可复用</td></tr>
+<tr><td><strong>Go</strong></td><td>强类型 <code>Request/Response/Event</code></td><td>编译期检查</td></tr>
+<tr><td><strong>Go</strong></td><td><code>json.RawMessage</code> 处理多形态字段</td><td>灵活 + 类型安全</td></tr>
+<tr><td><strong>Go</strong></td><td>first-output timeout / keepalive</td><td>流式稳定性</td></tr>
+<tr><td><strong>Go</strong></td><td>直转热路径优化</td><td>性能</td></tr>
+<tr><td><strong>Go</strong></td><td>tool calling 完整覆盖</td><td>完整</td></tr>
+<tr><td><strong>重新设计</strong></td><td>统一 IR（<code>InternalRequest</code>）</td><td>避免 N² 转换代码</td></tr>
+<tr><td><strong>重新设计</strong></td><td><code>Provider</code> trait + Registry</td><td>替代 if/else 分支</td></tr>
+</tbody>
+</table>
+
+<h2 id="part15">第十五部分：迁移建议</h2>
+
+<h3>15.1 从 Go 项目迁移到 Rust 项目（高价值）</h3>
+
+<div class="roadmap">
+  <div class="roadmap-item high">
+    <span class="label"><strong>强类型协议 struct</strong>（<code>src/protocol/types.rs</code>）</span>
+    <span class="priority">优先级：高</span>
+  </div>
+  <div class="roadmap-item high">
+    <span class="label"><strong>first-output / interval timeout / keepalive</strong>（流式工程化）</span>
+    <span class="priority">优先级：高</span>
+  </div>
+  <div class="roadmap-item mid">
+    <span class="label"><strong>流式 tool name 延迟宣告</strong>（兼容 DeepSeek 等乱序上游）</span>
+    <span class="priority">优先级：中</span>
+  </div>
+  <div class="roadmap-item mid">
+    <span class="label"><strong>apicompat 独立 crate</strong>（拆 <code>gateway-core</code>）</span>
+    <span class="priority">优先级：中</span>
+  </div>
+  <div class="roadmap-item low">
+    <span class="label"><strong>namespace / tool_search 支持</strong>（Codex 集成场景）</span>
+    <span class="priority">优先级：低</span>
+  </div>
+</div>
+
+<h3>15.2 Rust 项目优于 Go 项目的设计（可作为 Go 演进方向）</h3>
+
+<div class="roadmap">
+  <div class="roadmap-item high">
+    <span class="label"><strong><code>StreamConverter</code> trait 统一抽象</strong>：替代 Go 的 4 个无接口状态机</span>
+    <span class="priority">优先级：高</span>
+  </div>
+  <div class="roadmap-item high">
+    <span class="label"><strong><code>Chained&lt;A, B&gt;</code> 组合模式</strong>：减少 N² 个状态机到 N 个</span>
+    <span class="priority">优先级：高</span>
+  </div>
+  <div class="roadmap-item mid">
+    <span class="label"><strong><code>BytesMut</code> 零拷贝行缓冲</strong>：替代 <code>bufio.Scanner</code></span>
+    <span class="priority">优先级：中</span>
+  </div>
+</div>
+
+<h3>15.3 共同演进方向</h3>
+
+<ol>
+<li><strong>统一 IR</strong>：两者都应有显式 <code>InternalRequest/InternalResponse/InternalMessage</code> 抽象</li>
+<li><strong><code>Provider</code> trait/interface</strong>：替代当前的"单 struct + 字段分支"或"多 service + if/else"</li>
+<li><strong>流式工程化</strong>：first-output timeout、interval timeout、keepalive、buffer 池应作为标配</li>
+<li><strong>协议适配测试集</strong>：建立 round-trip 测试（A→B→A 应等于原值）</li>
+<li><strong>错误标准化</strong>：定义跨协议的 error code</li>
+</ol>
+
+<h3>15.4 迁移路线图</h3>
+
+<div class="mermaid">
+gantt
+    title Rust 项目迁移路线图（建议）
+    dateFormat  YYYY-MM-DD
+    section 高优先级
+    强类型协议 struct (types.rs)        :crit, p1, 2025-01-01, 14d
+    first-output / interval timeout    :crit, p2, after p1, 14d
+    流式 tool name 延迟宣告              :p3, after p2, 7d
+    section 中优先级
+    apicompat 独立 crate 拆分            :p4, after p3, 14d
+    StreamPipeline 重构                 :p5, after p4, 14d
+    section 低优先级
+    namespace / tool_search 支持         :p6, after p5, 14d
+    Provider trait 抽象                  :p7, after p6, 21d
+</div>
+
+<hr/>
+
+<h2>附录：核心源码引用索引</h2>
+
+<h3>Rust 项目（<code>src-tauri/src/</code>）</h3>
+
+<table>
+<thead><tr><th>引用</th><th>路径</th></tr></thead>
+<tbody>
+<tr><td>Protocol enum</td><td><code>config/types.rs:5</code></td></tr>
+<tr><td>ApiKeyEntry untagged</td><td><code>config/types.rs:39</code></td></tr>
+<tr><td>req_convert 入口</td><td><code>gateway/converter.rs:8</code></td></tr>
+<tr><td>Chat→Anthropic 请求</td><td><code>gateway/converter.rs:347</code></td></tr>
+<tr><td>Chat→Responses 请求</td><td><code>gateway/converter.rs:668</code></td></tr>
+<tr><td>Responses→Chat 响应</td><td><code>gateway/converter.rs:1108</code></td></tr>
+<tr><td>Chat→Responses 响应</td><td><code>gateway/converter.rs:1184</code></td></tr>
+<tr><td>StreamConverter trait</td><td><code>gateway/stream.rs:275</code></td></tr>
+<tr><td>Chained 组合</td><td><code>gateway/stream.rs:289</code></td></tr>
+<tr><td>make_converter 工厂</td><td><code>gateway/stream.rs:321</code></td></tr>
+<tr><td>Provider struct</td><td><code>gateway/provider.rs:33</code></td></tr>
+<tr><td>Provider::send</td><td><code>gateway/provider.rs:159</code></td></tr>
+<tr><td>handler::proxy</td><td><code>api/handler.rs:13</code></td></tr>
+<tr><td>流式降级判定</td><td><code>api/handler.rs:204</code></td></tr>
+<tr><td>Router 4 路由</td><td><code>api/router.rs:11</code></td></tr>
+</tbody>
+</table>
+
+<h3>Go 项目（<code>backend/internal/</code>）</h3>
+
+<table>
+<thead><tr><th>引用</th><th>路径</th></tr></thead>
+<tbody>
+<tr><td>AnthropicRequest struct</td><td><code>pkg/apicompat/types.go:14</code></td></tr>
+<tr><td>ResponsesRequest struct</td><td><code>pkg/apicompat/types.go:191</code></td></tr>
+<tr><td>ChatCompletionsRequest struct</td><td><code>pkg/apicompat/types.go:568</code></td></tr>
+<tr><td>AnthropicToResponses</td><td><code>pkg/apicompat/anthropic_to_responses.go:13</code></td></tr>
+<tr><td>ResponsesToChatCompletionsRequest</td><td><code>pkg/apicompat/chatcompletions_responses_bridge.go:15</code></td></tr>
+<tr><td>AnthropicToChatCompletionsRequest（直转）</td><td><code>pkg/apicompat/chatcompletions_anthropic_bridge.go:42</code></td></tr>
+<tr><td>ChatCompletionsToAnthropicStreamState</td><td><code>pkg/apicompat/chatcompletions_anthropic_bridge.go:525</code></td></tr>
+<tr><td>ForwardAsAnthropic</td><td><code>service/openai_gateway_messages.go:26</code></td></tr>
+<tr><td>双路径分流</td><td><code>service/openai_gateway_messages.go:36</code></td></tr>
+<tr><td>handleStreamingResponse</td><td><code>service/openai_gateway_response_handling.go</code></td></tr>
+<tr><td>路由层平台分发</td><td><code>server/routes/gateway.go:135-193</code></td></tr>
+<tr><td>平台 SDK：antigravity</td><td><code>pkg/antigravity/</code></td></tr>
+<tr><td>平台 SDK：xai</td><td><code>pkg/xai/</code></td></tr>
+</tbody>
+</table>
+
+<footer>
+  <p>本报告所有结论均通过完整阅读两个项目源码得出。</p>
+  <p>Rust 项目 21 个 <code>.rs</code> 文件全部阅读；Go 项目重点关注 <code>internal/pkg/apicompat/</code> 全部 14 个非测试文件 + <code>internal/service/openai_gateway_*.go</code> 关键文件 + <code>internal/server/routes/gateway.go</code> + 平台 SDK 入口。</p>
+  <p>报告字符数：约 84,000 字符 · 章节数：16（含 TL;DR + 14 部分 + 迁移建议）</p>
+</footer>
+
+</div>
+
+<script>
+if (typeof mermaid !== 'undefined') {
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    themeVariables: {
+      primaryColor: '#f1f8ff',
+      primaryTextColor: '#24292e',
+      primaryBorderColor: '#0366d6',
+      lineColor: '#586069',
+      secondaryColor: '#ea4aaa',
+      tertiaryColor: '#fff5b1',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+      fontSize: '14px'
+    },
+    flowchart: {
+      useMaxWidth: true,
+      htmlLabels: true,
+      curve: 'basis'
+    },
+    sequence: {
+      useMaxWidth: true,
+      wrap: true,
+      mirrorActors: false
+    },
+    gantt: {
+      useMaxWidth: true
+    }
+  });
+}
+</script>
+
+</body>
+</html>

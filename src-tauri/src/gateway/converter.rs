@@ -1,6 +1,10 @@
 use serde_json::{json, Value};
 
 use crate::config::types::Protocol;
+use crate::gateway::convert_helpers::{
+    clean_schema, strip_cache_control, strip_leading_anthropic_billing_header,
+};
+use crate::gateway::{reasoning_bridge, tools};
 use crate::infra::error::AppError;
 
 // ===================== 分发 =====================
@@ -9,11 +13,11 @@ pub fn req_convert(src: &Value, s: Protocol, d: Protocol) -> Result<Value, AppEr
     match (s, d) {
         _ if s == d => Ok(src.clone()),
         (Protocol::Chat, Protocol::Responses) => Ok(chat_to_responses_req(src)),
-        (Protocol::Responses, Protocol::Chat) => Ok(responses_to_chat_req(src)),
+        (Protocol::Responses, Protocol::Chat) => responses_to_chat_req(src),
         (Protocol::Chat, Protocol::Anthropic) => Ok(chat_to_anthropic_req(src)),
         (Protocol::Anthropic, Protocol::Chat) => Ok(anthropic_to_chat_req(src)),
         (Protocol::Responses, Protocol::Anthropic) => {
-            let chat = responses_to_chat_req(src);
+            let chat = responses_to_chat_req(src)?;
             Ok(chat_to_anthropic_req(&chat))
         }
         (Protocol::Anthropic, Protocol::Responses) => {
@@ -354,8 +358,10 @@ pub fn chat_to_anthropic_req(src: &Value) -> Value {
         match role {
             "system" => {
                 let text = chat_content_to_text(&m["content"]);
+                // 剥离 Claude Code 注入的 billing header（仅开头第一行）
+                let text = strip_leading_anthropic_billing_header(&text);
                 if !text.is_empty() {
-                    system_parts.push(text);
+                    system_parts.push(text.to_string());
                 }
             }
             "user" => {
@@ -375,7 +381,25 @@ pub fn chat_to_anthropic_req(src: &Value) -> Value {
                             .unwrap_or("");
                         let mut block = json!({"type":"thinking","thinking":rc});
                         if !signature.is_empty() {
-                            block["signature"] = json!(signature);
+                            // 检测 envelope：跨协议（Anthropic→Chat→Anthropic）双跳场景，
+                            // 还原原 Anthropic thinking signature。
+                            // 若 envelope 内是 OpenAI reasoning item（如 Responses→Chat→Anthropic
+                            // 双跳），保留 envelope 字符串作为 signature 以保真数据
+                            // （Anthropic 上游可能不识别 OpenAI envelope，但至少数据不丢）。
+                            // 非 envelope 字符串直接透传（旧版兼容）。
+                            if let Some(decoded) = reasoning_bridge::decode_envelope(signature) {
+                                if let Some(orig_sig) =
+                                    decoded.get("signature").and_then(|s| s.as_str())
+                                {
+                                    // Anthropic thinking envelope：还原原 signature
+                                    block["signature"] = json!(orig_sig);
+                                } else {
+                                    // OpenAI reasoning envelope：保留 envelope 字符串
+                                    block["signature"] = json!(signature);
+                                }
+                            } else {
+                                block["signature"] = json!(signature);
+                            }
                         }
                         blocks.push(block);
                     }
@@ -423,7 +447,8 @@ pub fn chat_to_anthropic_req(src: &Value) -> Value {
                 Some(json!({
                     "name": f["name"],
                     "description": f["description"],
-                    "input_schema": f["parameters"],
+                    // 规范化 JSON Schema：补 type/properties，删 format:uri
+                    "input_schema": clean_schema(f["parameters"].clone()),
                 }))
             })
             .collect::<Vec<_>>()
@@ -450,6 +475,35 @@ pub fn chat_to_anthropic_req(src: &Value) -> Value {
     if let Some(t) = src.get("top_p") {
         out["top_p"] = t.clone();
     }
+    // reasoning_effort → thinking 参数（Chat 客户端 → Anthropic 上游）
+    // Chat 协议的 reasoning_effort 需要转为 Anthropic 的 thinking 配置，
+    // 否则上游不知道要启用 extended thinking，thinking 内容不会返回。
+    if let Some(effort) = src.get("reasoning_effort").and_then(|v| v.as_str()) {
+        if out.get("thinking").is_none() {
+            let model = src.get("model").and_then(|m| m.as_str()).unwrap_or("");
+            // 新模型用 adaptive，旧模型用 enabled + budget_tokens
+            let needs_adaptive = model.contains("4-6")
+                || model.contains("4-7")
+                || model.contains("4-8")
+                || model.contains("sonnet-5")
+                || model.contains("fable")
+                || model.contains("mythos");
+            let budget: u32 = match effort.to_ascii_lowercase().as_str() {
+                "low" | "minimal" => 2048,
+                "medium" => 8192,
+                "high" => 16384,
+                "xhigh" | "max" => 24576,
+                _ => 8192,
+            };
+            out["thinking"] = if needs_adaptive {
+                json!({"type": "adaptive"})
+            } else {
+                json!({"type": "enabled", "budget_tokens": budget})
+            };
+        }
+    }
+    // 跨协议方向：剥离 cache_control（避免 GLM/Qwen 等严格上游 400）
+    strip_cache_control(&mut out);
     out
 }
 
@@ -482,6 +536,8 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                 .join("\n"),
             _ => String::new(),
         };
+        // 剥离 Claude Code 注入的 billing header（仅开头第一行）
+        let text = strip_leading_anthropic_billing_header(&text);
         if !text.is_empty() {
             messages.push(json!({"role":"system","content":text}));
         }
@@ -552,9 +608,17 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                                         }
                                     }
                                     // 提取 signature 用于多轮 thinking 完整性
+                                    // 优先编码为 envelope，便于跨协议（Chat→Responses）透传
+                                    // 失败时（无 signature 等）回退到原字符串透传
                                     if let Some(s) = b.get("signature").and_then(|x| x.as_str()) {
                                         if !s.is_empty() {
-                                            signatures.push(s.to_string());
+                                            if let Some(envelope) =
+                                                reasoning_bridge::encode_anthropic_thinking(b)
+                                            {
+                                                signatures.push(envelope);
+                                            } else {
+                                                signatures.push(s.to_string());
+                                            }
                                         }
                                     }
                                 }
@@ -631,7 +695,8 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
                     "function":{
                         "name": t["name"],
                         "description": t["description"],
-                        "parameters": t["input_schema"],
+                        // 规范化 JSON Schema：补 type/properties，删 format:uri
+                        "parameters": clean_schema(t["input_schema"].clone()),
                     }
                 })
             })
@@ -661,6 +726,34 @@ pub fn anthropic_to_chat_req(src: &Value) -> Value {
     if let Some(ss) = src.get("stop_sequences") {
         out["stop"] = ss.clone();
     }
+    // thinking → reasoning_effort（Anthropic 客户端 → Chat 上游）
+    // Anthropic 的 thinking 配置需要转为 Chat 的 reasoning_effort 字段，
+    // 否则 Chat 上游不知道要启用推理模式，thinking 内容不会返回。
+    if let Some(thinking) = src.get("thinking") {
+        let thinking_type = thinking.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if thinking_type == "enabled" || thinking_type == "adaptive" {
+            // 根据 budget_tokens 映射 effort 级别
+            let budget = thinking.get("budget_tokens").and_then(|b| b.as_u64()).unwrap_or(8192);
+            let effort = if budget < 4000 {
+                "low"
+            } else if budget < 16000 {
+                "medium"
+            } else {
+                "high"
+            };
+            // adaptive 模式映射为 high
+            let effort = if thinking_type == "adaptive" { "high" } else { effort };
+            out["reasoning_effort"] = json!(effort);
+        }
+    }
+    // output_config.effort → reasoning_effort（Anthropic 新版 effort 字段）
+    if out.get("reasoning_effort").is_none() {
+        if let Some(effort) = src.pointer("/output_config/effort").and_then(|v| v.as_str()) {
+            // Anthropic "max" → Chat/OpenAI "xhigh"
+            let mapped = if effort == "max" { "xhigh" } else { effort };
+            out["reasoning_effort"] = json!(mapped);
+        }
+    }
     out
 }
 
@@ -675,8 +768,10 @@ pub fn chat_to_responses_req(src: &Value) -> Value {
         match role {
             "system" => {
                 let text = chat_content_to_text(&m["content"]);
+                // 剥离 Claude Code 注入的 billing header（仅开头第一行）
+                let text = strip_leading_anthropic_billing_header(&text);
                 if !text.is_empty() {
-                    instructions.push(text);
+                    instructions.push(text.to_string());
                 }
             }
             "user" => {
@@ -691,10 +786,30 @@ pub fn chat_to_responses_req(src: &Value) -> Value {
                 // reasoning_content → reasoning item（携带 summary，保证多轮推理回传）
                 if let Some(rc) = m.get("reasoning_content").and_then(|x| x.as_str()) {
                     if !rc.is_empty() {
-                        input.push(json!({
+                        let signature = m
+                            .get("reasoning_signature")
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("");
+                        // 检测 envelope：跨协议（Anthropic→Chat→Responses）保真。
+                        // envelope 字符串直接作为 encrypted_content 透传，不解码——
+                        // 这样后续 Responses→Chat→Anthropic 时 reasoning_bridge 还能
+                        // 完整还原原 Anthropic thinking 块（含 signature）。
+                        let encrypted = if reasoning_bridge::is_envelope(signature) {
+                            Some(signature.to_string())
+                        } else if !signature.is_empty() {
+                            // 旧版兼容：非 envelope signature 字符串也透传为 encrypted_content
+                            Some(signature.to_string())
+                        } else {
+                            None
+                        };
+                        let mut item = json!({
                             "type":"reasoning",
                             "summary":[{"type":"summary_text","text":rc}]
-                        }));
+                        });
+                        if let Some(enc) = encrypted {
+                            item["encrypted_content"] = json!(enc);
+                        }
+                        input.push(item);
                     }
                 }
                 let blocks = chat_content_to_responses_blocks(&m["content"], "assistant");
@@ -764,11 +879,19 @@ pub fn chat_to_responses_req(src: &Value) -> Value {
     if let Some(t) = src.get("top_p") {
         out["top_p"] = t.clone();
     }
+    // reasoning_effort → reasoning.effort（Chat 客户端 → Responses 上游）
+    if let Some(effort) = src.get("reasoning_effort").and_then(|v| v.as_str()) {
+        if !effort.is_empty() {
+            out["reasoning"] = json!({"effort": effort, "summary": "auto"});
+        }
+    }
+    // 跨协议方向：剥离 cache_control
+    strip_cache_control(&mut out);
     out
 }
 
 // ---------- Responses -> Chat ----------
-pub fn responses_to_chat_req(src: &Value) -> Value {
+pub fn responses_to_chat_req(src: &Value) -> Result<Value, AppError> {
     let mut messages = Vec::<Value>::new();
 
     if let Some(ins) = src.get("instructions").and_then(|x| x.as_str()) {
@@ -813,7 +936,14 @@ pub fn responses_to_chat_req(src: &Value) -> Value {
                             })
                             .unwrap_or_default();
                         if !summary_text.is_empty() {
-                            messages.push(json!({"role":"assistant","content":"","reasoning_content":summary_text}));
+                            let mut msg = json!({"role":"assistant","content":"","reasoning_content":summary_text});
+                            // 把完整 reasoning item（含 encrypted_content）编码为 envelope
+                            // 放入 reasoning_signature，便于后续 Chat→Responses 跨协议保真
+                            if let Some(envelope) = reasoning_bridge::encode_openai_reasoning(item)
+                            {
+                                msg["reasoning_signature"] = json!(envelope);
+                            }
+                            messages.push(msg);
                         }
                     }
                     "function_call" => {
@@ -858,24 +988,59 @@ pub fn responses_to_chat_req(src: &Value) -> Value {
         _ => {}
     }
 
-    let tools = src.get("tools").and_then(|t| t.as_array()).map(|arr| {
-        arr.iter()
-            .filter_map(|t| {
-                if t.get("type").and_then(|x| x.as_str()) == Some("function") {
-                    Some(json!({
-                        "type":"function",
-                        "function":{
-                            "name": t["name"],
-                            "description": t["description"],
-                            "parameters": t["parameters"],
+    let tools = src
+        .get("tools")
+        .and_then(|t| t.as_array())
+        .map(|arr| -> Result<Vec<Value>, AppError> {
+            let mut out: Vec<Value> = Vec::new();
+            let mut tool_search_seen = false;
+            for t in arr {
+                let tool_type = t.get("type").and_then(|x| x.as_str()).unwrap_or("");
+                match tool_type {
+                    "function" => {
+                        out.push(json!({
+                            "type":"function",
+                            "function":{
+                                "name": t["name"],
+                                "description": t["description"],
+                                "parameters": clean_schema(t["parameters"].clone()),
+                            }
+                        }));
+                    }
+                    // namespace 工具：摊平为多个 function 工具
+                    "namespace" => {
+                        let ns_name = t.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        let children: Option<&Vec<Value>> = t
+                            .get("tools")
+                            .and_then(|t| t.as_array())
+                            .or_else(|| t.get("children").and_then(|c| c.as_array()));
+                        if let Some(children) = children {
+                            for (flat_tool, _owner) in
+                                tools::flatten_namespace_children(ns_name, children)
+                            {
+                                out.push(flat_tool);
+                            }
                         }
-                    }))
-                } else {
-                    None
+                    }
+                    // custom/freeform 工具：降级为 function 工具（input: string schema）
+                    "custom" | "freeform" => {
+                        out.push(tools::custom_tool_to_function(t));
+                    }
+                    // tool_search 服务端工具：代理为同名 function 工具
+                    "tool_search" => {
+                        if !tool_search_seen {
+                            out.push(tools::tool_search_proxy_function());
+                            tool_search_seen = true;
+                        }
+                    }
+                    // 其它服务端工具（web_search / file_search 等）丢弃：
+                    // Chat 上游无对应能力，保留会触发 400
+                    _ => {}
                 }
-            })
-            .collect::<Vec<_>>()
-    });
+            }
+            Ok(out)
+        })
+        .transpose()?;
 
     let mut out = json!({
         "model": src["model"],
@@ -894,7 +1059,13 @@ pub fn responses_to_chat_req(src: &Value) -> Value {
     if let Some(t) = src.get("top_p") {
         out["top_p"] = t.clone();
     }
-    out
+    // reasoning.effort → reasoning_effort（Responses 客户端 → Chat 上游）
+    if let Some(effort) = src.pointer("/reasoning/effort").and_then(|v| v.as_str()) {
+        if !effort.is_empty() {
+            out["reasoning_effort"] = json!(effort);
+        }
+    }
+    Ok(out)
 }
 
 // ===================== 响应体转换 =====================
@@ -1107,6 +1278,8 @@ pub fn chat_to_anthropic_resp(src: &Value) -> Value {
 // ---------- Responses -> Chat 响应 ----------
 pub fn responses_to_chat_resp(src: &Value) -> Value {
     let mut text_parts = Vec::new();
+    let mut reasoning_parts = Vec::new();
+    let mut signatures: Vec<String> = Vec::new();
     let mut tool_calls = Vec::new();
     if let Some(output) = src.get("output").and_then(|o| o.as_array()) {
         for item in output {
@@ -1116,6 +1289,38 @@ pub fn responses_to_chat_resp(src: &Value) -> Value {
                     let text = responses_content_to_text(item.get("content"), "assistant");
                     if !text.is_empty() {
                         text_parts.push(text);
+                    }
+                }
+                "reasoning" => {
+                    // reasoning summary → reasoning_content（Responses 上游 → Chat 客户端）
+                    let summary_text = item
+                        .get("summary")
+                        .and_then(|s| s.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|p| {
+                                    if p.get("type").and_then(|t| t.as_str())
+                                        == Some("summary_text")
+                                    {
+                                        p.get("text").and_then(|t| t.as_str()).map(String::from)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join("")
+                        })
+                        .unwrap_or_default();
+                    if !summary_text.is_empty() {
+                        reasoning_parts.push(summary_text);
+                    }
+                    // encrypted_content → reasoning_signature（跨协议 reasoning 保真）
+                    if let Some(enc) =
+                        item.get("encrypted_content").and_then(|x| x.as_str())
+                    {
+                        if !enc.is_empty() {
+                            signatures.push(enc.to_string());
+                        }
                     }
                 }
                 "function_call" => {
@@ -1148,6 +1353,12 @@ pub fn responses_to_chat_resp(src: &Value) -> Value {
     } else {
         json!(text_parts.join(""))
     };
+    if !reasoning_parts.is_empty() {
+        message["reasoning_content"] = json!(reasoning_parts.join("\n"));
+    }
+    if !signatures.is_empty() {
+        message["reasoning_signature"] = json!(signatures.join("\n"));
+    }
     if !tool_calls.is_empty() {
         message["tool_calls"] = json!(tool_calls);
     }
@@ -1189,6 +1400,23 @@ pub fn chat_to_responses_resp(src: &Value) -> Value {
         .and_then(|a| a.first())
     {
         if let Some(msg) = choice.get("message") {
+            // reasoning_content → reasoning output item（Chat 上游 → Responses 客户端）
+            // 必须在 message item 之前输出，保持与 OpenAI 原生 Responses 行为一致
+            if let Some(rc) = msg.get("reasoning_content").and_then(|x| x.as_str()) {
+                if !rc.is_empty() {
+                    let mut reasoning_item = json!({
+                        "type":"reasoning",
+                        "summary":[{"type":"summary_text","text":rc}]
+                    });
+                    // reasoning_signature → encrypted_content（跨协议 reasoning 保真）
+                    if let Some(sig) = msg.get("reasoning_signature").and_then(|x| x.as_str()) {
+                        if !sig.is_empty() {
+                            reasoning_item["encrypted_content"] = json!(sig);
+                        }
+                    }
+                    output.push(reasoning_item);
+                }
+            }
             if let Some(t) = msg.get("content").and_then(|x| x.as_str()) {
                 if !t.is_empty() {
                     output.push(json!({

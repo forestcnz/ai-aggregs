@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>三项目协议互转深度对比：ai-aggregs × sub2api × cc-switch</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --bg: #fafbfc;
+  --fg: #1f2328;
+  --muted: #57606a;
+  --accent: #0969da;
+  --accent-bg: #ddf4ff;
+  --border: #d0d7de;
+  --code-bg: #f6f8fa;
+  --rust: #dea584;
+  --go: #00add8;
+  --rust2: #6f42c1;
+  --good: #1a7f37;
+  --warn: #9a6700;
+  --bad: #cf222e;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", Helvetica, Arial, sans-serif;
+  font-size: 15px; line-height: 1.7;
+}
+.container { max-width: 1280px; margin: 0 auto; padding: 40px 32px 80px; }
+header.report-header {
+  text-align: center;
+  padding: 32px 0 40px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 32px;
+}
+header.report-header h1 {
+  font-size: 28px; font-weight: 700; margin: 0 0 12px;
+  background: linear-gradient(90deg, var(--rust), var(--go), var(--rust2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+header.report-header .meta { color: var(--muted); font-size: 13px; }
+header.report-header .badges { margin-top: 16px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge { display: inline-block; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 600; color: white; }
+.badge.rust1 { background: var(--rust); }
+.badge.go { background: var(--go); }
+.badge.rust2 { background: var(--rust2); }
+.badge.focus { background: var(--accent); }
+h1, h2, h3, h4 { margin-top: 32px; margin-bottom: 16px; font-weight: 600; line-height: 1.3; scroll-margin-top: 20px; }
+h1 { font-size: 26px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+h2 { font-size: 22px; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-top: 48px; }
+h3 { font-size: 18px; margin-top: 32px; }
+h4 { font-size: 16px; }
+p { margin: 12px 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+strong { font-weight: 600; }
+em { font-style: italic; color: var(--muted); }
+ul, ol { padding-left: 28px; margin: 12px 0; }
+li { margin: 4px 0; }
+hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+blockquote { margin: 16px 0; padding: 12px 16px; background: var(--accent-bg); border-left: 4px solid var(--accent); border-radius: 4px; }
+blockquote p { margin: 6px 0; }
+code { font-family: "JetBrains Mono", "Fira Code", Consolas, monospace; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #d6336c; }
+pre { background: #1e1e1e; color: #d4d4d4; padding: 16px 20px; border-radius: 8px; overflow-x: auto; margin: 16px 0; font-size: 13px; line-height: 1.5; }
+pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+.kw { color: #569cd6; }
+.str { color: #ce9178; }
+.comment { color: #6a9955; font-style: italic; }
+.ty { color: #4ec9b0; }
+.fn { color: #dcdcaa; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; border-radius: 6px; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--code-bg); font-weight: 600; border-bottom: 2px solid var(--border); }
+tr:hover { background: var(--accent-bg); }
+td code { white-space: nowrap; }
+.mermaid { margin: 24px auto; text-align: center; background: white; padding: 16px; border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; }
+.toc { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 20px 28px; margin-bottom: 40px; }
+.toc h2 { margin-top: 0; border-bottom: none; font-size: 18px; }
+.toc ol { padding-left: 24px; margin: 8px 0; }
+.toc a { display: block; padding: 2px 0; }
+.toc > ol > li { margin: 6px 0; font-weight: 600; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+.tag.good { background: #dcffe4; color: var(--good); }
+.tag.warn { background: #fff5b1; color: var(--warn); }
+.tag.bad { background: #ffebe9; color: var(--bad); }
+.tag.rust1 { background: #fce5cd; color: #7f4f1f; }
+.tag.go { background: #d0f0ff; color: #0c5d8a; }
+.tag.rust2 { background: #e6d9f5; color: #4a2d80; }
+.callout { margin: 24px 0; padding: 16px 20px; border-left: 4px solid; border-radius: 4px; background: white; }
+.callout.tip { border-color: var(--good); background: #f0fff4; }
+.callout.warn { border-color: var(--warn); background: #fffbeb; }
+.callout.crit { border-color: var(--bad); background: #fff5f5; }
+.callout.info { border-color: var(--accent); background: var(--accent-bg); }
+.callout h4 { margin-top: 0; }
+.score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; margin: 24px 0; }
+.score-row { display: grid; grid-template-columns: 1fr 80px 80px 80px; gap: 8px; align-items: center; padding: 10px 14px; background: white; border: 1px solid var(--border); border-radius: 6px; }
+.score-row .label { font-weight: 500; }
+.score-row .score { text-align: center; font-family: "JetBrains Mono", monospace; font-weight: 700; padding: 4px 8px; border-radius: 4px; font-size: 13px; }
+.score-row .score.rust1 { background: #fce5cd; color: #7f4f1f; }
+.score-row .score.go { background: #d0f0ff; color: #0c5d8a; }
+.score-row .score.rust2 { background: #e6d9f5; color: #4a2d80; }
+.score-row .score.best { background: #dcffe4; color: var(--good); box-shadow: 0 0 0 2px var(--good); }
+footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; text-align: center; }
+@media (max-width: 768px) {
+  .container { padding: 20px 16px 60px; }
+  header.report-header h1 { font-size: 22px; }
+  table { font-size: 12px; }
+  th, td { padding: 6px 8px; }
+  pre { font-size: 11px; padding: 12px; }
+  .score-row { grid-template-columns: 1fr 60px 60px 60px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="report-header">
+  <h1>三项目协议互转深度对比：ai-aggregs × sub2api × cc-switch</h1>
+  <div class="meta">
+    本报告在原 ai-aggregs × sub2api 两方对比基础上，新增 <strong>cc-switch</strong>（Rust）作为第三方<br/>
+    聚焦"协议互转（Protocol Translation）"本身
+  </div>
+  <div class="badges">
+    <span class="badge rust1">ai-aggregs / Rust / Tauri</span>
+    <span class="badge go">sub2api / Go / Gin</span>
+    <span class="badge rust2">cc-switch / Rust / Tauri</span>
+    <span class="badge focus">三方深度对比</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">一、三个项目的协议转换定位</a></li>
+    <li><a href="#s2">二、整体架构对比</a></li>
+    <li><a href="#s3">三、Provider / Adapter 抽象对比</a></li>
+    <li><a href="#s4">四、协议覆盖与转换路径</a></li>
+    <li><a href="#s5">五、ProviderAdapter trait 的设计价值</a></li>
+    <li><a href="#s6">六、字段映射深度对比</a></li>
+    <li><a href="#s7">七、Thinking / Reasoning 跨协议传输</a></li>
+    <li><a href="#s8">八、流式转换对比</a></li>
+    <li><a href="#s9">九、Usage / Token 计算对比</a></li>
+    <li><a href="#s10">十、Tool Calling 边界 case</a></li>
+    <li><a href="#s11">十一、性能与可测试性</a></li>
+    <li><a href="#s12">十二、综合评分</a></li>
+    <li><a href="#s13">十三、三方互相借鉴价值</a></li>
+    <li><a href="#s14">十四、迁移路线图</a></li>
+    <li><a href="#s15">十五、最终结论</a></li>
+  </ol>
+</nav>
+
+<h2 id="s1">一、三个项目的协议转换定位</h2>
+
+<table>
+<thead><tr><th>项目</th><th>语言</th><th>形态</th><th>协议转换规模</th><th>定位</th></tr></thead>
+<tbody>
+<tr><td><strong>ai-aggregs</strong></td><td>Rust</td><td>桌面应用 + 内嵌网关</td><td>~2,800 行（2 文件）</td><td>个人桌面 LLM 聚合器</td></tr>
+<tr><td><strong>sub2api</strong></td><td>Go</td><td>SaaS 服务端</td><td>~9,000 行（14 文件）</td><td>多租户 SaaS 网关</td></tr>
+<tr><td><strong>cc-switch</strong></td><td>Rust</td><td>桌面应用 + 内嵌代理</td><td><strong>~20,000+ 行（15+ 文件）</strong></td><td>Claude Code/Codex/Gemini CLI 切换器</td></tr>
+</tbody>
+</table>
+
+<div class="callout info">
+  <p><strong>核心结论预告</strong>：在协议转换这一窄维度上，<strong>cc-switch 是三者中工程化程度最高的实现</strong>——它结合了 ai-aggregs 的 Rust 性能优势 + sub2api 的边界 case 完整性，并独创了 <code>reasoning_bridge</code> 跨协议推理状态传输机制。</p>
+</div>
+
+<h3>1.1 协议覆盖</h3>
+
+<table>
+<thead><tr><th>项目</th><th>核心协议</th><th>IR 选择</th><th>设计哲学</th></tr></thead>
+<tbody>
+<tr><td>ai-aggregs</td><td>3 种（Chat/Responses/Anthropic）</td><td>Chat 作为事实 IR</td><td>极简，<code>serde_json::Value</code> 直接重写</td></tr>
+<tr><td>sub2api</td><td>3 核心 + 多平台扩展</td><td>Responses 作为显式 IR</td><td>强类型 struct + 每方向独立状态机</td></tr>
+<tr><td>cc-switch</td><td>4 种（+8 种 ProviderType）</td><td><strong>无中心 IR</strong>，按 ProviderType 配对</td><td>正式 ProviderAdapter trait + 多方向并行</td></tr>
+</tbody>
+</table>
+
+<h2 id="s2">二、整体架构对比</h2>
+
+<h3>2.1 cc-switch 协议转换架构</h3>
+
+<div class="mermaid">
+flowchart TB
+    Client["Client<br/>Claude Code/Codex/Gemini CLI"]
+    Proxy["proxy/handlers.rs + forwarder.rs"]
+    Adapter["ProviderAdapter trait<br/>adapter.rs"]
+    Claude["claude.rs ClaudeAdapter"]
+    Codex["codex.rs CodexAdapter"]
+    Gemini["gemini.rs GeminiAdapter"]
+    subgraph Transforms["transform 5 个方向"]
+        T1["transform.rs<br/>Anthropic ↔ Chat"]
+        T2["transform_responses.rs<br/>Anthropic → Responses"]
+        T3["transform_codex_anthropic.rs<br/>Responses → Anthropic"]
+        T4["transform_codex_chat.rs<br/>Responses ↔ Chat"]
+        T5["transform_gemini.rs<br/>Anthropic ↔ Gemini"]
+    end
+    subgraph Streams["streaming 5 个方向"]
+        S1["streaming.rs"]
+        S2["streaming_responses.rs"]
+        S3["streaming_codex_chat.rs"]
+        S4["streaming_codex_anthropic.rs"]
+        S5["streaming_gemini.rs"]
+    end
+    Reasoning["reasoning_bridge.rs<br/>跨协议推理状态传输"]
+    Client --> Proxy
+    Proxy --> Adapter
+    Adapter --> Claude
+    Adapter --> Codex
+    Adapter --> Gemini
+    Claude --> Transforms
+    Codex --> Transforms
+    Gemini --> Transforms
+    Transforms --> Streams
+    Transforms <--> Reasoning
+</div>
+
+<h3>2.2 架构对比表</h3>
+
+<table>
+<thead><tr><th>维度</th><th>ai-aggregs</th><th>sub2api</th><th>cc-switch</th></tr></thead>
+<tbody>
+<tr><td>入口抽象</td><td>单 <code>proxy</code> 函数</td><td>路由层 if/else</td><td><strong><code>ProviderAdapter</code> trait</strong></td></tr>
+<tr><td>Provider 抽象</td><td>单 struct + protocol 字段</td><td>多 Service + platform 字段</td><td><strong>trait + 8 种 ProviderType enum</strong></td></tr>
+<tr><td>转换代码组织</td><td>gateway 模块内</td><td>独立 <code>apicompat</code> 包</td><td><code>proxy/providers/</code> 子模块</td></tr>
+<tr><td>IR 选择</td><td>Chat（事实）</td><td>Responses（显式）</td><td><strong>无中心 IR</strong>（按需配对）</td></tr>
+<tr><td>测试覆盖</td><td>几乎为 0</td><td>密集</td><td><strong>密集 + 集成测试</strong></td></tr>
+</tbody>
+</table>
+
+<h2 id="s3">三、Provider / Adapter 抽象对比</h2>
+
+<h3>3.1 三方抽象方式</h3>
+
+<p><strong>ai-aggregs</strong>：无 trait。所有上游是同一个 <code>Provider</code> struct 实例。</p>
+
+<p><strong>sub2api</strong>：无 interface。靠 <code>Account.Platform</code> 字段在 service 层硬分支。</p>
+
+<p><strong>cc-switch</strong>：完整 trait（<code>proxy/providers/adapter.rs:16</code>）：</p>
+
+<pre><code><span class="kw">pub trait</span> <span class="ty">ProviderAdapter</span>: <span class="ty">Send</span> + <span class="ty">Sync</span> {
+    <span class="kw">fn</span> <span class="fn">name</span>(&<span class="kw">self</span>) -&gt; &amp;<span class="kw">'static str</span>;
+    <span class="kw">fn</span> <span class="fn">extract_base_url</span>(&<span class="kw">self</span>, provider: &amp;<span class="ty">Provider</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">String</span>, <span class="ty">ProxyError</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">extract_auth</span>(&<span class="kw">self</span>, provider: &amp;<span class="ty">Provider</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">AuthInfo</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">build_url</span>(&<span class="kw">self</span>, base_url: &amp;<span class="ty">str</span>, endpoint: &amp;<span class="ty">str</span>) -&gt; <span class="ty">String</span>;
+    <span class="kw">fn</span> <span class="fn">get_auth_headers</span>(&<span class="kw">self</span>, auth: &amp;<span class="ty">AuthInfo</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Vec</span>&lt;(<span class="ty">HeaderName</span>, <span class="ty">HeaderValue</span>)&gt;, <span class="ty">ProxyError</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">needs_transform</span>(&<span class="kw">self</span>, _provider: &amp;<span class="ty">Provider</span>) -&gt; <span class="ty">bool</span> { <span class="kw">false</span> }
+    <span class="kw">fn</span> <span class="fn">transform_request</span>(&<span class="kw">self</span>, body: <span class="ty">Value</span>, _provider: &amp;<span class="ty">Provider</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Value</span>, <span class="ty">ProxyError</span>&gt; { <span class="ty">Ok</span>(body) }
+    <span class="kw">fn</span> <span class="fn">transform_response</span>(&<span class="kw">self</span>, body: <span class="ty">Value</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Value</span>, <span class="ty">ProxyError</span>&gt; { <span class="ty">Ok</span>(body) }
+}</code></pre>
+
+<p>加上 8 种 <code>ProviderType</code> enum：</p>
+
+<pre><code><span class="kw">pub enum</span> <span class="ty">ProviderType</span> {
+    <span class="ty">Claude</span>,         <span class="comment">// Anthropic 官方</span>
+    <span class="ty">ClaudeAuth</span>,     <span class="comment">// Claude 中转（仅 Bearer）</span>
+    <span class="ty">Codex</span>,          <span class="comment">// OpenAI Responses</span>
+    <span class="ty">Gemini</span>,         <span class="comment">// Google Gemini API</span>
+    <span class="ty">GeminiCli</span>,      <span class="comment">// Gemini OAuth</span>
+    <span class="ty">OpenRouter</span>,     <span class="comment">// 已支持 Claude Code 接口</span>
+    <span class="ty">GitHubCopilot</span>,  <span class="comment">// OAuth + 需 Anthropic↔OpenAI 转换</span>
+    <span class="ty">CodexOAuth</span>,     <span class="comment">// ChatGPT Plus/Pro 反代</span>
+}</code></pre>
+
+<div class="callout tip">
+  <p><strong>结论</strong>：cc-switch 是三者中唯一有正式 Provider 抽象的项目。</p>
+</div>
+
+<h2 id="s4">四、协议覆盖与转换路径</h2>
+
+<h3>4.1 转换路径矩阵</h3>
+
+<div class="mermaid">
+flowchart LR
+    Chat((Chat))
+    Resp((Responses))
+    Anthro((Anthropic))
+    Gem((Gemini))
+    Chat <-->|A/C/G| Resp
+    Chat <-->|A/C/G| Anthro
+    Resp <-->|A/C/G| Anthro
+    Anthro <-->|C/G| Gem
+</div>
+
+<p><small>A = ai-aggregs 支持，C = cc-switch 支持，G = sub2api 支持</small></p>
+
+<h3>4.2 cc-switch 的 5 个方向文件</h3>
+
+<table>
+<thead><tr><th>文件</th><th>方向</th><th>行数</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td><code>transform.rs</code></td><td>Anthropic ↔ OpenAI Chat</td><td>1608</td><td>OpenRouter / Copilot / 通用 OpenAI 兼容上游</td></tr>
+<tr><td><code>transform_responses.rs</code></td><td>Anthropic → Responses</td><td>1928</td><td>Claude 客户端 → Codex OAuth 上游</td></tr>
+<tr><td><code>transform_codex_anthropic.rs</code></td><td>Responses → Anthropic</td><td>2557</td><td>Codex CLI → Anthropic 网关（反向）</td></tr>
+<tr><td><code>transform_codex_chat.rs</code></td><td>Responses ↔ Chat</td><td>2985</td><td>Codex CLI → 通用 OpenAI Chat 上游</td></tr>
+<tr><td><code>transform_gemini.rs</code></td><td>Anthropic ↔ Gemini</td><td>2118</td><td>Claude 客户端 → Gemini 上游</td></tr>
+</tbody>
+</table>
+
+<h2 id="s5">五、ProviderAdapter trait 的设计价值</h2>
+
+<h3>5.1 多 API 格式自动检测（cc-switch 独有）</h3>
+
+<p><code>claude.rs:38</code> 的 <code>get_claude_api_format</code> 实现 4 种格式自动检测：</p>
+
+<pre><code><span class="kw">pub fn</span> <span class="fn">get_claude_api_format</span>(provider: &amp;<span class="ty">Provider</span>) -&gt; &amp;<span class="kw">'static str</span> {
+    <span class="comment">// 0) Codex OAuth 强制 openai_responses</span>
+    <span class="kw">if</span> meta.provider_type == <span class="ty">Some</span>(<span class="str">"codex_oauth"</span>) { <span class="kw">return</span> <span class="str">"openai_responses"</span>; }
+    <span class="comment">// 1) meta.apiFormat（SSOT）</span>
+    <span class="kw">if let</span> <span class="ty">Some</span>(api_format) = meta.api_format { <span class="kw">return</span> api_format; }
+    <span class="comment">// 2) 兼容旧 settings_config.api_format</span>
+    <span class="comment">// 3) 兼容 legacy openrouter_compat_mode</span>
+    <span class="str">"anthropic"</span>  <span class="comment">// 默认</span>
+}</code></pre>
+
+<p>这意味着同一个 <code>ClaudeAdapter</code> 能根据 Provider 配置自动选择 4 种转换路径——<strong>ai-aggregs 和 sub2api 都做不到</strong>。</p>
+
+<h2 id="s6">六、字段映射深度对比</h2>
+
+<h3>6.1 关键字段三方对照</h3>
+
+<table>
+<thead><tr><th>字段 / 行为</th><th>ai-aggregs</th><th>sub2api</th><th>cc-switch</th></tr></thead>
+<tbody>
+<tr><td><code>system</code> 多 message 合并</td><td><code>\n\n</code> join</td><td>各自独立 input item</td><td>单 system 移到首位 + 多 system 合并</td></tr>
+<tr><td>Claude Code billing header 过滤</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓ 仅剥离首行</span></td></tr>
+<tr><td><code>tool_choice</code> 校验</td><td>透传</td><td>主动丢弃未声明</td><td>透传</td></tr>
+<tr><td>Anthropic <code>pause_turn</code></td><td><span class="tag good">→ stop</span></td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>Anthropic <code>redacted_thinking</code></td><td><span class="tag good">文本占位</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">占位（仅 preserve 模式）</span></td></tr>
+<tr><td>Reasoning model 采样参数剥离</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ gpt-5.*</span></td><td><span class="tag good">✓ o-series + gpt-5.*</span></td></tr>
+<tr><td><code>max_tokens</code> → <code>max_completion_tokens</code>（o-series）</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td>tool_call 乱序兜底</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ pending 缓冲</span></td><td><span class="tag good">✓ + Copilot bug 检测</span></td></tr>
+<tr><td>空 tool args 补 <code>"{}"</code></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>Namespace 工具摊平</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ sha256 截断</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>custom/freeform 工具</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ input schema 降级</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>tool_search 代理</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ function 代理</span></td><td><span class="tag good">✓ TOOL_SEARCH_PROXY_NAME</span></td></tr>
+<tr><td>JSON Schema normalization</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ 补 properties</span></td><td><span class="tag good">✓ 递归清理 + 删 format:uri</span></td></tr>
+<tr><td><code>cache_control</code> 字段剥离</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ 避免 GLM/Qwen 400</span></td></tr>
+<tr><td>Anthropic metadata 透传</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ json.RawMessage</span></td><td><span class="tag bad">✗</span></td></tr>
+</tbody>
+</table>
+
+<h3>6.2 cc-switch 独有的字段处理</h3>
+
+<div class="callout tip">
+  <h4>DeepSeek <code>thinking: disabled</code> 冲突消解</h4>
+  <p>DeepSeek 官方 Anthropic 兼容端点拒绝 <code>thinking: {type: "disabled"}</code> 与 <code>reasoning_effort</code> 并存。<code>claude.rs:186</code> 主动剥离 effort 参数，保留客户端意图。</p>
+</div>
+
+<div class="callout tip">
+  <h4>Reasoning vendor 自动检测</h4>
+  <p><code>claude.rs:25</code> 维护 vendor 关键词列表：<code>[moonshot, kimi, deepseek, mimo, xiaomimimo]</code>。当模型名或 base_url 含这些关键词时，自动启用 thinking 历史规整化。</p>
+</div>
+
+<div class="callout tip">
+  <h4>Copilot 无限空白 bug 检测</h4>
+  <p><code>streaming.rs:102</code>：<code>INFINITE_WHITESPACE_THRESHOLD = 500</code>。tool_call.arguments 中连续空白超 500 字符时强制中止该 tool 流——针对 GitHub Copilot 上游具体 bug。</p>
+</div>
+
+<h2 id="s7">七、Thinking / Reasoning 跨协议传输（cc-switch 独创）</h2>
+
+<p>这是 cc-switch 区别于另两个项目的最大亮点。</p>
+
+<h3>7.1 问题背景</h3>
+
+<p>跨协议转换时：</p>
+<ul>
+<li>Anthropic <code>thinking.signature</code> 是 Claude 4.5+ 的多轮签名，<strong>必须原样回传</strong></li>
+<li>OpenAI <code>reasoning.encrypted_content</code> 是不透明加密 blob，<strong>必须原样回传</strong></li>
+<li>两者不可直接互转（一个是 Anthropic 签名，一个是 OpenAI 加密）</li>
+</ul>
+
+<h3>7.2 三个项目的处理</h3>
+
+<table>
+<thead><tr><th>项目</th><th>策略</th><th>多轮保真</th></tr></thead>
+<tbody>
+<tr><td><strong>ai-aggregs</strong></td><td>引入非标准 Chat 字段 <code>reasoning_signature</code>，在 Anthropic↔Chat 透传</td><td>仅 Anthropic↔Chat 双向</td></tr>
+<tr><td><strong>sub2api</strong></td><td>丢弃入站 thinking 块，仅出站方向映射</td><td><span class="tag bad">多轮上下文断链</span></td></tr>
+<tr><td><strong>cc-switch</strong></td><td><strong>opaque envelope 双向保真</strong>（base64 编码整个 reasoning item）</td><td><span class="tag good">所有方向可往返</span></td></tr>
+</tbody>
+</table>
+
+<h3>7.3 cc-switch 的 envelope 机制</h3>
+
+<p><code>reasoning_bridge.rs:11</code> 定义版本化前缀：</p>
+
+<pre><code><span class="kw">pub(crate) const</span> <span class="ty">OPENAI_REASONING_ITEM_PREFIX</span>: &amp;<span class="kw">str</span> = <span class="str">"ccswitch-openai-reasoning-v1:"</span>;
+
+<span class="comment">// 把整个 OpenAI reasoning item 序列化 + base64 编码，塞进 Anthropic thinking.signature</span>
+<span class="kw">pub(crate) fn</span> <span class="fn">encode_openai_reasoning_item</span>(item: &amp;<span class="ty">Value</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt; {
+    <span class="kw">let</span> bytes = serde_json::<span class="fn">to_vec</span>(item).<span class="fn">ok</span>()?;
+    <span class="ty">Some</span>(<span class="fn">format!</span>(
+        <span class="str">"{OPENAI_REASONING_ITEM_PREFIX}{}"</span>,
+        <span class="ty">URL_SAFE_NO_PAD</span>::<span class="fn">encode</span>(bytes)
+    ))
+}</code></pre>
+
+<p><code>transform_codex_anthropic.rs:25</code> 定义对称的另一个方向：</p>
+
+<pre><code><span class="kw">pub(crate) const</span> <span class="ty">ANTHROPIC_THINKING_ENCRYPTED_PREFIX</span>: &amp;<span class="kw">str</span> = <span class="str">"ccswitch-anthropic-thinking-v1:"</span>;
+
+<span class="comment">// 把整个 Anthropic thinking 块序列化 + base64，塞进 Responses reasoning.encrypted_content</span>
+<span class="kw">pub(crate) fn</span> <span class="fn">encode_anthropic_thinking_block</span>(block: &amp;<span class="ty">Value</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt; { <span class="comment">/* ... */</span> }</code></pre>
+
+<h3>7.4 双 envelope 工作流</h3>
+
+<div class="mermaid">
+flowchart LR
+    subgraph OpenAISide["OpenAI Responses 侧"]
+        RI["reasoning item<br/>含 encrypted_content"]
+    end
+    subgraph Bridge["reasoning_bridge.rs"]
+        Enc1["encode_openai_reasoning_item<br/>ccswitch-openai-reasoning-v1:"]
+        Enc2["encode_anthropic_thinking_block<br/>ccswitch-anthropic-thinking-v1:"]
+    end
+    subgraph AnthropicSide["Anthropic 侧"]
+        TB["thinking block<br/>signature = envelope"]
+    end
+    RI -->|转 Anthropic| Enc1 --> TB
+    TB -->|转 Responses| Enc2 --> RI
+</div>
+
+<h3>7.5 三方对比</h3>
+
+<table>
+<thead><tr><th>维度</th><th>ai-aggregs</th><th>sub2api</th><th>cc-switch</th></tr></thead>
+<tbody>
+<tr><td>Anthropic signature 多轮</td><td><span class="tag good">✓ 完整</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ envelope 编码</span></td></tr>
+<tr><td>Responses encrypted_content</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ 透传</span></td><td><span class="tag good">✓ envelope 编码</span></td></tr>
+<tr><td>跨协议 reasoning 保真</td><td>Anthropic ↔ Chat 可往返</td><td>单向</td><td><strong>所有方向可往返</strong></td></tr>
+<tr><td>加密内容版本化</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ v1: 前缀</span></td></tr>
+<tr><td>跨厂商隔离</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ 不同 prefix</span></td></tr>
+</tbody>
+</table>
+
+<div class="callout tip">
+  <p><strong>结论</strong>：cc-switch 的 <code>reasoning_bridge</code> 是三个项目里唯一能保证<strong>跨协议多轮 reasoning 完整往返</strong>的实现。</p>
+</div>
+
+<h2 id="s8">八、流式转换对比</h2>
+
+<h3>8.1 状态机抽象</h3>
+
+<table>
+<thead><tr><th>项目</th><th>抽象方式</th><th>数量</th></tr></thead>
+<tbody>
+<tr><td>ai-aggregs</td><td><code>StreamConverter</code> trait + <code>Chained&lt;A,B&gt;</code> 泛型</td><td>4 + Chained</td></tr>
+<tr><td>sub2api</td><td>无统一接口，每方向独立 struct</td><td>6 个状态机</td></tr>
+<tr><td>cc-switch</td><td>无统一接口，每方向独立函数 + 内嵌状态</td><td>5 个流式函数</td></tr>
+</tbody>
+</table>
+
+<h3>8.2 Tool Call 流式生命周期</h3>
+
+<table>
+<thead><tr><th>项目</th><th>tool_call 状态结构</th><th>多 tool 并发</th><th>乱序兜底</th></tr></thead>
+<tbody>
+<tr><td>ai-aggregs</td><td>单 <code>cur_tc_index</code></td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>sub2api</td><td><code>pendingToolCallID/pendingToolArgs</code></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td>cc-switch</td><td><code>tool_blocks_by_index: HashMap&lt;usize, ToolBlockState&gt;</code></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓ + Copilot bug 检测</span></td></tr>
+</tbody>
+</table>
+
+<h3>8.3 cc-switch 独有：ToolBlockState 完整状态</h3>
+
+<pre><code><span class="kw">struct</span> <span class="ty">ToolBlockState</span> {
+    anthropic_index: <span class="ty">u32</span>,
+    id: <span class="ty">String</span>,
+    name: <span class="ty">String</span>,
+    started: <span class="ty">bool</span>,
+    pending_args: <span class="ty">String</span>,
+    consecutive_whitespace: <span class="ty">usize</span>,  <span class="comment">// Copilot bug 检测</span>
+    aborted: <span class="ty">bool</span>,
+}</code></pre>
+
+<h3>8.4 流式关键能力三方对比</h3>
+
+<table>
+<thead><tr><th>能力</th><th>ai-aggregs</th><th>sub2api</th><th>cc-switch</th></tr></thead>
+<tbody>
+<tr><td>异步模型</td><td>tokio mpsc + trait</td><td>goroutine + bufio</td><td>tokio + <code>async_stream!</code></td></tr>
+<tr><td>行缓冲零拷贝</td><td><span class="tag good">✓ BytesMut</span></td><td><span class="tag bad">✗</span></td><td><span class="tag warn">部分（UTF-8 边界）</span></td></tr>
+<tr><td>状态机抽象</td><td><span class="tag good">✓ trait + Chained</span></td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>Tool name 延迟宣告</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td>空 args 补 <code>"{}"</code></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>多 finish_reason 去重</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ OpenRouter 兼容</span></td></tr>
+<tr><td>Copilot 无限空白 bug 检测</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ 阈值 500</span></td></tr>
+<tr><td>跨 chunk UTF-8 边界处理</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ utf8_remainder</span></td></tr>
+<tr><td>Cache token 多字段兼容</td><td><span class="tag bad">✗ 仅 1 种</span></td><td><span class="tag good">✓ 5+ 种</span></td><td><span class="tag good">✓ 4 种</span></td></tr>
+<tr><td>usage 延迟到 [DONE] 发送</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓ pending_message_delta</span></td></tr>
+</tbody>
+</table>
+
+<h2 id="s9">九、Usage / Token 计算对比</h2>
+
+<h3>9.1 三种哲学</h3>
+
+<table>
+<thead><tr><th>项目</th><th>Anthropic → Chat 输入端</th><th>Chat/Responses → Anthropic 输出端</th></tr></thead>
+<tbody>
+<tr><td><strong>ai-aggregs</strong></td><td><strong>加法</strong>：<code>input + cache_read + cache_creation = prompt_tokens</code></td><td>不处理</td></tr>
+<tr><td><strong>sub2api</strong></td><td>直接字段映射</td><td><strong>减法</strong></td></tr>
+<tr><td><strong>cc-switch</strong></td><td>直接字段映射</td><td><strong>减法</strong>（<code>transform.rs:688-693</code>）</td></tr>
+</tbody>
+</table>
+
+<h3>9.2 Cache token 字段兼容性</h3>
+
+<table>
+<thead><tr><th>字段名</th><th>ai-aggregs</th><th>sub2api</th><th>cc-switch</th></tr></thead>
+<tbody>
+<tr><td><code>cache_read_input_tokens</code>（Anthropic 标准）</td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td><code>cache_creation_input_tokens</code>（Anthropic 标准）</td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td><code>prompt_tokens_details.cached_tokens</code>（OpenAI 标准）</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td><code>prompt_tokens_details.cache_write_tokens</code>（OpenAI 别名 1）</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td><code>input_tokens_details.cache_write_tokens</code>（嵌套 variant）</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+</tbody>
+</table>
+
+<h2 id="s10">十、Tool Calling 边界 case 三方矩阵</h2>
+
+<table>
+<thead><tr><th>边界 case</th><th>ai-aggregs</th><th>sub2api</th><th>cc-switch</th></tr></thead>
+<tbody>
+<tr><td>上游乱序 tool_call（id 先到 name 后到）</td><td><span class="tag bad">✗ 丢失</span></td><td><span class="tag good">✓ pending 缓冲</span></td><td><span class="tag good">✓ 延迟 start</span></td></tr>
+<tr><td>空 tool arguments 补 <code>"{}"</code></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>Namespace 工具摊平</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ sha256 截断</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>custom/freeform 工具</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ input schema 降级</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>tool_search 服务端工具代理</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td>Copilot 无限空白 bug</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ 阈值 500</span></td></tr>
+<tr><td>Late tool starts 兜底</td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ 空名宣告</span></td><td><span class="tag good">✓ finish_reason 触发</span></td></tr>
+<tr><td>多 finish_reason chunk 去重</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓ has_emitted_message_delta</span></td></tr>
+<tr><td><code>function_call</code> 旧格式兼容</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td><td><span class="tag good">✓</span></td></tr>
+</tbody>
+</table>
+
+<h2 id="s11">十一、性能与可测试性</h2>
+
+<h3>11.1 序列化开销</h3>
+
+<table>
+<thead><tr><th>项目</th><th>反序列化次数（请求+响应）</th><th>中间表示</th></tr></thead>
+<tbody>
+<tr><td>ai-aggregs</td><td>1+1（Value 传递零开销）</td><td><code>serde_json::Value</code></td></tr>
+<tr><td>sub2api</td><td>2+2（每段转换一次）</td><td>强类型 struct</td></tr>
+<tr><td>cc-switch</td><td>1+1（Value 传递零开销）</td><td><code>serde_json::Value</code></td></tr>
+</tbody>
+</table>
+
+<h3>11.2 测试覆盖</h3>
+
+<table>
+<thead><tr><th>项目</th><th>协议转换单元测试</th><th>Round-trip 测试</th><th>集成测试</th></tr></thead>
+<tbody>
+<tr><td>ai-aggregs</td><td><strong>0</strong>（仅 mask_tests）</td><td><span class="tag bad">✗</span></td><td><span class="tag bad">✗</span></td></tr>
+<tr><td>sub2api</td><td><strong>密集</strong>（apicompat 包几乎 100%）</td><td><span class="tag good">✓</span></td><td><span class="tag good">✓</span></td></tr>
+<tr><td>cc-switch</td><td><strong>密集</strong>（每个 transform 文件 #[cfg(test)] mod tests）</td><td><span class="tag good">✓</span></td><td><span class="tag good">✓ + serial_test</span></td></tr>
+</tbody>
+</table>
+
+<h3>11.3 cc-switch 的测试特色</h3>
+
+<div class="callout info">
+  <p><code>transform.rs</code> 内嵌 15+ 测试用例，包括：</p>
+  <ul>
+    <li>DeepSeek reasoning 往返测试（<code>test_deepseek_reasoning_content_round_trips_for_tool_calls</code>）</li>
+    <li><strong>回归测试与具体 issue 关联</strong>（<code>test_regression_gh3805_no_cache_control_leak_to_openai</code>，对应 GitHub issue #3805）</li>
+    <li>billing header 剥离边界 case（首行/中间/数组块）</li>
+    <li>cache_control 剥离（避免 GLM/Qwen 400）</li>
+  </ul>
+  <p>这种<strong>回归测试与具体 issue 关联</strong>的做法是 cc-switch 独有的工程化标志。</p>
+</div>
+
+<h2 id="s12">十二、综合评分（仅协议转换维度）</h2>
+
+<div class="score-grid">
+  <div class="score-row">
+    <div class="label">协议覆盖广度</div>
+    <div class="score rust1">5 / 10</div>
+    <div class="score go">9 / 10</div>
+    <div class="score rust2">8 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">边界正确性</div>
+    <div class="score rust1">5 / 10</div>
+    <div class="score go">8 / 10</div>
+    <div class="score rust2 best">9 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">性能</div>
+    <div class="score rust1 best">9 / 10</div>
+    <div class="score go">6 / 10</div>
+    <div class="score rust2 best">9 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">可维护性</div>
+    <div class="score rust1">7 / 10</div>
+    <div class="score go">6 / 10</div>
+    <div class="score rust2">7 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">Tool Calling 完整性</div>
+    <div class="score rust1">4 / 10</div>
+    <div class="score go best">9 / 10</div>
+    <div class="score rust2">7 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">流式稳定性</div>
+    <div class="score rust1">6 / 10</div>
+    <div class="score go best">9 / 10</div>
+    <div class="score rust2 best">9 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">跨协议 reasoning 保真</div>
+    <div class="score rust1">4 / 10</div>
+    <div class="score go">5 / 10</div>
+    <div class="score rust2 best">10 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">Provider 抽象</div>
+    <div class="score rust1">3 / 10</div>
+    <div class="score go">4 / 10</div>
+    <div class="score rust2 best">9 / 10</div>
+  </div>
+  <div class="score-row">
+    <div class="label">可测试性</div>
+    <div class="score rust1">2 / 10</div>
+    <div class="score go best">9 / 10</div>
+    <div class="score rust2 best">9 / 10</div>
+  </div>
+  <div class="score-row" style="background:#fff5b1;font-weight:600;">
+    <div class="label">加权综合</div>
+    <div class="score rust1">5.0</div>
+    <div class="score go">7.7</div>
+    <div class="score rust2 best">8.6</div>
+  </div>
+</div>
+
+<small>颜色：<span style="background:#fce5cd;padding:2px 6px;border-radius:3px;">ai-aggregs</span> · <span style="background:#d0f0ff;padding:2px 6px;border-radius:3px;">sub2api</span> · <span style="background:#e6d9f5;padding:2px 6px;border-radius:3px;">cc-switch</span>；<span style="background:#dcffe4;padding:2px 6px;border-radius:3px;border:1px solid #1a7f37;">绿色高亮</span>=该项最优</small>
+
+<h3>12.1 雷达图</h3>
+
+<div class="mermaid">
+radar-beta
+  title 三项目协议转换能力对比
+  axis Coverage["覆盖广度"], Correctness["边界正确性"], Performance["性能"], ToolCalling["Tool Calling"], Streaming["流式稳定性"], Reasoning["Reasoning 保真"], Abstraction["Provider 抽象"], Testing["可测试性"]
+  curve{
+    ai-aggregs: [5, 5, 9, 4, 6, 4, 3, 2],
+    sub2api: [9, 8, 6, 9, 9, 5, 4, 9],
+    cc-switch: [8, 9, 9, 7, 9, 10, 9, 9]
+  }
+  max 10
+</div>
+
+<h3>12.2 适合场景</h3>
+
+<table>
+<thead><tr><th>场景</th><th>推荐</th></tr></thead>
+<tbody>
+<tr><td>个人桌面 LLM 聚合（极简）</td><td><strong>ai-aggregs</strong></td></tr>
+<tr><td>商业 SaaS 多租户运营</td><td><strong>sub2api</strong></td></tr>
+<tr><td>Claude Code/Codex/Gemini CLI 多上游切换</td><td><strong>cc-switch</strong></td></tr>
+<tr><td>需要极致性能 + 完整协议覆盖</td><td><strong>cc-switch</strong></td></tr>
+<tr><td>需要 namespace/custom/tool_search 高级工具</td><td><strong>sub2api</strong></td></tr>
+</tbody>
+</table>
+
+<h2 id="s13">十三、三方互相借鉴价值</h2>
+
+<h3>13.1 ai-aggregs 应该借鉴</h3>
+
+<table>
+<thead><tr><th>来源</th><th>借鉴点</th><th>优先级</th></tr></thead>
+<tbody>
+<tr><td><strong>cc-switch</strong></td><td><code>ProviderAdapter</code> trait 抽象</td><td><span class="tag bad">高</span></td></tr>
+<tr><td><strong>cc-switch</strong></td><td><code>reasoning_bridge</code> envelope</td><td><span class="tag bad">高</span></td></tr>
+<tr><td><strong>cc-switch</strong></td><td>强类型 + 测试覆盖</td><td><span class="tag bad">高</span></td></tr>
+<tr><td><strong>sub2api</strong></td><td>namespace / custom / tool_search 工具支持</td><td><span class="tag warn">中</span></td></tr>
+<tr><td><strong>sub2api</strong></td><td>first-output timeout / keepalive</td><td><span class="tag warn">中</span></td></tr>
+</tbody>
+</table>
+
+<h3>13.2 sub2api 应该借鉴</h3>
+
+<table>
+<thead><tr><th>来源</th><th>借鉴点</th><th>优先级</th></tr></thead>
+<tbody>
+<tr><td><strong>cc-switch</strong></td><td><code>ProviderAdapter</code> trait</td><td><span class="tag bad">高</span></td></tr>
+<tr><td><strong>cc-switch</strong></td><td><code>reasoning_bridge</code> envelope</td><td><span class="tag bad">高</span></td></tr>
+<tr><td><strong>ai-aggregs</strong></td><td><code>StreamConverter</code> trait + <code>Chained</code></td><td><span class="tag bad">高</span></td></tr>
+</tbody>
+</table>
+
+<h3>13.3 cc-switch 应该借鉴</h3>
+
+<table>
+<thead><tr><th>来源</th><th>借鉴点</th><th>优先级</th></tr></thead>
+<tbody>
+<tr><td><strong>ai-aggregs</strong></td><td><code>StreamConverter</code> trait + <code>Chained&lt;A,B&gt;</code> 泛型</td><td><span class="tag bad">高</span></td></tr>
+<tr><td><strong>sub2api</strong></td><td>namespace 工具摊平</td><td><span class="tag warn">中</span></td></tr>
+<tr><td><strong>sub2api</strong></td><td>custom/freeform 工具</td><td><span class="tag warn">中</span></td></tr>
+</tbody>
+</table>
+
+<h3>13.4 三方共同演进方向</h3>
+
+<ol>
+<li><strong>统一 IR</strong>：三者都应引入显式 <code>InternalRequest</code> 抽象</li>
+<li><strong>统一 StreamConverter trait</strong>：借鉴 ai-aggregs</li>
+<li><strong>统一 Provider trait</strong>：借鉴 cc-switch</li>
+<li><strong>跨协议 reasoning envelope 标准化</strong>：借鉴 cc-switch</li>
+<li><strong>完整 round-trip 测试集</strong>：覆盖所有协议组合</li>
+</ol>
+
+<h2 id="s14">十四、迁移路线图</h2>
+
+<h3>14.1 ai-aggregs 演进路线</h3>
+
+<div class="mermaid">
+gantt
+    title ai-aggregs 协议转换演进路线（借鉴 cc-switch + sub2api）
+    dateFormat  YYYY-MM-DD
+    section 高优先级
+    引入 ProviderAdapter trait (抄 cc-switch)        :crit, p1, 2025-01-01, 14d
+    引入 reasoning_bridge envelope (抄 cc-switch)    :crit, p2, after p1, 14d
+    强类型 struct + 测试覆盖                          :crit, p3, after p2, 21d
+    section 中优先级
+    first-output timeout + keepalive (抄 sub2api)    :p4, after p3, 14d
+    tool name 延迟宣告                                :p5, after p4, 7d
+    section 低优先级
+    namespace / tool_search 支持                      :p6, after p5, 21d
+    Copilot 无限空白 bug 检测                          :p7, after p6, 7d
+</div>
+
+<h3>14.2 sub2api 演进路线</h3>
+
+<div class="mermaid">
+gantt
+    title sub2api 协议转换演进路线（借鉴 cc-switch + ai-aggregs）
+    dateFormat  YYYY-MM-DD
+    section 高优先级
+    ProviderAdapter interface (抄 cc-switch)         :crit, p1, 2025-01-01, 21d
+    reasoning_bridge envelope (抄 cc-switch)         :crit, p2, after p1, 14d
+    StreamConverter trait + Chained (抄 ai-aggregs)  :crit, p3, after p2, 21d
+    section 中优先级
+    内部 IR 抽象 (InternalRequest)                    :p4, after p3, 21d
+    状态机统一抽象                                    :p5, after p4, 14d
+</div>
+
+<h3>14.3 cc-switch 演进路线</h3>
+
+<div class="mermaid">
+gantt
+    title cc-switch 协议转换演进路线（借鉴 ai-aggregs + sub2api）
+    dateFormat  YYYY-MM-DD
+    section 高优先级
+    StreamConverter trait + Chained (抄 ai-aggregs)  :crit, p1, 2025-01-01, 21d
+    namespace / custom 工具支持 (抄 sub2api)         :p2, after p1, 14d
+    section 中优先级
+    InternalRequest IR 抽象                          :p3, after p2, 21d
+    first-output timeout 切换账号 (抄 sub2api)       :p4, after p3, 14d
+</div>
+
+<h2 id="s15">十五、最终结论</h2>
+
+<h3>15.1 三方定位象限</h3>
+
+<div class="mermaid">
+quadrantChart
+    title 三项目协议转换定位
+    x-axis "功能精简" --> "功能完整"
+    y-axis "抽象弱" --> "抽象强"
+    quadrant-1 工业级 + 优雅
+    quadrant-2 简洁 + 优雅
+    quadrant-3 简洁 + 松散
+    quadrant-4 工业级 + 松散
+    "ai-aggregs": [0.25, 0.30]
+    "sub2api": [0.85, 0.40]
+    "cc-switch": [0.80, 0.85]
+</div>
+
+<h3>15.2 总结</h3>
+
+<table>
+<thead><tr><th>项目</th><th>一句话评价</th></tr></thead>
+<tbody>
+<tr><td><strong>ai-aggregs</strong></td><td>极致简洁的桌面聚合器，工程抽象优雅但覆盖窄、边界 case 处理弱</td></tr>
+<tr><td><strong>sub2api</strong></td><td>工业级 SaaS 实现，覆盖广、边界 case 完整，但抽象松散（无 trait/interface）</td></tr>
+<tr><td><strong>cc-switch</strong></td><td><strong>三者中工程化程度最高</strong>：唯一有 ProviderAdapter trait、唯一完整跨协议 reasoning 保真、唯一回归测试与 issue 关联</td></tr>
+</tbody>
+</table>
+
+<h3>15.3 关键洞察</h3>
+
+<ol>
+<li><strong>抽象与覆盖并不矛盾</strong>：cc-switch 同时做到了"覆盖广 + 抽象强"，证明 Rust 的 trait 系统足以支撑复杂协议转换层。</li>
+<li><strong>跨协议 reasoning 是核心难点</strong>：cc-switch 的 envelope 设计是当前已开源实现中<strong>唯一</strong>能保证跨协议多轮 reasoning 完整往返的方案。</li>
+<li><strong>测试覆盖决定生命周期</strong>：cc-switch 和 sub2api 都有密集测试，ai-aggregs 几乎为 0——这决定了项目能否长期维护。</li>
+<li><strong>每个项目都有独到设计</strong>：
+  <ul>
+    <li>ai-aggregs 的 <code>Chained&lt;A,B&gt;</code> 泛型组合</li>
+    <li>sub2api 的 namespace / tool_search / custom 工具摊平</li>
+    <li>cc-switch 的 reasoning_bridge envelope + ProviderAdapter trait</li>
+  </ul>
+</li>
+</ol>
+
+<h3>15.4 推荐选型</h3>
+
+<table>
+<thead><tr><th>你的需求</th><th>推荐</th></tr></thead>
+<tbody>
+<tr><td>个人桌面使用，少量上游</td><td><strong>ai-aggregs</strong></td></tr>
+<tr><td>商业 SaaS，多租户多平台</td><td><strong>sub2api</strong></td></tr>
+<tr><td>Claude Code/Codex CLI 重度用户</td><td><strong>cc-switch</strong></td></tr>
+<tr><td>需要二次开发，借鉴最佳实践</td><td><strong>cc-switch</strong>（抽象最完整） + <strong>sub2api</strong>（边界最全）</td></tr>
+<tr><td>需要极致性能</td><td><strong>ai-aggregs</strong> 或 <strong>cc-switch</strong></td></tr>
+</tbody>
+</table>
+
+<hr/>
+
+<h2>附录：cc-switch 核心源码引用索引</h2>
+
+<table>
+<thead><tr><th>关注点</th><th>行号锚点</th></tr></thead>
+<tbody>
+<tr><td><strong>ProviderAdapter trait</strong></td><td><code>proxy/providers/adapter.rs:16</code></td></tr>
+<tr><td><strong>ProviderType enum（8 种）</strong></td><td><code>proxy/providers/mod.rs:69</code></td></tr>
+<tr><td>get_adapter Factory</td><td><code>proxy/providers/mod.rs:242</code></td></tr>
+<tr><td>Anthropic ↔ OpenAI Chat（非流式）</td><td><code>proxy/providers/transform.rs:119</code> / <code>:528</code></td></tr>
+<tr><td><code>strip_leading_anthropic_billing_header</code></td><td><code>proxy/providers/transform.rs:18</code></td></tr>
+<tr><td><code>clean_schema</code></td><td><code>proxy/providers/transform.rs:494</code></td></tr>
+<tr><td><code>is_openai_o_series</code></td><td><code>proxy/providers/transform.rs:51</code></td></tr>
+<tr><td><code>resolve_reasoning_effort</code></td><td><code>proxy/providers/transform.rs:82</code></td></tr>
+<tr><td>Anthropic → Responses</td><td><code>proxy/providers/transform_responses.rs:179</code></td></tr>
+<tr><td><strong>OPENAI_REASONING_ITEM_PREFIX</strong></td><td><code>proxy/providers/reasoning_bridge.rs:11</code></td></tr>
+<tr><td>encode_openai_reasoning_item</td><td><code>proxy/providers/reasoning_bridge.rs:30</code></td></tr>
+<tr><td><strong>ANTHROPIC_THINKING_ENCRYPTED_PREFIX</strong></td><td><code>proxy/providers/transform_codex_anthropic.rs:25</code></td></tr>
+<tr><td>effort_to_thinking_budget</td><td><code>proxy/providers/transform_codex_anthropic.rs:33</code></td></tr>
+<tr><td><strong>流式：create_anthropic_sse_stream</strong></td><td><code>proxy/providers/streaming.rs:149</code></td></tr>
+<tr><td>ToolBlockState（含 consecutive_whitespace）</td><td><code>proxy/providers/streaming.rs:87</code></td></tr>
+<tr><td>INFINITE_WHITESPACE_THRESHOLD</td><td><code>proxy/providers/streaming.rs:102</code></td></tr>
+<tr><td>build_anthropic_usage_json</td><td><code>proxy/providers/streaming.rs:104</code></td></tr>
+<tr><td>extract_cache_read_tokens</td><td><code>proxy/providers/streaming.rs:675</code></td></tr>
+<tr><td><strong>ClaudeAdapter</strong></td><td><code>proxy/providers/claude.rs</code></td></tr>
+<tr><td>get_claude_api_format（4 种格式自动检测）</td><td><code>proxy/providers/claude.rs:38</code></td></tr>
+<tr><td>REASONING_VENDOR_HINTS</td><td><code>proxy/providers/claude.rs:25</code></td></tr>
+<tr><td>normalize_deepseek_thinking_disabled_strip_effort</td><td><code>proxy/providers/claude.rs:186</code></td></tr>
+<tr><td>Codex OAuth originator + version 常量</td><td><code>proxy/providers/claude.rs:31-32</code></td></tr>
+</tbody>
+</table>
+
+<footer>
+  <p>本报告基于完整阅读三个项目的协议转换源码得出：</p>
+  <ul style="text-align:left;max-width:600px;margin:0 auto;">
+    <li>ai-aggregs：21 个 <code>.rs</code> 文件全部阅读</li>
+    <li>sub2api：<code>internal/pkg/apicompat/</code> 14 个文件 + 关键 service 文件</li>
+    <li>cc-switch：<code>proxy/providers/</code> 15+ 文件 + adapter / claude / reasoning_bridge 完整阅读</li>
+  </ul>
+  <p>所有结论均附源码行号锚点。</p>
+</footer>
+
+</div>
+
+<script>
+if (typeof mermaid !== 'undefined') {
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    themeVariables: {
+      primaryColor: '#ddf4ff',
+      primaryTextColor: '#1f2328',
+      primaryBorderColor: '#0969da',
+      lineColor: '#57606a',
+      fontSize: '14px'
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+    quadrantChart: { useMaxWidth: true }
+  });
+}
+</script>
+
+</body>
+</html>

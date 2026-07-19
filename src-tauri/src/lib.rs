@@ -7,6 +7,7 @@ mod api;
 mod config;
 mod gateway;
 mod infra;
+mod observability;
 
 use std::sync::Mutex;
 
@@ -127,6 +128,7 @@ pub fn run() {
             providers: Mutex::new(Vec::new()),
             log_level_setter,
             last_model: std::sync::Arc::new(Mutex::new(std::collections::HashMap::new())),
+            metrics: crate::observability::GatewayMetrics::shared(),
         })
         .setup(move |app| {
             log_bridge::set_app_handle(&log_slot, app.handle().clone());
@@ -179,6 +181,7 @@ pub fn run() {
             codex_config_load,
             codex_config_save,
             codex_version,
+            gateway_metrics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

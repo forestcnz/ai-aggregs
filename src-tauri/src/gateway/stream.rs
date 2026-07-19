@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use axum::body::Body;
 use axum::response::Response;
@@ -7,6 +8,7 @@ use bytes::{Bytes, BytesMut};
 use serde_json::{json, Value};
 
 use crate::config::types::Protocol;
+use crate::gateway::convert_helpers::extract_cache_field;
 use crate::gateway::converter::{
     created_now, map_finish_reason_chat_to_anthropic, map_stop_reason_anthropic_to_chat, rand_id,
 };
@@ -64,11 +66,32 @@ pub fn extract_usage(v: &Value) -> Option<(u64, u64, u64)> {
                 .get("completion_tokens")
                 .and_then(|x| x.as_u64())
                 .unwrap_or(0);
+            // 兼容 OpenAI 多种 cache token 字段命名：
+            // - 顶层（Anthropic 标准 / Kimi 等）：cache_read_input_tokens / cache_creation_input_tokens
+            // - nested（OpenAI 标准 / 别名）：prompt_tokens_details.{cached,cache_write,cache_creation}_tokens
+            //   + input_tokens_details.cache_write_tokens
+            // 顶层优先于 nested（兼容性最高）
+            let cached = extract_cache_field(
+                u,
+                &["cache_read_input_tokens"],
+                &[("prompt_tokens_details", "cached_tokens")],
+            );
+            let cache_creation = extract_cache_field(
+                u,
+                &["cache_creation_input_tokens"],
+                &[
+                    ("prompt_tokens_details", "cache_write_tokens"),
+                    ("prompt_tokens_details", "cache_creation_tokens"),
+                    ("input_tokens_details", "cache_write_tokens"),
+                ],
+            );
+            // 加法哲学：cache 部分（命中+写入）同样按输入价计费，与上游计费规则一致
+            let prompt_total = pt + cached + cache_creation;
             let tt = u
                 .get("total_tokens")
                 .and_then(|x| x.as_u64())
-                .unwrap_or(pt + ct);
-            return Some((pt, ct, tt));
+                .unwrap_or(prompt_total + ct);
+            return Some((prompt_total, ct, tt));
         }
         // Anthropic / Responses 风格：usage.input_tokens / output_tokens
         // 加上 cache_creation_input_tokens / cache_read_input_tokens
@@ -117,41 +140,194 @@ fn sniff_usage(payload: &str, last_usage: &mut Option<(u64, u64, u64)>) {
     }
 }
 
+// ===================== 流式管线配置 =====================
+
+/// 流式请求的超时与心跳配置。
+///
+/// 所有字段为 `Option<Duration>`：`None` 表示禁用对应特性。
+/// 默认值通过 `StreamConfig::default()` 提供（keepalive=15s / first-output=120s / interval=60s）。
+///
+/// 配置来源（优先级递减）：
+/// 1. ProviderConfig 的 `stream_*` 字段（provider 级覆盖）
+/// 2. 本模块的全局默认常量
+#[derive(Debug, Clone)]
+pub struct StreamConfig {
+    /// 心跳间隔：周期性向下游发 SSE 注释 `: keepalive\n\n`，防反代空闲断开
+    pub keepalive_interval: Option<Duration>,
+    /// 首字超时：上游首个有效 chunk 到达前的最长等待
+    pub first_output_timeout: Option<Duration>,
+    /// 间隔超时：两个上游 chunk 间的最长间隔
+    #[allow(dead_code)]
+    pub interval_timeout: Option<Duration>,
+}
+
+impl Default for StreamConfig {
+    fn default() -> Self {
+        Self {
+            keepalive_interval: Some(Duration::from_secs(15)),
+            first_output_timeout: Some(Duration::from_secs(120)),
+            interval_timeout: Some(Duration::from_secs(60)),
+        }
+    }
+}
+
+impl StreamConfig {
+    /// 从 ProviderConfig 的可选字段构造（provider 级覆盖），缺省回退全局默认
+    #[allow(dead_code)]
+    pub fn from_provider(cfg: &crate::config::types::ProviderConfig) -> Self {
+        Self {
+            keepalive_interval: cfg
+                .stream_keepalive_interval_secs
+                .filter(|&v| v > 0)
+                .map(Duration::from_secs),
+            first_output_timeout: cfg
+                .stream_first_output_timeout_secs
+                .filter(|&v| v > 0)
+                .map(Duration::from_secs),
+            interval_timeout: cfg
+                .stream_interval_timeout_secs
+                .filter(|&v| v > 0)
+                .map(Duration::from_secs),
+        }
+    }
+}
+
+/// SSE 心跳行（注释格式，不影响 SSE 事件解析）
+const KEEPALIVE_LINE: &str = ": keepalive\n\n";
+
+/// 安全地将 chunk 追加到 buf，处理跨 chunk 的 UTF-8 多字节字符边界。
+///
+/// 如果 chunk 的尾部是不完整的 UTF-8 序列（多字节字符被 TCP chunk 切断），
+/// 将不完整部分暂存到 `remainder`，下次调用时拼接。
+/// 避免 `from_utf8_lossy` 产生 U+FFFD 替换字符。
+///
+/// 借鉴 cc-switch `proxy/sse.rs::append_utf8_safe` 的设计。
+fn append_utf8_safe(buf: &mut BytesMut, remainder: &mut Vec<u8>, chunk: &[u8]) {
+    // 拼接上次的不完整尾部
+    let mut combined: Vec<u8> = std::mem::take(remainder);
+    combined.extend_from_slice(chunk);
+
+    // 尝试将整块作为 UTF-8 解析
+    match std::str::from_utf8(&combined) {
+        Ok(_) => {
+            // 全部合法
+            buf.extend_from_slice(&combined);
+        }
+        Err(e) => {
+            let safe_len = e.valid_up_to();
+            buf.extend_from_slice(&combined[..safe_len]);
+            // 剩余部分存入 remainder
+            // e.error_len() == None 表示不完整序列（尾部被切断），下次拼接即可
+            // e.error_len() == Some(_) 表示真正的非法字节，也会被暂存（下次仍会失败，但不丢数据）
+            remainder.extend_from_slice(&combined[safe_len..]);
+        }
+    }
+}
+
+/// 向 channel 发送心跳或返回是否应中止
+async fn maybe_send_keepalive(
+    tx: &tokio::sync::mpsc::Sender<Result<Bytes, std::io::Error>>,
+) -> bool {
+    tx.send(Ok(Bytes::from(KEEPALIVE_LINE)))
+        .await
+        .is_ok()
+}
+
 // ===================== 公共入口 =====================
 
+/// 便捷入口（使用全局默认 StreamConfig）。handler.rs 已迁移到 _with_config 版本。
+#[allow(dead_code)]
 pub fn stream_passthrough(resp: reqwest::Response, ctx: UsageCtx) -> Response {
+    stream_passthrough_with_config(resp, ctx, StreamConfig::default())
+}
+
+pub fn stream_passthrough_with_config(
+    resp: reqwest::Response,
+    ctx: UsageCtx,
+    config: StreamConfig,
+) -> Response {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(64);
 
     tokio::spawn(async move {
         use futures_util::StreamExt;
         let mut stream = resp.bytes_stream();
         let mut buf = BytesMut::new();
+        let mut utf8_remainder: Vec<u8> = Vec::new();
         let mut last_usage: Option<(u64, u64, u64)> = None;
+        let mut first_chunk_received = false;
 
-        while let Some(chunk) = stream.next().await {
-            match chunk {
-                Ok(c) => {
-                    // 嗅探 SSE data 行中的 usage 字段
-                    buf.extend_from_slice(&c);
-                    loop {
-                        let Some(nl) = buf.iter().position(|b| *b == b'\n') else {
-                            break;
-                        };
-                        let line_bytes = buf.split_to(nl + 1);
-                        let s = String::from_utf8_lossy(&line_bytes);
-                        let s = s.trim();
-                        if let Some(data) = s.strip_prefix("data:").map(str::trim) {
-                            sniff_usage(data, &mut last_usage);
+        // 心跳 interval
+        let mut keepalive_ticker = config
+            .keepalive_interval
+            .map(tokio::time::interval);
+        if let Some(ref mut ticker) = keepalive_ticker {
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            // 第一 tick 立即触发，跳过（不想在首字前就发心跳）
+            let _ = ticker.tick().await;
+        }
+        let first_output_deadline = config
+            .first_output_timeout
+            .map(|d| tokio::time::Instant::now() + d);
+
+        loop {
+            tokio::select! {
+                // 上游 chunk 到达
+                chunk = stream.next() => {
+                    match chunk {
+                        Some(Ok(c)) => {
+                            first_chunk_received = true;
+                            // 嗅探 SSE data 行中的 usage 字段
+                            append_utf8_safe(&mut buf, &mut utf8_remainder, &c);
+                            while let Some(nl) = buf.iter().position(|b| *b == b'\n') {
+                                let line_bytes = buf.split_to(nl + 1);
+                                let s = String::from_utf8_lossy(&line_bytes);
+                                let s = s.trim();
+                                if let Some(data) = s.strip_prefix("data:").map(str::trim) {
+                                    sniff_usage(data, &mut last_usage);
+                                }
+                            }
+                            // 转发原始字节给客户端
+                            if tx.send(Ok(c)).await.is_err() {
+                                return;
+                            }
                         }
+                        Some(Err(e)) => {
+                            tracing::error!(err = ?e, "upstream stream read error (passthrough)");
+                            return;
+                        }
+                        None => break, // 上游正常关闭
                     }
-                    // 转发原始字节给客户端
-                    if tx.send(Ok(c)).await.is_err() {
+                }
+                // 心跳定时器
+                _ = async {
+                    if let Some(ref mut ticker) = keepalive_ticker {
+                        ticker.tick().await;
+                    } else {
+                        // 未配置心跳：永远不触发
+                        std::future::pending::<()>().await;
+                    }
+                } => {
+                    if !maybe_send_keepalive(&tx).await {
                         return;
                     }
                 }
-                Err(e) => {
-                    tracing::error!(err = ?e, "upstream stream read error (passthrough)");
-                    return;
+                // 首字超时（仅在上游尚未产出第一个 chunk 时生效）
+                _ = async {
+                    if let Some(deadline) = first_output_deadline {
+                        if first_chunk_received {
+                            std::future::pending::<()>().await;
+                        } else {
+                            tokio::time::sleep_until(deadline).await;
+                        }
+                    } else {
+                        std::future::pending::<()>().await;
+                    }
+                } => {
+                    tracing::warn!("stream first-output timeout (passthrough), aborting");
+                    let _ = tx.send(Ok(Bytes::from(
+                        "event: error\ndata: {\"type\":\"first_output_timeout\"}\n\n"
+                    ))).await;
+                    break;
                 }
             }
         }
@@ -165,11 +341,23 @@ pub fn stream_passthrough(resp: reqwest::Response, ctx: UsageCtx) -> Response {
     sse_response(body)
 }
 
+/// 便捷入口（使用全局默认 StreamConfig）。handler.rs 已迁移到 _with_config 版本。
+#[allow(dead_code)]
 pub async fn stream_convert(
     resp: reqwest::Response,
     src: Protocol,
     dst: Protocol,
     ctx: UsageCtx,
+) -> Result<Response, AppError> {
+    stream_convert_with_config(resp, src, dst, ctx, StreamConfig::default()).await
+}
+
+pub async fn stream_convert_with_config(
+    resp: reqwest::Response,
+    src: Protocol,
+    dst: Protocol,
+    ctx: UsageCtx,
+    config: StreamConfig,
 ) -> Result<Response, AppError> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(64);
     let mut conv = make_converter(src, dst);
@@ -177,64 +365,136 @@ pub async fn stream_convert(
     tokio::spawn(async move {
         use futures_util::StreamExt;
         let mut buf = BytesMut::new();
+        let mut utf8_remainder: Vec<u8> = Vec::new();
         let mut cur_event: Option<String> = None;
         let mut cur_data = String::new();
         let mut stream = resp.bytes_stream();
         let mut last_usage: Option<(u64, u64, u64)> = None;
+        let mut first_chunk_received = false;
 
-        while let Some(chunk) = stream.next().await {
-            let chunk = match chunk {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::error!(err = ?e, "upstream stream read error (decoding response body)");
-                    break;
-                }
-            };
-            buf.extend_from_slice(&chunk);
+        // 心跳 interval
+        let mut keepalive_ticker = config
+            .keepalive_interval
+            .map(tokio::time::interval);
+        if let Some(ref mut ticker) = keepalive_ticker {
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            let _ = ticker.tick().await; // 跳过首 tick
+        }
+        let first_output_deadline = config
+            .first_output_timeout
+            .map(|d| tokio::time::Instant::now() + d);
 
-            loop {
-                let Some(nl) = buf.iter().position(|b| *b == b'\n') else {
-                    break;
-                };
-                let line_bytes = buf.split_to(nl + 1);
-                let mut s = String::from_utf8_lossy(&line_bytes).into_owned();
-                if s.ends_with('\n') {
-                    s.pop();
-                }
-                if s.ends_with('\r') {
-                    s.pop();
-                }
+        loop {
+            tokio::select! {
+                // 上游 chunk 到达
+                chunk = stream.next() => {
+                    let chunk = match chunk {
+                        Some(Ok(c)) => c,
+                        Some(Err(e)) => {
+                            tracing::error!(err = ?e, "upstream stream read error (decoding response body)");
+                            break;
+                        }
+                        None => break, // 上游正常关闭
+                    };
+                    first_chunk_received = true;
+                    append_utf8_safe(&mut buf, &mut utf8_remainder, &chunk);
 
-                if s.is_empty() {
-                    if !cur_data.is_empty() {
-                        // 先从原始上游数据嗅探 usage，避免协议转换时 usage 丢失
-                        sniff_usage(&cur_data, &mut last_usage);
-                        let payloads = conv.on_event(cur_event.as_deref(), &cur_data);
-                        for p in payloads {
-                            sniff_usage(&p, &mut last_usage);
-                            let line = make_sse_line(&p);
-                            if tx.send(Ok(line.into_bytes().into())).await.is_err() {
-                                return;
+                        while let Some(nl) = buf.iter().position(|b| *b == b'\n') {
+                            let line_bytes = buf.split_to(nl + 1);
+                            let mut s = String::from_utf8_lossy(&line_bytes).into_owned();
+                            if s.ends_with('\n') { s.pop(); }
+                            if s.ends_with('\r') { s.pop(); }
+
+                            if s.is_empty() {
+                                if !cur_data.is_empty() {
+                                    sniff_usage(&cur_data, &mut last_usage);
+                                    let payloads = conv.on_event(cur_event.as_deref(), &cur_data);
+                                    for p in payloads {
+                                        sniff_usage(&p, &mut last_usage);
+                                        let line = make_sse_line(&p);
+                                        if tx.send(Ok(line.into_bytes().into())).await.is_err() {
+                                            return;
+                                        }
+                                    }
+                                }
+                                cur_event = None;
+                                cur_data.clear();
+                            } else if let Some(e) = s.strip_prefix("event:") {
+                                cur_event = Some(e.trim().to_string());
+                            } else if let Some(d) = s.strip_prefix("data:") {
+                                let d = d.strip_prefix(' ').unwrap_or(d);
+                                if !cur_data.is_empty() { cur_data.push('\n'); }
+                                cur_data.push_str(d);
+                            } else if s.starts_with(':') {
+                                // SSE 注释行，忽略
                             }
                         }
+                }
+                // 心跳定时器
+                _ = async {
+                    if let Some(ref mut ticker) = keepalive_ticker {
+                        ticker.tick().await;
+                    } else {
+                        std::future::pending::<()>().await;
                     }
-                    cur_event = None;
-                    cur_data.clear();
-                } else if let Some(e) = s.strip_prefix("event:") {
-                    cur_event = Some(e.trim().to_string());
-                } else if let Some(d) = s.strip_prefix("data:") {
-                    let d = d.strip_prefix(' ').unwrap_or(d);
-                    if !cur_data.is_empty() {
-                        cur_data.push('\n');
+                } => {
+                    if !maybe_send_keepalive(&tx).await {
+                        return;
                     }
-                    cur_data.push_str(d);
-                } else if s.starts_with(':') {
+                }
+                // 首字超时（仅在上游尚未产出第一个 chunk 时生效）
+                _ = async {
+                    if let Some(deadline) = first_output_deadline {
+                        if first_chunk_received {
+                            std::future::pending::<()>().await;
+                        } else {
+                            tokio::time::sleep_until(deadline).await;
+                        }
+                    } else {
+                        std::future::pending::<()>().await;
+                    }
+                } => {
+                    tracing::warn!("stream first-output timeout (convert), aborting");
+                    let _ = tx.send(Ok(Bytes::from(
+                        "event: error\ndata: {\"type\":\"first_output_timeout\"}\n\n"
+                    ))).await;
+                    break;
                 }
             }
         }
 
+        // 收尾：flush utf8_remainder + 处理残留数据 + on_done
+        if !utf8_remainder.is_empty() {
+            buf.extend_from_slice(&utf8_remainder);
+            utf8_remainder.clear();
+        }
+        // 处理 buf 中剩余的行
+        while let Some(nl) = buf.iter().position(|b| *b == b'\n') {
+            let line_bytes = buf.split_to(nl + 1);
+            let mut s = String::from_utf8_lossy(&line_bytes).into_owned();
+            if s.ends_with('\n') { s.pop(); }
+            if s.ends_with('\r') { s.pop(); }
+            if s.is_empty() {
+                if !cur_data.is_empty() {
+                    sniff_usage(&cur_data, &mut last_usage);
+                    for p in conv.on_event(cur_event.as_deref(), &cur_data) {
+                        sniff_usage(&p, &mut last_usage);
+                        let line = make_sse_line(&p);
+                        let _ = tx.send(Ok(line.into_bytes().into())).await;
+                    }
+                }
+                cur_event = None;
+                cur_data.clear();
+            } else if let Some(e) = s.strip_prefix("event:") {
+                cur_event = Some(e.trim().to_string());
+            } else if let Some(d) = s.strip_prefix("data:") {
+                let d = d.strip_prefix(' ').unwrap_or(d);
+                if !cur_data.is_empty() { cur_data.push('\n'); }
+                cur_data.push_str(d);
+            }
+        }
+        // 处理最后一条未闭合的事件
         if !cur_data.is_empty() {
-            // 先从原始上游数据嗅探 usage，避免协议转换时 usage 丢失
             sniff_usage(&cur_data, &mut last_usage);
             for p in conv.on_event(cur_event.as_deref(), &cur_data) {
                 sniff_usage(&p, &mut last_usage);
@@ -318,7 +578,7 @@ impl StreamConverter for Noop {
     }
 }
 
-fn make_converter(src: Protocol, dst: Protocol) -> Box<dyn StreamConverter> {
+pub(crate) fn make_converter(src: Protocol, dst: Protocol) -> Box<dyn StreamConverter> {
     match (src, dst) {
         (Protocol::Anthropic, Protocol::Chat) => Box::new(AnthropicToChatStream::new()),
         (Protocol::Chat, Protocol::Anthropic) => Box::new(ChatToAnthropicStream::new()),
@@ -593,6 +853,36 @@ impl StreamConverter for AnthropicToChatStream {
 
 // ===================== Chat -> Anthropic =====================
 
+/// 单个 tool_call 的累积状态，按上游 chat tool_call index 索引。
+///
+/// 解决三类边界 case：
+/// 1. **乱序到达**（DeepSeek/GLM/Zhipu）：上游先发 id+arguments，name 后到。
+///    未到位前缓存在 `pending_args`，name 到达后再发 content_block_start。
+/// 2. **多 tool_call 并发**：上游可在不同 chunk 发多个 index 的 delta。
+/// 3. **late starts 兜底**：name 永远没到时，finish_reason 触发 fallback 宣告。
+/// 4. **Copilot 无限空白 bug**：GitHub Copilot 有时在 tool_call arguments 中
+///    产生无限连续的空白字符（换行/空格），导致客户端卡死。
+///    `consecutive_whitespace` 跟踪连续空白字符数，超过阈值时中止该 tool 流。
+const INFINITE_WHITESPACE_THRESHOLD: usize = 500;
+
+#[derive(Default)]
+struct ToolBlockState {
+    /// Anthropic 端 content_block 的 index（宣告后固定）
+    anthropic_index: Option<usize>,
+    /// 上游 tool_call id（可能跨多 chunk 累积）
+    id: String,
+    /// 上游 tool_call name（可能跨多 chunk 累积）
+    name: String,
+    /// name 到达前的 arguments 缓冲，宣告时一次性 flush
+    pending_args: String,
+    /// 是否已发 content_block_start
+    announced: bool,
+    /// 连续空白字符计数（Copilot 无限空白 bug 检测）
+    consecutive_whitespace: usize,
+    /// 是否因无限空白 bug 被中止
+    aborted: bool,
+}
+
 struct ChatToAnthropicStream {
     started: bool,
     sent_done: bool,
@@ -601,6 +891,10 @@ struct ChatToAnthropicStream {
     /// 上游（chat）在 finish_reason 帧发来的 reasoning_signature；
     /// 关闭 thinking 块前用它发 signature_delta，保证多轮 thinking 完整性
     pending_signature: Option<String>,
+    /// 按 chat tool_call index 索引的累积状态。支持 DeepSeek 等乱序上游。
+    tool_blocks: HashMap<usize, ToolBlockState>,
+    /// 当前 tool_use 块是否有 input_json_delta（用于空 args 补 "{}"）
+    cur_tool_had_delta: bool,
 }
 
 impl ChatToAnthropicStream {
@@ -611,11 +905,16 @@ impl ChatToAnthropicStream {
             next_block: 0,
             cur_block: None,
             pending_signature: None,
+            tool_blocks: HashMap::new(),
+            cur_tool_had_delta: false,
         }
     }
 
     /// 关闭当前 block；若是 thinking 块且有累积的 signature，
-    /// 在 content_block_stop 之前先发 signature_delta 事件
+    /// 在 content_block_stop 之前先发 signature_delta 事件。
+    ///
+    /// 若是 tool_use 块且无任何 input_json_delta，主动补一个 "{}"——
+    /// Claude SDK 等严格客户端只从 delta 累积 input，null input 会导致后续工具执行失败。
     fn close_cur_block(&mut self, out: &mut Vec<String>) {
         if let Some((idx, ty)) = self.cur_block.take() {
             if ty == "thinking" {
@@ -623,6 +922,11 @@ impl ChatToAnthropicStream {
                     out.push(signature_delta_event(idx, &sig));
                 }
             }
+            if ty == "tool_use" && !self.cur_tool_had_delta {
+                // 空 arguments 补 "{}"，避免客户端收到 null input
+                out.push(input_json_delta_event(idx, "{}"));
+            }
+            self.cur_tool_had_delta = false;
             out.push(content_block_stop_frame(idx));
         }
     }
@@ -656,6 +960,50 @@ impl ChatToAnthropicStream {
         out.push(content_block_start_thinking_frame(idx));
         idx
     }
+
+    /// finish_reason 触发时的 late starts 兜底：
+    /// 上游先发 arguments 但 name 永远没到（极端边界 case），
+    /// 用 fallback 名宣告，避免参数数据丢失。
+    fn finalize_pending_tool_blocks(&mut self, out: &mut Vec<String>) {
+        let mut late_starts: Vec<(usize, String, String, String)> = Vec::new();
+        for (chat_idx, state) in self.tool_blocks.iter_mut() {
+            if state.announced || state.aborted {
+                continue;
+            }
+            // 完全空的状态跳过（理论上不会出现在 map 中，但防御性判断）
+            if state.pending_args.is_empty() && state.id.is_empty() && state.name.is_empty() {
+                continue;
+            }
+            let bidx = self.next_block;
+            self.next_block += 1;
+            state.anthropic_index = Some(bidx);
+            state.announced = true;
+            let fallback_id = if state.id.is_empty() {
+                format!("tool_call_{chat_idx}")
+            } else {
+                state.id.clone()
+            };
+            let fallback_name = if state.name.is_empty() {
+                "unknown_tool".to_string()
+            } else {
+                state.name.clone()
+            };
+            let pending = std::mem::take(&mut state.pending_args);
+            late_starts.push((bidx, fallback_id, fallback_name, pending));
+        }
+        // 按 anthropic_index 排序保证输出顺序稳定
+        late_starts.sort_unstable_by_key(|(idx, _, _, _)| *idx);
+        for (bidx, id, name, pending) in late_starts {
+            out.push(content_block_start_tool_event(bidx, json!(id), json!(name)));
+            if !pending.is_empty() {
+                out.push(input_json_delta_event(bidx, &pending));
+            } else {
+                // 兜底：无 arguments 也补 "{}"
+                out.push(input_json_delta_event(bidx, "{}"));
+            }
+            out.push(content_block_stop_frame(bidx));
+        }
+    }
 }
 
 impl StreamConverter for ChatToAnthropicStream {
@@ -663,6 +1011,8 @@ impl StreamConverter for ChatToAnthropicStream {
         if data == "[DONE]" {
             let mut out = vec![];
             self.close_cur_block(&mut out);
+            // 上游 [DONE] 前若仍有未宣告的 tool_block，兜底宣告
+            self.finalize_pending_tool_blocks(&mut out);
             out.push(message_stop_event());
             self.sent_done = true;
             return out;
@@ -712,33 +1062,121 @@ impl StreamConverter for ChatToAnthropicStream {
             }
         }
 
+        // tool_calls 处理：支持乱序到达（id/name/arguments 可任意顺序）
         if let Some(tcs) = delta.get("tool_calls").and_then(|x| x.as_array()) {
             for tc in tcs {
-                let has_id = tc.get("id").is_some();
-                if has_id {
+                let chat_idx = tc
+                    .get("index")
+                    .and_then(|i| i.as_u64())
+                    .map(|i| i as usize)
+                    .unwrap_or(0);
+
+                // 取或创建状态（按 chat tool_call index 索引，支持多并发）
+                // 在作用域内完成累积 + 决策，避免 self 借用冲突
+                let (announce_action, emit_action) = {
+                    let state = self
+                        .tool_blocks
+                        .entry(chat_idx)
+                        .or_default();
+
+                    // Copilot 无限空白 bug：已中止的 tool_call 跳过所有后续处理
+                    if state.aborted {
+                        (None, None)
+                    } else {
+                        // 累积 id（可能跨多 chunk 到达）
+                        if let Some(id) = tc.get("id").and_then(|i| i.as_str()) {
+                            state.id = id.to_string();
+                        }
+                        // 累积 name（DeepSeek/GLM 可能比 id/arguments 后到）
+                        if let Some(name) = tc
+                            .get("function")
+                            .and_then(|f| f.get("name"))
+                            .and_then(|n| n.as_str())
+                        {
+                            state.name = name.to_string();
+                        }
+                        // 累积 arguments（无论是否宣告，先入 pending_args）
+                        if let Some(args) = tc
+                            .get("function")
+                            .and_then(|f| f.get("arguments"))
+                            .and_then(|a| a.as_str())
+                        {
+                            if !args.is_empty() {
+                                // Copilot 无限空白 bug 检测：跟踪连续空白字符
+                                for ch in args.chars() {
+                                    if ch.is_whitespace() {
+                                        state.consecutive_whitespace += 1;
+                                    } else {
+                                        state.consecutive_whitespace = 0;
+                                    }
+                                }
+                                if state.consecutive_whitespace >= INFINITE_WHITESPACE_THRESHOLD {
+                                    tracing::warn!(
+                                        chat_idx,
+                                        name = %state.name,
+                                        consecutive_ws = state.consecutive_whitespace,
+                                        "Copilot 无限空白 bug 检测：中止 tool_call 流"
+                                    );
+                                    state.aborted = true;
+                                    state.pending_args.clear();
+                                } else {
+                                    state.pending_args.push_str(args);
+                                }
+                            }
+                        }
+
+                        // 决策（aborted 可能刚被上面的空白检测置位）
+                        if state.aborted {
+                            (None, None)
+                        } else if !state.announced
+                            && !state.id.is_empty()
+                            && !state.name.is_empty()
+                        {
+                            let pending = std::mem::take(&mut state.pending_args);
+                            (
+                                Some((state.id.clone(), state.name.clone(), pending)),
+                                None,
+                            )
+                        } else if state.announced && !state.pending_args.is_empty() {
+                            let args = std::mem::take(&mut state.pending_args);
+                            (None, Some((state.anthropic_index, args)))
+                        } else {
+                            (None, None)
+                        }
+                    }
+                };
+
+                // 执行宣告（已释放 state 借用，可自由调用 self 方法）
+                if let Some((id, name, pending)) = announce_action {
                     self.close_cur_block(&mut out);
                     let bidx = self.next_block;
                     self.next_block += 1;
+                    if let Some(state) = self.tool_blocks.get_mut(&chat_idx) {
+                        state.anthropic_index = Some(bidx);
+                        state.announced = true;
+                    }
                     self.cur_block = Some((bidx, "tool_use".into()));
-                    let id = tc.get("id").cloned().unwrap_or(json!(""));
-                    let name = tc["function"]["name"].clone();
-                    out.push(content_block_start_tool_event(bidx, id, name));
-                    if let Some(args) = tc["function"]["arguments"].as_str() {
-                        if !args.is_empty() {
-                            out.push(input_json_delta_event(bidx, args));
-                        }
+                    self.cur_tool_had_delta = false;
+
+                    out.push(content_block_start_tool_event(bidx, json!(id), json!(name)));
+
+                    // 宣告时 flush pending_args（DeepSeek 场景：arguments 在 name 之前已到）
+                    if !pending.is_empty() {
+                        out.push(input_json_delta_event(bidx, &pending));
+                        self.cur_tool_had_delta = true;
                     }
-                } else if let Some(args) = tc["function"].get("arguments").and_then(|x| x.as_str())
-                {
-                    if let Some((bidx, _)) = &self.cur_block {
-                        out.push(input_json_delta_event(*bidx, args));
-                    }
+                } else if let Some((Some(bidx), args)) = emit_action {
+                    // 已宣告的 tool_block 直接发 input_json_delta
+                    out.push(input_json_delta_event(bidx, &args));
+                    self.cur_tool_had_delta = true;
                 }
             }
         }
 
         if let Some(fr) = choice.get("finish_reason").and_then(|x| x.as_str()) {
             self.close_cur_block(&mut out);
+            // 兜底：name 永远没到的工具（极端边界 case）
+            self.finalize_pending_tool_blocks(&mut out);
             let stop_reason = map_finish_reason_chat_to_anthropic(fr);
             let mut usage = json!({});
             if let Some(u) = v.get("usage") {

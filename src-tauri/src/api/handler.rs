@@ -16,6 +16,8 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
     let incoming_headers = req.headers().clone();
 
     let c_proto = proto_from_path(req.uri().path());
+    // 记录请求 metrics（按协议分组）
+    st.metrics.record_request(c_proto);
     let req_method = req.method().clone();
     let req_path = req.uri().path().to_string();
 
@@ -69,8 +71,12 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
             (send_body, false)
         } else {
             match converter::req_convert(&send_body, c_proto, p_proto) {
-                Ok(v) => (v, true),
+                Ok(v) => {
+                    st.metrics.record_conversion(0);
+                    (v, true)
+                }
                 Err(e) => {
+                    st.metrics.record_conversion_failed();
                     last_err = Some(e);
                     continue;
                 }
@@ -141,11 +147,26 @@ pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response,
                         provider_key,
                         db: st.db.clone(),
                     },
+                    // 从 Provider 的可选流式配置字段构造 StreamConfig
+                    // 缺省字段回退到全局默认（keepalive=15s / first-output=120s / interval=60s）
+                    provider.stream_config(),
                 )
                 .await;
             }
             Err(e) => {
                 let status = e.status;
+                // 记录上游错误 metrics（按状态码分类：4xx / 429 / 5xx / network）
+                if status >= 500 {
+                    st.metrics.record_upstream_error(status);
+                } else if status == 429 {
+                    st.metrics.record_upstream_error(429);
+                } else if status == 502 {
+                    st.metrics.record_upstream_network_error();
+                } else if status >= 400 {
+                    st.metrics.record_upstream_error(status);
+                } else {
+                    st.metrics.record_upstream_network_error();
+                }
                 tracing::error!(
                     provider = %provider.name,
                     status = status,
@@ -175,6 +196,7 @@ async fn build_response(
     need_convert: bool,
     stream: bool,
     ctx: UsageCtx,
+    stream_config: stream::StreamConfig,
 ) -> Result<Response, AppError> {
     let status = resp.status();
     let upstream_ct = resp
@@ -205,9 +227,12 @@ async fn build_response(
 
     if stream && upstream_is_sse {
         if need_convert {
-            return stream::stream_convert(resp, p_proto, c_proto, ctx).await;
+            return stream::stream_convert_with_config(
+                resp, p_proto, c_proto, ctx, stream_config,
+            )
+            .await;
         }
-        return Ok(stream::stream_passthrough(resp, ctx));
+        return Ok(stream::stream_passthrough_with_config(resp, ctx, stream_config));
     }
 
     // 非流式路径（或流式请求遇到上游非 SSE 的降级处理）：读完 body 再决定如何响应

@@ -21,6 +21,9 @@ pub struct AppCtrl {
     pub log_level_setter: LogLevelSetter,
     /// 别名 → 上次成功响应的实际模型（内存记录，跨网关重建保留，进程退出即失）
     pub last_model: Arc<Mutex<HashMap<String, String>>>,
+    /// 网关运行时 metrics（Arc 共享给 handler / stream / IPC 命令）
+    #[allow(dead_code)]
+    pub metrics: Arc<crate::observability::GatewayMetrics>,
 }
 
 pub struct TrayItems {
@@ -76,6 +79,8 @@ pub struct AppState {
     pub last_provider: Arc<Mutex<HashMap<String, i64>>>,
     /// 别名 -> 上次成功的实际模型（与 AppCtrl 共享同一份内存记录）
     pub last_model: Arc<Mutex<HashMap<String, String>>>,
+    /// 网关运行时 metrics（Arc 共享，handler/stream 都能 record）
+    pub metrics: Arc<crate::observability::GatewayMetrics>,
 }
 
 impl AppState {
@@ -84,6 +89,7 @@ impl AppState {
         providers: Vec<Arc<Provider>>,
         db: Arc<Mutex<rusqlite::Connection>>,
         last_model: Arc<Mutex<HashMap<String, String>>>,
+        metrics: Arc<crate::observability::GatewayMetrics>,
     ) -> anyhow::Result<Self> {
         let mut map: HashMap<String, Vec<usize>> = HashMap::new();
         for (i, p) in providers.iter().enumerate() {
@@ -118,6 +124,7 @@ impl AppState {
             db,
             last_provider: Arc::new(Mutex::new(HashMap::new())),
             last_model,
+            metrics,
         })
     }
 
@@ -219,6 +226,10 @@ mod tests {
             timeout_secs: 10,
             enabled: true,
             reasoning_effort: None,
+            stream_keepalive_interval_secs: None,
+            stream_first_output_timeout_secs: None,
+            stream_interval_timeout_secs: None,
+            detect_infinite_whitespace: None,
         };
         Arc::new(Provider::new(&pc, 60).unwrap())
     }
@@ -240,7 +251,8 @@ mod tests {
         };
         let db = Arc::new(Mutex::new(rusqlite::Connection::open_in_memory().unwrap()));
         let last_model = Arc::new(Mutex::new(HashMap::new()));
-        AppState::build(&cfg, providers, db, last_model).unwrap()
+        let metrics = Arc::new(crate::observability::GatewayMetrics::default());
+        AppState::build(&cfg, providers, db, last_model, metrics).unwrap()
     }
 
     fn models_of(res: &[(Arc<Provider>, String)]) -> Vec<&str> {

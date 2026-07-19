@@ -462,3 +462,13 @@ pub async fn codex_version() -> Result<Option<String>, IpcError> {
         .await
         .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
 }
+
+/// 获取网关运行时 metrics 快照（协议转换次数、流式活跃数、上游错误分类等）。
+///
+/// 用于前端「网关状态」面板展示可观测性数据。零运行时开销（AtomicU64 读取）。
+#[tauri::command]
+pub fn gateway_metrics(app: tauri::AppHandle) -> crate::observability::MetricsSnapshot {
+    let ctrl = app.state::<AppCtrl>();
+    ctrl.metrics.snapshot()
+}
+

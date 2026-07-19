@@ -2,10 +2,161 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Serialize;
 
 use crate::config::types::{ApiKeyEntry, Protocol, ProviderConfig};
+
+// ===================== ProtocolAdapter trait =====================
+
+/// 协议适配器：抽象不同协议（Chat/Anthropic/Responses）的协议特化行为。
+///
+/// 设计动机：避免 `Provider::inject_reasoning` 和 `Provider::auth_headers_for`
+/// 内部 `match self.protocol` 分支随新协议增长。新增协议只需新增 trait 实现，
+/// 不需要修改 `Provider` struct 本身。
+///
+/// 当前实现：Chat / Anthropic / Responses 三种协议。
+/// 未来可扩展：Gemini、Bedrock 等（不在本版范围）。
+#[allow(dead_code)]
+pub trait ProtocolAdapter: Send + Sync {
+    /// 协议标识
+    fn protocol(&self) -> Protocol;
+    /// URL endpoint（如 `/chat/completions`、`/messages`）
+    fn endpoint(&self) -> &'static str;
+    /// 构造鉴权 header 列表（按协议不同：Bearer / x-api-key 等）
+    fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)>;
+    /// 注入 reasoning effort 参数到请求体
+    fn inject_reasoning(&self, body: &mut serde_json::Value, effort: &str);
+    /// 流式请求时注入 stream_options.include_usage（仅 Chat 协议需要）
+    fn inject_stream_options(&self, _body: &mut serde_json::Value, _stream: bool) {}
+}
+
+/// OpenAI Chat Completions 适配器
+pub struct ChatAdapter;
+
+impl ProtocolAdapter for ChatAdapter {
+    fn protocol(&self) -> Protocol {
+        Protocol::Chat
+    }
+    fn endpoint(&self) -> &'static str {
+        "/chat/completions"
+    }
+    fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)> {
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {key}")) {
+            vec![(HeaderName::from_static("authorization"), v)]
+        } else {
+            vec![]
+        }
+    }
+    fn inject_reasoning(&self, body: &mut serde_json::Value, effort: &str) {
+        body["reasoning_effort"] = serde_json::Value::String(effort.to_string());
+    }
+    fn inject_stream_options(&self, body: &mut serde_json::Value, stream: bool) {
+        if stream {
+            // 流式 Chat 请求注入 stream_options.include_usage，确保上游在末尾 chunk 返回 token 用量
+            let so = body
+                .as_object_mut()
+                .map(|o| {
+                    o.entry("stream_options")
+                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
+                })
+                .and_then(|v| v.as_object_mut());
+            if let Some(opts) = so {
+                opts.insert(
+                    "include_usage".to_string(),
+                    serde_json::Value::Bool(true),
+                );
+            }
+        }
+    }
+}
+
+/// Anthropic Messages 适配器
+pub struct AnthropicAdapter;
+
+impl ProtocolAdapter for AnthropicAdapter {
+    fn protocol(&self) -> Protocol {
+        Protocol::Anthropic
+    }
+    fn endpoint(&self) -> &'static str {
+        "/messages"
+    }
+    fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)> {
+        let mut headers = Vec::new();
+        if let Ok(v) = HeaderValue::from_str(key) {
+            headers.push((HeaderName::from_static("x-api-key"), v));
+        }
+        headers.push((
+            HeaderName::from_static("anthropic-version"),
+            HeaderValue::from_static("2023-06-01"),
+        ));
+        headers
+    }
+    fn inject_reasoning(&self, body: &mut serde_json::Value, effort: &str) {
+        use serde_json::json;
+        if body.get("thinking").is_none() {
+            let model = body
+                .get("model")
+                .and_then(|m| m.as_str())
+                .unwrap_or("");
+            // Claude 4.6+ / Sonnet 5 / Fable 5 / Mythos 等新模型不支持 manual thinking，
+            // 必须用 adaptive；旧模型（Claude 3.x、Opus 4.1/4.5、Haiku 4.5）用 enabled
+            let needs_adaptive = model.contains("4-6")
+                || model.contains("4-7")
+                || model.contains("4-8")
+                || model.contains("sonnet-5")
+                || model.contains("fable")
+                || model.contains("mythos");
+            // 根据 effort 映射 budget_tokens（借鉴 cc-switch effort_to_thinking_budget）
+            // 仅 enabled 模式下生效；adaptive 模式由模型自主决定 budget
+            let budget = match effort.to_ascii_lowercase().as_str() {
+                "low" | "minimal" => 2048u32,
+                "medium" => 8192,
+                "high" => 16384,
+                "xhigh" | "max" => 24576,
+                _ => 8192,
+            };
+            body["thinking"] = if needs_adaptive {
+                json!({"type": "adaptive"})
+            } else {
+                json!({"type": "enabled", "budget_tokens": budget})
+            };
+        }
+    }
+}
+
+/// OpenAI Responses API 适配器
+pub struct ResponsesAdapter;
+
+impl ProtocolAdapter for ResponsesAdapter {
+    fn protocol(&self) -> Protocol {
+        Protocol::Responses
+    }
+    fn endpoint(&self) -> &'static str {
+        "/responses"
+    }
+    fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)> {
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {key}")) {
+            vec![(HeaderName::from_static("authorization"), v)]
+        } else {
+            vec![]
+        }
+    }
+    fn inject_reasoning(&self, body: &mut serde_json::Value, effort: &str) {
+        body["reasoning"] = serde_json::json!({"effort": effort, "summary": "auto"});
+    }
+}
+
+/// 根据 protocol 构造对应的 adapter
+fn adapter_for(protocol: Protocol) -> Box<dyn ProtocolAdapter> {
+    match protocol {
+        Protocol::Chat => Box::new(ChatAdapter),
+        Protocol::Anthropic => Box::new(AnthropicAdapter),
+        Protocol::Responses => Box::new(ResponsesAdapter),
+    }
+}
+
+// ===================== Provider =====================
 
 #[derive(Debug)]
 pub struct UpstreamError {
@@ -37,6 +188,18 @@ pub struct Provider {
     pub base_url: String,
     pub models: Vec<String>,
     pub reasoning_effort: Option<String>,
+    /// 流式 keepalive 心跳间隔（None 表示用全局默认）
+    #[allow(dead_code)]
+    pub stream_keepalive_interval_secs: Option<u64>,
+    /// 流式首字超时（None 表示用全局默认）
+    #[allow(dead_code)]
+    pub stream_first_output_timeout_secs: Option<u64>,
+    /// 流式数据间隔超时（None 表示用全局默认）
+    #[allow(dead_code)]
+    pub stream_interval_timeout_secs: Option<u64>,
+    /// 是否检测 Copilot 无限空白 bug（None 表示用全局默认 true）
+    #[allow(dead_code)]
+    pub detect_infinite_whitespace: Option<bool>,
     keys: Vec<ApiKeyEntry>,
     blacklist: Mutex<HashMap<usize, Instant>>,
     blacklist_disabled_until: Mutex<Option<Instant>>,
@@ -46,6 +209,8 @@ pub struct Provider {
     timeout: Duration,
     /// 上次成功使用的密钥索引，下次优先尝试
     last_key_idx: Mutex<Option<usize>>,
+    /// 协议适配器：抽象 Chat/Anthropic/Responses 的协议特化行为
+    adapter: Box<dyn ProtocolAdapter>,
 }
 
 impl Provider {
@@ -59,6 +224,7 @@ impl Provider {
             .connect_timeout(Duration::from_secs(30))
             .pool_idle_timeout(Duration::from_secs(90))
             .build()?;
+        let adapter = adapter_for(cfg.protocol);
         Ok(Self {
             id: cfg.id,
             name: cfg.name.clone(),
@@ -66,6 +232,10 @@ impl Provider {
             base_url: cfg.base_url.trim_end_matches('/').to_string(),
             models: cfg.models.clone(),
             reasoning_effort: cfg.reasoning_effort.clone(),
+            stream_keepalive_interval_secs: cfg.stream_keepalive_interval_secs,
+            stream_first_output_timeout_secs: cfg.stream_first_output_timeout_secs,
+            stream_interval_timeout_secs: cfg.stream_interval_timeout_secs,
+            detect_infinite_whitespace: cfg.detect_infinite_whitespace,
             keys: cfg.api_keys.clone(),
             blacklist: Mutex::new(HashMap::new()),
             blacklist_disabled_until: Mutex::new(None),
@@ -73,6 +243,7 @@ impl Provider {
             timeout: Duration::from_secs(cfg.timeout_secs),
             client,
             last_key_idx: Mutex::new(None),
+            adapter,
         })
     }
 
@@ -135,25 +306,34 @@ impl Provider {
     }
 
     fn auth_headers_for(&self, key: &str) -> HeaderMap {
+        // 委托给 ProtocolAdapter，避免 match self.protocol 分支爆炸
         let mut h = HeaderMap::new();
-        match self.protocol {
-            Protocol::Chat | Protocol::Responses => {
-                if let Ok(v) = HeaderValue::from_str(&format!("Bearer {key}")) {
-                    h.insert("authorization", v);
-                }
-            }
-            Protocol::Anthropic => {
-                if let Ok(v) = HeaderValue::from_str(key) {
-                    h.insert("x-api-key", v);
-                }
-                h.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
-            }
+        for (name, value) in self.adapter.auth_headers(key) {
+            h.insert(name, value);
         }
         h
     }
 
     pub fn endpoint(&self) -> &'static str {
         self.protocol.endpoint()
+    }
+
+    /// 从 Provider 的流式配置字段构造 StreamConfig
+    pub fn stream_config(&self) -> crate::gateway::stream::StreamConfig {
+        crate::gateway::stream::StreamConfig {
+            keepalive_interval: self
+                .stream_keepalive_interval_secs
+                .filter(|&v| v > 0)
+                .map(std::time::Duration::from_secs),
+            first_output_timeout: self
+                .stream_first_output_timeout_secs
+                .filter(|&v| v > 0)
+                .map(std::time::Duration::from_secs),
+            interval_timeout: self
+                .stream_interval_timeout_secs
+                .filter(|&v| v > 0)
+                .map(std::time::Duration::from_secs),
+        }
     }
 
     pub async fn send(
@@ -341,33 +521,8 @@ impl Provider {
     }
 
     fn inject_reasoning(&self, body: &mut serde_json::Value, effort: &str) {
-        use serde_json::json;
-        match self.protocol {
-            Protocol::Chat => {
-                body["reasoning_effort"] = json!(effort);
-            }
-            Protocol::Responses => {
-                body["reasoning"] = json!({"effort": effort, "summary": "auto"});
-            }
-            Protocol::Anthropic => {
-                if body.get("thinking").is_none() {
-                    let model = body.get("model").and_then(|m| m.as_str()).unwrap_or("");
-                    // Claude 4.6+ / Sonnet 5 / Fable 5 / Mythos 等新模型不支持 manual thinking，
-                    // 必须用 adaptive；旧模型（Claude 3.x、Opus 4.1/4.5、Haiku 4.5）用 enabled
-                    let needs_adaptive = model.contains("4-6")
-                        || model.contains("4-7")
-                        || model.contains("4-8")
-                        || model.contains("sonnet-5")
-                        || model.contains("fable")
-                        || model.contains("mythos");
-                    body["thinking"] = if needs_adaptive {
-                        json!({"type": "adaptive"})
-                    } else {
-                        json!({"type": "enabled"})
-                    };
-                }
-            }
-        }
+        // 委托给 ProtocolAdapter
+        self.adapter.inject_reasoning(body, effort);
     }
 }
 

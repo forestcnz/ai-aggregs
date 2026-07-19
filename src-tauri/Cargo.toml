@@ -50,6 +50,12 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 chrono = "0.4"
 # 常量时间字符串比较（缓解 consumer key 的 timing attack）
 constant_time_eq = "0.3"
+# base64 编解码（reasoning_bridge envelope）
+base64 = { version = "0.22", default-features = false, features = ["std", "alloc"] }
+# sha256 哈希（namespace 工具摊平超长截断）
+sha2 = { version = "0.10", default-features = false }
+# hex 编码（sha256 后缀）
+hex = { version = "0.4", default-features = false, features = ["std", "alloc"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = "2"
