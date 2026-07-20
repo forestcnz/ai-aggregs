@@ -21,9 +21,9 @@ const {
   activeTab,
   status,
   isMaximized,
-  ocVersion,
-  ccVersion,
-  cdxVersion,
+  ocExists,
+  ccExists,
+  cdxExists,
   ready,
   logs,
   refreshStatus,
@@ -32,7 +32,7 @@ const {
   closeWindow
 } = useApp()
 
-// 侧边栏导航：仅当检测到 opencode / claude code 已安装时才显示对应入口；
+// 侧边栏导航：通过配置文件是否存在决定是否显示对应入口；
 // 「设置」始终在列表最后一个
 const navTabs = computed(() => {
   const tabs: { id: string; label: string }[] = [
@@ -42,9 +42,9 @@ const navTabs = computed(() => {
     { id: 'usage', label: '用量统计' },
     { id: 'provider-usage', label: '供量统计' }
   ]
-  if (cdxVersion.value) tabs.push({ id: 'codex', label: 'Codex' })
-  if (ocVersion.value) tabs.push({ id: 'opencode', label: 'OpenCode' })
-  if (ccVersion.value) tabs.push({ id: 'claude-code', label: 'Claude Code' })
+  if (cdxExists.value) tabs.push({ id: 'codex', label: 'Codex' })
+  if (ocExists.value) tabs.push({ id: 'opencode', label: 'OpenCode' })
+  if (ccExists.value) tabs.push({ id: 'claude-code', label: 'Claude Code' })
   tabs.push({ id: 'settings', label: '设置' })
   return tabs
 })
@@ -373,12 +373,12 @@ const navTabs = computed(() => {
           <UsageView v-else-if="activeTab === 'usage'" :status="status" />
           <ProviderUsageView v-else-if="activeTab === 'provider-usage'" :status="status" />
           <ConfigEditor v-else-if="activeTab === 'settings'" />
-          <OpencodeConfigView v-else-if="activeTab === 'opencode'" :version="ocVersion" />
+          <OpencodeConfigView v-else-if="activeTab === 'opencode'" :version="null" />
           <ClaudeCodeConfigView
             v-else-if="activeTab === 'claude-code'"
-            :version="ccVersion"
+            :version="null"
           />
-          <CodexConfigView v-else-if="activeTab === 'codex'" :version="cdxVersion" />
+          <CodexConfigView v-else-if="activeTab === 'codex'" :version="null" />
         </KeepAlive>
       </main>
       </template>

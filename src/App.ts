@@ -4,9 +4,9 @@ import {
   gatewayStatus,
   onGatewayStateChanged,
   onLog,
-  opencodeVersion,
-  claudeCodeVersion,
-  codexVersion,
+  opencodeConfigLoad,
+  claudeCodeConfigLoad,
+  codexConfigLoad,
   autostartGatewayIfConfigured,
   type GatewayStatus,
   type LogEntry
@@ -26,14 +26,14 @@ export function useApp() {
   >('dashboard')
   const status = ref<GatewayStatus>({ running: false, listen_addr: '' })
   const isMaximized = ref(false)
-  /** opencode 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
-  const ocVersion = ref<string | null>(null)
-  /** claude code 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
-  const ccVersion = ref<string | null>(null)
-  /** codex 版本号；null 表示未安装/未检测到（侧边栏入口据此显隐） */
-  const cdxVersion = ref<string | null>(null)
-  /** 启动期检测是否完成（网关状态 + opencode/claude code 版本）。
-   * 完成前不渲染侧边栏导航，让 opencode/claude-code 入口一次性出现而非先后弹出。 */
+  /** opencode 配置文件是否存在（侧边栏入口据此显隐） */
+  const ocExists = ref(false)
+  /** claude code 配置文件是否存在（侧边栏入口据此显隐） */
+  const ccExists = ref(false)
+  /** codex 配置文件是否存在（侧边栏入口据此显隐） */
+  const cdxExists = ref(false)
+  /** 启动期检测是否完成（网关状态 + 配置文件检测）。
+   * 完成前不渲染侧边栏导航，让各入口一次性出现而非先后弹出。 */
   const ready = ref(false)
   let unlistenStatus: (() => void) | null = null
   let unlistenResize: (() => void) | null = null
@@ -77,18 +77,17 @@ export function useApp() {
   onMounted(async () => {
     document.addEventListener('contextmenu', preventCtx)
 
-    // 启动期独立检测并行执行（网关状态、窗口最大化、opencode/claude code 版本）：
-    // 先「提前判断」两个工具是否存在，再一次性渲染侧边栏，入口不会先后弹出。
-    // 每个检测各自吞掉异常（未安装→版本置 null），不影响其它检测。
-    const ocCheck = opencodeVersion()
-      .then((v) => (ocVersion.value = v))
-      .catch(() => (ocVersion.value = null))
-    const ccCheck = claudeCodeVersion()
-      .then((v) => (ccVersion.value = v))
-      .catch(() => (ccVersion.value = null))
-    const cdxCheck = codexVersion()
-      .then((v) => (cdxVersion.value = v))
-      .catch(() => (cdxVersion.value = null))
+    // 启动期独立检测并行执行（网关状态、窗口最大化、配置文件是否存在）：
+    // 通过尝试加载配置文件判断是否安装了对应工具，不依赖 `xxx --version`。
+    const ocCheck = opencodeConfigLoad()
+      .then((r) => (ocExists.value = r.exists))
+      .catch(() => (ocExists.value = false))
+    const ccCheck = claudeCodeConfigLoad()
+      .then((r) => (ccExists.value = r.exists))
+      .catch(() => (ccExists.value = false))
+    const cdxCheck = codexConfigLoad()
+      .then((r) => (cdxExists.value = r.exists))
+      .catch(() => (cdxExists.value = false))
 
     await Promise.all([refreshStatus(), checkMaximized(), ocCheck, ccCheck, cdxCheck])
     ready.value = true
@@ -126,9 +125,9 @@ export function useApp() {
     activeTab,
     status,
     isMaximized,
-    ocVersion,
-    ccVersion,
-    cdxVersion,
+    ocExists,
+    ccExists,
+    cdxExists,
     ready,
     logs,
     refreshStatus,
