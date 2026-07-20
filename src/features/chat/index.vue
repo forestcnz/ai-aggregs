@@ -2,6 +2,9 @@
 import { useChat } from './index'
 import { type GatewayStatus } from '../../api/commands'
 
+// 显式声明组件名，供 App.vue 中 <KeepAlive include="ChatView"> 精确匹配
+defineOptions({ name: 'ChatView' })
+
 const props = defineProps<{ status: GatewayStatus }>()
 const {
   protocol,

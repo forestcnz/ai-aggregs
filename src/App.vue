@@ -357,26 +357,29 @@ const navTabs = computed(() => {
         </div>
       </nav>
 
-      <!-- 内容区 — 切换侧边栏时销毁并重建组件实例，确保每次进入都是最新状态 -->
+      <!-- 内容区 — 仅缓存 ChatView（保留聊天记录/输入/发送状态），
+           其它 tab 切换时仍销毁重建以确保最新状态 -->
       <main class="content" :class="{ 'content-flush': activeTab === 'dashboard' }">
-        <GatewayStatusView
-          v-if="activeTab === 'dashboard'"
-          :status="status"
-          :logs="logs"
-          @changed="refreshStatus"
-          @clear-logs="logs = []"
-        />
-        <ProviderList v-else-if="activeTab === 'providers'" :gateway-running="status.running" />
-        <ChatView v-else-if="activeTab === 'chat'" :status="status" />
-        <UsageView v-else-if="activeTab === 'usage'" :status="status" />
-        <ProviderUsageView v-else-if="activeTab === 'provider-usage'" :status="status" />
-        <ConfigEditor v-else-if="activeTab === 'settings'" />
-        <OpencodeConfigView v-else-if="activeTab === 'opencode'" :version="null" />
-        <ClaudeCodeConfigView
-          v-else-if="activeTab === 'claude-code'"
-          :version="null"
-        />
-        <CodexConfigView v-else-if="activeTab === 'codex'" :version="null" />
+        <KeepAlive include="ChatView">
+          <GatewayStatusView
+            v-if="activeTab === 'dashboard'"
+            :status="status"
+            :logs="logs"
+            @changed="refreshStatus"
+            @clear-logs="logs = []"
+          />
+          <ProviderList v-else-if="activeTab === 'providers'" :gateway-running="status.running" />
+          <ChatView v-else-if="activeTab === 'chat'" :status="status" />
+          <UsageView v-else-if="activeTab === 'usage'" :status="status" />
+          <ProviderUsageView v-else-if="activeTab === 'provider-usage'" :status="status" />
+          <ConfigEditor v-else-if="activeTab === 'settings'" />
+          <OpencodeConfigView v-else-if="activeTab === 'opencode'" :version="null" />
+          <ClaudeCodeConfigView
+            v-else-if="activeTab === 'claude-code'"
+            :version="null"
+          />
+          <CodexConfigView v-else-if="activeTab === 'codex'" :version="null" />
+        </KeepAlive>
       </main>
       </template>
     </div>
