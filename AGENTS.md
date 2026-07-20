@@ -101,8 +101,8 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 - `api/router.rs` — Axum 路由表 + CORS
 - `gateway/manager.rs` — 网关生命周期（启动/停止/重建/consumer models 同步）
 - `gateway/provider.rs` — 提供商运行时、密钥状态、failover 逻辑
-- `gateway/converter.rs` — Chat↔Responses↔Anthropic 非流式协议转换
-- `gateway/stream.rs` — 流式协议转换（SSE 状态机）
+- `gateway/converter/` — Chat↔Responses↔Anthropic 非流式协议转换（`mod.rs` 分发，`request.rs`/`response.rs`/`helpers.rs` 实现；Responses↔Anthropic 双跳经 Chat 中转）
+- `gateway/stream/` — 流式协议转换（SSE 状态机；`mod.rs` 暴露 `stream_passthrough*`/`stream_convert*` 入口，`pipeline.rs` 组合器，`anthropic_to_chat`/`chat_to_anthropic`/`responses_to_chat`/`chat_to_responses` 四方向转换器，`usage.rs`/`config.rs` 辅助）
 - `config/types.rs` — `Config`、`Protocol`、`ApiKeyEntry` 等纯数据类型
 - `config/state.rs` — `AppCtrl`、`AppState`、`ServerHandle`、IPC 返回类型
 - `infra/db.rs` — SQLite 持久化（bundled rusqlite）
