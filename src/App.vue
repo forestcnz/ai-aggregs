@@ -360,7 +360,7 @@ const navTabs = computed(() => {
       <!-- 内容区 — KeepAlive 缓存各 tab 组件实例，切换侧边栏时不再销毁/重建，
            避免长时间运行后 logs 等大数组导致的重建卡顿 -->
       <main class="content" :class="{ 'content-flush': activeTab === 'dashboard' }">
-        <KeepAlive>
+        <KeepAlive :exclude="['ProviderList']">
           <GatewayStatusView
             v-if="activeTab === 'dashboard'"
             :status="status"

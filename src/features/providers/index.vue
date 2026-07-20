@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineOptions({ name: 'ProviderList' })
 import { useProviderList } from './index'
 import { normalizeKey } from '../../api/commands'
 import AppModal from '../../components/AppModal.vue'
