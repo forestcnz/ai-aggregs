@@ -44,6 +44,13 @@
   flex-direction: column;
   transition: var(--transition);
 }
+.provider-card:not(.off) {
+  border-color: var(--text-strong);
+}
+.provider-card:not(.off):hover {
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 1px var(--text-strong);
+}
 .provider-card:hover {
   border-color: var(--border);
 }
