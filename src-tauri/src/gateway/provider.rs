@@ -148,7 +148,7 @@ impl ProtocolAdapter for ResponsesAdapter {
 }
 
 /// 根据 protocol 构造对应的 adapter
-fn adapter_for(protocol: Protocol) -> Box<dyn ProtocolAdapter> {
+pub fn adapter_for(protocol: Protocol) -> Box<dyn ProtocolAdapter> {
     match protocol {
         Protocol::Chat => Box::new(ChatAdapter),
         Protocol::Anthropic => Box::new(AnthropicAdapter),

@@ -3,6 +3,7 @@ defineOptions({ name: 'ProviderList' })
 import { useProviderList } from './index'
 import { normalizeKey } from '../../api/commands'
 import AppModal from '../../components/AppModal.vue'
+import MultiCombobox from '../opencode-config/MultiCombobox.vue'
 
 defineProps<{ gatewayRunning: boolean }>()
 const {
@@ -14,8 +15,10 @@ const {
   onHandleMouseDown,
   modalMode,
   editingProvider,
-  modelInput,
   keyInput,
+  remoteModels,
+  fetchingModels,
+  onComboFocus,
   onToggleProvider,
   onToggleKey,
   openAdd,
@@ -23,8 +26,6 @@ const {
   closeModal,
   submitModal,
   deleteFromModal,
-  modalAddModel,
-  modalRemoveModel,
   modalAddKey,
   modalRemoveKey,
   getRuntime,
@@ -232,19 +233,21 @@ const {
         </div>
       </div>
 
-      <!-- 模型 -->
+      <!-- 模型（聚焦输入框时自动从上游 /models 拉取候选，也可手动输入任意模型名） -->
       <div class="mf">
         <label>模型</label>
-        <div class="chip-input">
-          <span v-for="(m, mi) in editingProvider.models" :key="mi" class="chip">
-            <span class="chip-text">{{ m }}</span>
-            <button class="chip-x" @click="modalRemoveModel(mi)">×</button>
-          </span>
-          <input
-            v-model="modelInput"
-            class="chip-field"
-            :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'"
-            @keydown.enter.prevent="modalAddModel"
+        <div class="combo-wrap" @focusin="onComboFocus">
+          <MultiCombobox
+            :model-value="editingProvider.models"
+            :options="remoteModels"
+            :placeholder="
+              fetchingModels
+                ? '正在从上游获取候选…'
+                : remoteModels.length
+                  ? '从下拉选择，或手动输入模型名'
+                  : '点击此处自动从上游获取候选'
+            "
+            @update:model-value="(v: string[]) => (editingProvider.models = v)"
           />
         </div>
       </div>

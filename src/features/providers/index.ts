@@ -6,6 +6,8 @@ import {
   toggleProvider,
   toggleKey,
   maskKey,
+  fetchProviderModels,
+  normalizeKey,
   type Config,
   type ProviderConfig,
   type ProviderRuntime
@@ -40,8 +42,11 @@ export function useProviderList() {
   const modalMode = ref<'add' | 'edit' | null>(null)
   const editingProvider = ref<ProviderConfig>(blankProvider())
   const editingIdx = ref(-1)
-  const modelInput = ref('')
   const keyInput = ref('')
+  // 从上游 /models 拉取的模型候选（模型下拉的 options 来源；切弹窗时重置）
+  const remoteModels = ref<string[]>([])
+  // 「从上游拉取」按钮的 loading 状态
+  const fetchingModels = ref(false)
 
   function blankProvider(): ProviderConfig {
     return {
@@ -134,8 +139,8 @@ export function useProviderList() {
   function openAdd() {
     editingProvider.value = blankProvider()
     editingIdx.value = -1
-    modelInput.value = ''
     keyInput.value = ''
+    remoteModels.value = []
     modalMode.value = 'add'
   }
 
@@ -144,8 +149,8 @@ export function useProviderList() {
     const p = config.value.providers[idx]
     editingProvider.value = JSON.parse(JSON.stringify(p)) // 深拷贝，编辑不影响原数据
     editingIdx.value = idx
-    modelInput.value = ''
     keyInput.value = ''
+    remoteModels.value = []
     modalMode.value = 'edit'
   }
 
@@ -198,14 +203,44 @@ export function useProviderList() {
 
   // ---- 弹窗内 model / key ----
 
-  function modalAddModel() {
-    const v = modelInput.value.trim()
-    if (!v || editingProvider.value.models.includes(v)) return
-    editingProvider.value.models.push(v)
-    modelInput.value = ''
+  /** 自动从上游 `/models` 拉取候选模型列表（静默：失败不提示）。
+   *  仅填充候选 `remoteModels`，不覆盖已选模型；失败时保持原候选不变。
+   *  由模型输入框获得焦点时触发（见 onComboFocus），避免每次改动 base_url/key 都打上游。 */
+  async function autoFetchModels() {
+    const p = editingProvider.value
+    const baseUrl = p.base_url.trim()
+    if (!baseUrl) return
+    // 取第一个已启用 key；若全部未启用则回退到第一个（兼容旧纯字符串格式）
+    const keyEntry = p.api_keys.find((k) => normalizeKey(k).enabled) ?? p.api_keys[0]
+    const apiKey = keyEntry ? normalizeKey(keyEntry).key : ''
+    if (!apiKey) return
+    fetchingModels.value = true
+    try {
+      const list = await fetchProviderModels(baseUrl, apiKey, p.protocol)
+      remoteModels.value = list
+    } catch {
+      // 静默：失败不提示，保持原候选
+    } finally {
+      fetchingModels.value = false
+    }
   }
-  function modalRemoveModel(i: number) {
-    editingProvider.value.models.splice(i, 1)
+
+  // 上次拉取时的「触发键」快照：协议 + base_url + 首个 key
+  // 焦点再次进入输入框时，仅当触发键变化或尚未拉过才重新拉取，避免重复打上游
+  let lastFetchKey = ''
+  /** 模型下拉输入框获得焦点时触发：按需从上游拉取候选。
+   *  - 未填 base_url/key → 不拉
+   *  - 触发键未变且已有候选 → 不重复拉
+   *  - 否则静默拉取一次 */
+  function onComboFocus() {
+    const p = editingProvider.value
+    const keyEntry = p.api_keys[0]
+    const key = keyEntry ? normalizeKey(keyEntry).key : ''
+    const sig = `${p.protocol}|${p.base_url.trim()}|${key}`
+    if (!p.base_url.trim() || !key) return
+    if (sig === lastFetchKey && remoteModels.value.length) return
+    lastFetchKey = sig
+    autoFetchModels()
   }
 
   function modalAddKey() {
@@ -349,8 +384,10 @@ export function useProviderList() {
     onHandleMouseDown,
     modalMode,
     editingProvider,
-    modelInput,
     keyInput,
+    remoteModels,
+    fetchingModels,
+    onComboFocus,
     onToggleProvider,
     onToggleKey,
     openAdd,
@@ -358,8 +395,6 @@ export function useProviderList() {
     closeModal,
     submitModal,
     deleteFromModal,
-    modalAddModel,
-    modalRemoveModel,
     modalAddKey,
     modalRemoveKey,
     getRuntime,

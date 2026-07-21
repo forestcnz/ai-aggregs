@@ -4,7 +4,8 @@ use tauri_plugin_autostart::ManagerExt;
 use std::collections::HashMap;
 
 use crate::config::state::{AppCtrl, GatewayStatus, ProviderRuntime, UsageModelRow, UsageSummary};
-use crate::config::types::Config;
+use crate::config::types::{Config, Protocol};
+use std::time::Duration;
 use crate::gateway::manager::{
     rebuild_if_running, start_gateway_inner, stop_gateway_inner, sync_consumer_models,
 };
@@ -470,5 +471,119 @@ pub async fn codex_version() -> Result<Option<String>, IpcError> {
 pub fn gateway_metrics(app: tauri::AppHandle) -> crate::observability::MetricsSnapshot {
     let ctrl = app.state::<AppCtrl>();
     ctrl.metrics.snapshot()
+}
+
+/// 从上游供应商的 `/models` 端点拉取其支持的全部模型列表。
+///
+/// 用于「供应商编辑」弹窗：用户点击模型输入框时自动触发，把上游支持的全部
+/// 模型填入下拉候选，避免手工逐个输入模型名。
+///
+/// - URL 拼接：`{base_url}/models`（与网关转发请求 `base_url + endpoint()` 一致，
+///   base_url 的约定由用户保证可拼接，如 `https://api.openai.com/v1`）。
+/// - 鉴权头复用 gateway 的 `adapter_for(protocol).auth_headers(key)`，与聊天转发
+///   完全一致：chat / responses → `Authorization: Bearer {key}`，anthropic →
+///   `x-api-key: {key}` + `anthropic-version: 2023-06-01`。
+/// - 伪装浏览器 User-Agent：部分上游（Cloudflare 防护）会按 UA 屏蔽非浏览器客户端。
+/// - 响应解析：兼容 OpenAI / Anthropic / 第三方代理的常见格式，
+///   从 `data[].id` / `data[].name` / `models[].id` / `models[].name` 提取模型名。
+///
+/// 直接用一次性 reqwest::Client，不复用运行中 Provider 的私有 client 字段，
+/// 因为编辑模态框里的 provider 可能尚未入库（新建场景），没有 Provider 实例可复用。
+#[tauri::command]
+pub async fn fetch_provider_models(
+    base_url: String,
+    api_key: String,
+    protocol: Protocol,
+) -> Result<Vec<String>, IpcError> {
+    // 参数校验：base_url / api_key 不能为空（前端也会校验，这里兜底）
+    let base = base_url.trim();
+    let key = api_key.trim();
+    if base.is_empty() || key.is_empty() {
+        return Err(IpcError("base_url 与 api_key 不能为空".into()));
+    }
+    let base = base.trim_end_matches('/');
+    let url = format!("{base}/models");
+
+    // 候选拉取是非关键路径（仅用于下拉补全），用较短超时让不可达上游快速失败
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .build()
+        .map_err(|e| IpcError(format!("构造 HTTP 客户端失败: {e}")))?;
+
+    // 复用 gateway 的协议适配器构造鉴权头，确保与聊天转发完全一致
+    let adapter = crate::gateway::provider::adapter_for(protocol);
+    let mut headers = reqwest::header::HeaderMap::new();
+    for (name, value) in adapter.auth_headers(key) {
+        headers.insert(name, value);
+    }
+    // 伪装浏览器 User-Agent：部分上游（如 Cloudflare 防护的站点）会按 UA 屏蔽
+    // 非浏览器客户端（reqwest 默认无 UA 或为 `reqwest/x.y.z` 会直接被拦截连不上）。
+    // 浏览器 UA 能让请求通过 CDN 的简单 bot 检测，不影响真正的 API 鉴权。
+    let ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+         (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+    if let Ok(v) = reqwest::header::HeaderValue::from_str(ua) {
+        headers.insert(reqwest::header::USER_AGENT, v);
+    }
+
+    tracing::debug!(url = %url, protocol = %protocol.as_str(), "→ 拉取上游模型列表");
+    let resp = client
+        .get(&url)
+        .timeout(Duration::from_secs(8))
+        .headers(headers)
+        .send()
+        .await
+        .map_err(|e| {
+            // 连接/超时/TLS 错误也记录日志，便于从 logs/ 排查（前端静默无提示）
+            tracing::warn!(
+                url = %url, err = %e,
+                is_timeout = e.is_timeout(), is_connect = e.is_connect(),
+                "拉取上游模型列表连接失败"
+            );
+            IpcError(format!("请求上游失败: {e}"))
+        })?;
+    let status = resp.status();
+    if !status.is_success() {
+        // 上游非 2xx：把响应文本带回来便于排查（如 key 无效、路径错误）
+        let text = resp.text().await.unwrap_or_default();
+        tracing::warn!(url = %url, status = %status, body = %text, "拉取上游模型列表失败");
+        return Err(IpcError(format!("上游返回 {status}: {text}")));
+    }
+
+    // 解析响应：兼容多种格式
+    //   OpenAI / Anthropic:  { data: [{ id: "..." }] }
+    //   部分第三方代理:       { data: [{ name: "..." }] }  或  { models: [{ id }] }
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| IpcError(format!("解析响应 JSON 失败: {e}")))?;
+
+    /// 从一个 JSON 数组中提取模型名字段（尝试 id → name → model 顺序）
+    fn extract_ids(arr: &[serde_json::Value]) -> Vec<String> {
+        arr.iter()
+            .filter_map(|m| {
+                // 纯字符串数组（某些代理直接返回 ["model-a", "model-b"]）
+                if let Some(s) = m.as_str() {
+                    return if s.is_empty() { None } else { Some(s.to_string()) };
+                }
+                // 对象数组：按优先级尝试 id / name / model 字段
+                m.get("id")
+                    .or_else(|| m.get("name"))
+                    .or_else(|| m.get("model"))
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+            })
+            .collect()
+    }
+
+    let models = body
+        .get("data")
+        .and_then(|d| d.as_array())
+        .or_else(|| body.get("models").and_then(|m| m.as_array()))
+        .map(|arr: &Vec<serde_json::Value>| extract_ids(arr))
+        .unwrap_or_default();
+
+    tracing::info!(url = %url, count = models.len(), "拉取上游模型列表成功");
+    Ok(models)
 }
 

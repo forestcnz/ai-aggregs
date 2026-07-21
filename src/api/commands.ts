@@ -184,6 +184,19 @@ export const getProviderUsage = (
  */
 export const getLastUsedModels = () => invoke<Record<string, string>>('last_used_models')
 
+/**
+ * 从上游供应商的 `/models` 端点拉取其支持的全部模型列表。
+ * 用于「供应商编辑」弹窗的「从上游拉取」按钮，把候选填入模型下拉。
+ * @param baseUrl 上游 base_url（如 `https://api.openai.com/v1`）
+ * @param apiKey  上游 API Key（明文）
+ * @param protocol 上游协议（决定鉴权头格式：chat/responses 用 Bearer，anthropic 用 x-api-key）
+ */
+export const fetchProviderModels = (
+  baseUrl: string,
+  apiKey: string,
+  protocol: Protocol
+) => invoke<string[]>('fetch_provider_models', { baseUrl, apiKey, protocol })
+
 // ===================== OpenCode 配置编辑 =====================
 
 /** OpenCode model 的 modalities 配置 */
