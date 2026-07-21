@@ -77,6 +77,10 @@ src/
 
 日志状态提升到 `App.vue`，避免切页丢失。通过 `gateway-log` 事件接收，最多保留 500 条。
 
+### KeepAlive 缓存策略
+
+`App.vue` 内容区用 `<KeepAlive include="ChatView">` **仅缓存 AI 聊天页**（保留聊天记录/输入/发送中状态）。其它 tab 切换时销毁重建，确保每次进入是最新状态。**新增需要缓存的页面时**：给组件加 `defineOptions({ name: 'XxxView' })`，再把名字加到 `include`。**不要直接去掉 `include`**，否则会缓存所有 tab（providers 已知会被旧状态污染）。
+
 ### 弹窗（toast / alert / confirm）
 
 **统一通过 `useDialog()` 调用，禁止在 feature 内自建 `msg` ref / `dialogMsg` / 本地 overlay。** `App.vue` 启动时 `provideDialog()` 注入全局状态，`<AppToast/>` + `<AppConfirm/>` 挂在根节点。
@@ -95,14 +99,21 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 
 ### 模块布局
 
-- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 25 个 IPC 命令 + 2 个事件（`gateway-log`、`gateway-state-changed`）
+- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 26 个 IPC 命令 + 2 个事件（`gateway-log`、`gateway-state-changed`）
+- `observability.rs` — 网关 metrics（AtomicU64 无锁计数器），通过 `gateway_metrics` IPC 暴露；默认启用
 - `api/commands.rs` — 所有 `#[tauri::command]` 函数
 - `api/handler.rs` — Axum HTTP 请求处理（鉴权、model 路由、协议判定、failover）
 - `api/router.rs` — Axum 路由表 + CORS
 - `gateway/manager.rs` — 网关生命周期（启动/停止/重建/consumer models 同步）
 - `gateway/provider.rs` — 提供商运行时、密钥状态、failover 逻辑
-- `gateway/converter/` — Chat↔Responses↔Anthropic 非流式协议转换（`mod.rs` 分发，`request.rs`/`response.rs`/`helpers.rs` 实现；Responses↔Anthropic 双跳经 Chat 中转）
-- `gateway/stream/` — 流式协议转换（SSE 状态机；`mod.rs` 暴露 `stream_passthrough*`/`stream_convert*` 入口，`pipeline.rs` 组合器，`anthropic_to_chat`/`chat_to_anthropic`/`responses_to_chat`/`chat_to_responses` 四方向转换器，`usage.rs`/`config.rs` 辅助）
+- `gateway/convert_helpers.rs` — 协议转换辅助（剥离 Claude Code billing header、JSON Schema 规范化、剥离 Anthropic `cache_control`、兼容 OpenAI 多种 cache token 字段）
+- `gateway/reasoning_bridge.rs` — 跨协议 reasoning envelope（base64 编码 thinking signature，经 Chat 中转时不丢失；Anthropic↔Responses 双跳关键）
+- `gateway/ir/` — **统一 IR 中间表示层（A→IR→B 单跳）**
+  - `mod.rs` — 类型定义（`InternalRequest`/`InternalResponse`/`ChunkEvent` 等）
+  - `codec.rs` — 非流式 req/resp 的 6 个 parse/emit 函数（Chat/Anthropic/Responses ↔ IR）
+  - `stream_codec.rs` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 `IrStreamConverter`（替代原 4 个独立 stream converter）
+- `gateway/converter/` — 协议转换 dispatcher（`req_convert`/`resp_convert` 走 IR 单跳，消除原 Responses↔Anthropic 双跳经 Chat 的字段丢失风险）；`helpers.rs` 提供 ID/timestamp/stop_reason 映射给 stream 模块复用
+- `gateway/stream/` — 流式协议转换的入口与基础设施（`mod.rs` 暴露 `stream_passthrough*`/`stream_convert*` + `make_converter`，`pipeline.rs` 提供 `StreamConverter` trait + `Noop`，`usage.rs`/`config.rs` 辅助）。真正的转换逻辑在 `gateway/ir/stream_codec.rs`
 - `config/types.rs` — `Config`、`Protocol`、`ApiKeyEntry` 等纯数据类型
 - `config/state.rs` — `AppCtrl`、`AppState`、`ServerHandle`、IPC 返回类型
 - `infra/db.rs` — SQLite 持久化（bundled rusqlite）

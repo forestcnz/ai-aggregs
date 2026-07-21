@@ -3,20 +3,24 @@
 //! 设计目标：为协议转换层提供中立 IR，避免 N 协议 N² 方向的转换函数爆炸。
 //! 加新协议只需新增 N 个 Converter（IR ↔ 协议），而非 N² 个方向。
 //!
-//! 当前状态：**类型定义预留**。现有 converter.rs 仍是直接 A→B 转换；
-//! 后续 PR 将迁移到 IR-based 实现。本模块仅定义类型，无运行时开销。
+//! 模块布局：
+//! - `mod`（本文件）— 类型定义（`InternalRequest`/`InternalResponse`/`ChunkEvent` 等）
+//! - `codec` — 非流式 req/resp 的 6 个 parse/emit 函数（Chat/Anthropic/Responses ↔ IR）
+//! - `stream_codec` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 4 个 stream converter
 //!
 //! 设计参考：
 //! - cc-switch 的 reasoning_bridge envelope 思路（envelope 字段透传不透明上下文）
 //! - sub2api 的 `json.RawMessage` 折中（强类型主干 + 透传未知字段）
 //! - Anthropic / OpenAI / Responses 三协议字段并集
 
-// 预留基础设施：类型定义已完整，将在后续 PR 中集成到转换管线。
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
+
+// 子模块：req/resp 与 IR 的双向映射
+pub mod codec;
+// 子模块：流式 chunk 与 IR 的双向映射 + 4 个方向 stream converter
+pub mod stream_codec;
 
 /// 统一内部请求：作为协议转换的中间表示。
 ///
@@ -73,6 +77,7 @@ pub struct InternalRequest {
     /// - `anthropic_thinking`：原 Anthropic thinking 块（base64 envelope）
     /// - `openai_reasoning`：原 Responses reasoning item（base64 envelope）
     #[serde(skip)]
+    #[allow(dead_code)]
     pub envelopes: HashMap<String, String>,
 }
 
@@ -234,6 +239,8 @@ pub struct InternalResponse {
     #[serde(default)]
     pub reasoning: Option<InternalReasoningBlock>,
     #[serde(default)]
+    pub reasoning_signature: Option<String>,
+    #[serde(default)]
     pub finish_reason: InternalFinishReason,
     #[serde(default)]
     pub usage: InternalUsage,
@@ -262,30 +269,68 @@ pub enum InternalFinishReason {
     ContentFilter,
 }
 
-/// 流式 chunk（单个 SSE event 的 IR 表示）
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InternalChunk {
-    #[serde(default)]
-    pub delta_content: Option<String>,
-    #[serde(default)]
-    pub delta_reasoning: Option<String>,
-    #[serde(default)]
-    pub delta_tool_calls: Vec<InternalToolCallDelta>,
-    #[serde(default)]
-    pub finish_reason: Option<InternalFinishReason>,
-    #[serde(default)]
-    pub usage: Option<InternalUsage>,
+// ===================== 流式 ChunkEvent（统一中间表示） =====================
+
+/// 流式事件 IR：承载三协议 SSE 事件的并集语义。
+///
+/// parser（`stream_codec::parse_xxx_chunk`）把上游协议 SSE 解析为 `Vec<ChunkEvent>`，
+/// emitter（`stream_codec::emit_xxx_chunk`）持有状态机，消费 `ChunkEvent` 并产生下游 SSE。
+#[derive(Debug, Clone)]
+pub enum ChunkEvent {
+    /// 流开始（Anthropic message_start / Responses response.created / Chat 首帧）
+    Start {
+        id: String,
+        model: String,
+        role_announced: bool,
+        #[allow(dead_code)]
+        usage: Option<InternalUsage>,
+    },
+    /// 流结束（[DONE]）
+    Done,
+    /// 内容块开始（仅 Anthropic/Responses 显式，Chat 不区分）
+    #[allow(dead_code)]
+    BlockStart { index: usize, kind: BlockKind },
+    /// 内容块结束
+    #[allow(dead_code)]
+    BlockStop { index: usize },
+    /// 文本增量
+    TextDelta(String),
+    /// 推理内容增量
+    ReasoningDelta(String),
+    /// 推理签名增量（Anthropic signature_delta / Chat reasoning_signature）
+    ReasoningSignatureDelta(String),
+    /// 工具调用开始（id+name 同时到达，或 Chat 端的 content_block_start(tool_use)）
+    ToolCallStart {
+        upstream_index: usize,
+        id: String,
+        name: String,
+    },
+    /// 工具调用参数增量
+    ToolCallArgsDelta {
+        upstream_index: usize,
+        args: String,
+    },
+    /// 流收尾：finish_reason + usage（Anthropic message_delta / Responses response.completed /
+    /// Chat finish_reason 帧）
+    Finish {
+        reason: InternalFinishReason,
+        usage: Option<InternalUsage>,
+    },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InternalToolCallDelta {
-    pub index: usize,
-    #[serde(default)]
-    pub id: Option<String>,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub arguments: Option<String>,
+/// 内容块类型（用于 BlockStart 事件）
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BlockKind {
+    Text,
+    Thinking,
+    RedactedThinking,
+    ToolUse,
+    /// 服务端工具调用（web_search / code_interpreter 等），附类型名
+    ServerTool(String),
+    /// 服务端工具结果块（流式中不可读，跳过）
+    ServerToolResult(String),
+    /// 服务端 fallback 块
+    Fallback,
 }
 
 #[cfg(test)]
@@ -299,9 +344,7 @@ mod tests {
             system: Some("You are helpful".into()),
             messages: vec![InternalMessage {
                 role: InternalRole::User,
-                content: vec![InternalContent::Text {
-                    text: "Hi".into(),
-                }],
+                content: vec![InternalContent::Text { text: "Hi".into() }],
                 tool_calls: vec![],
                 tool_call_id: None,
                 reasoning: None,
@@ -320,7 +363,6 @@ mod tests {
             .insert("previous_response_id".into(), serde_json::json!("resp_1"));
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("previous_response_id"));
-        // 反序列化回来
         let back: InternalRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(
             back.extensions.get("previous_response_id"),
@@ -367,7 +409,6 @@ mod tests {
 
     #[test]
     fn ir_envelopes_not_serialized() {
-        // envelopes 字段标记 #[serde(skip)]，不应出现在序列化中
         let mut req = InternalRequest::default();
         req.envelopes
             .insert("anthropic_thinking".into(), "envelope_data".into());
@@ -377,15 +418,13 @@ mod tests {
     }
 
     #[test]
-    fn ir_internal_chunk_default() {
-        let chunk = InternalChunk {
-            delta_content: None,
-            delta_reasoning: None,
-            delta_tool_calls: vec![],
-            finish_reason: None,
-            usage: None,
+    fn ir_chunk_event_variants_constructible() {
+        let e = ChunkEvent::TextDelta("hi".into());
+        assert!(matches!(e, ChunkEvent::TextDelta(_)));
+        let e = ChunkEvent::BlockStart {
+            index: 0,
+            kind: BlockKind::Text,
         };
-        // 验证可序列化
-        let _ = serde_json::to_string(&chunk).unwrap();
+        assert!(matches!(e, ChunkEvent::BlockStart { .. }));
     }
 }

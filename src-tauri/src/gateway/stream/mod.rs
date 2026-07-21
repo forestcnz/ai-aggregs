@@ -3,18 +3,15 @@
 //! 模块布局：
 //! - `usage` — `UsageCtx` 用量记录、`extract_usage` 嗅探、`sniff_usage` SSE 解析
 //! - `config` — `StreamConfig` 心跳/超时配置、`append_utf8_safe` UTF-8 边界处理
-//! - `pipeline` — `StreamConverter` trait、`Chained`/`Noop` 组合器、`make_converter` 分发
-//! - `anthropic_to_chat` / `chat_to_anthropic` / `responses_to_chat` / `chat_to_responses` — 4 个方向的流转换器
+//! - `pipeline` — `StreamConverter` trait、`Noop` 直通
+//! - `crate::gateway::ir::stream_codec` — 真正的转换器实现：`IrStreamConverter`
+//!   （基于 `ChunkEvent` IR，4 个 parser + 3 个 emitter，覆盖所有 6 个方向）
 //!
 //! 本模块（`mod.rs`）仅暴露 `stream_passthrough*` / `stream_convert*` 公共入口，
 //! 处理 SSE 收发循环、心跳与首字超时、UTF-8 边界、用量统计。
 
-mod anthropic_to_chat;
-mod chat_to_anthropic;
-mod chat_to_responses;
 mod config;
 mod pipeline;
-mod responses_to_chat;
 mod usage;
 
 use axum::body::Body;
@@ -22,6 +19,7 @@ use axum::response::Response;
 use bytes::{Bytes, BytesMut};
 
 use crate::config::types::Protocol;
+use crate::gateway::ir::stream_codec::IrStreamConverter;
 use crate::infra::error::AppError;
 
 // 公开 API
@@ -30,12 +28,8 @@ pub use pipeline::StreamConverter;
 pub use usage::{extract_usage, UsageCtx};
 
 // 仅 mod.rs 内使用的 helper
-use anthropic_to_chat::AnthropicToChatStream;
-use chat_to_anthropic::ChatToAnthropicStream;
-use chat_to_responses::ChatToResponsesStream;
 use config::{append_utf8_safe, KEEPALIVE_LINE};
-use pipeline::{Chained, Noop};
-use responses_to_chat::ResponsesToChatStream;
+use pipeline::Noop;
 use usage::sniff_usage;
 
 // ===================== 公共入口 =====================
@@ -348,22 +342,11 @@ async fn maybe_send_keepalive(
 
 /// 根据 `(src, dst)` 协议对构造合适的流转换器。
 ///
-/// 跨协议双跳（如 Anthropic→Responses）通过 `Chained` 串联两个单向转换器实现。
-/// 同协议或未实现的方向回退到 `Noop`（原样转发）。
+/// IR 化后：所有跨协议方向都通过 `IrStreamConverter` 走 src→IR→dst 单跳，
+/// 同协议直通走 `Noop`。
 pub(crate) fn make_converter(src: Protocol, dst: Protocol) -> Box<dyn StreamConverter> {
-    match (src, dst) {
-        (Protocol::Anthropic, Protocol::Chat) => Box::new(AnthropicToChatStream::new()),
-        (Protocol::Chat, Protocol::Anthropic) => Box::new(ChatToAnthropicStream::new()),
-        (Protocol::Responses, Protocol::Chat) => Box::new(ResponsesToChatStream::new()),
-        (Protocol::Chat, Protocol::Responses) => Box::new(ChatToResponsesStream::new()),
-        (Protocol::Anthropic, Protocol::Responses) => Box::new(Chained(
-            AnthropicToChatStream::new(),
-            ChatToResponsesStream::new(),
-        )),
-        (Protocol::Responses, Protocol::Anthropic) => Box::new(Chained(
-            ResponsesToChatStream::new(),
-            ChatToAnthropicStream::new(),
-        )),
-        _ => Box::new(Noop),
+    if src == dst {
+        return Box::new(Noop);
     }
+    Box::new(IrStreamConverter::new(src, dst))
 }
