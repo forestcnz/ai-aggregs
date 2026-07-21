@@ -50,11 +50,10 @@ export function useChat(props: { status: GatewayStatus }) {
     return `http://${props.status.listen_addr}`
   })
 
-  // ---- 生命周期 ----
-  onMounted(async () => {
+  // ---- 加载配置（保持上次选择；仅当为空或已不在列表时回退到首项）----
+  async function refreshConfig() {
     try {
       config.value = await getConfig()
-      // 保持上次选择；仅当为空或已不在列表时回退到首项
       if (models.value.length > 0 && !models.value.includes(selectedModel.value)) {
         selectedModel.value = models.value[0]
       }
@@ -64,7 +63,10 @@ export function useChat(props: { status: GatewayStatus }) {
     } catch (e) {
       console.error('加载配置失败', e)
     }
-  })
+  }
+
+  // ---- 生命周期 ----
+  onMounted(refreshConfig)
 
   // ---- 工具函数 ----
   async function scrollToBottom() {
@@ -389,6 +391,7 @@ export function useChat(props: { status: GatewayStatus }) {
     send,
     stop,
     clearChat,
-    onKeydown
+    onKeydown,
+    refreshConfig
   }
 }

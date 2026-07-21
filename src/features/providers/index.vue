@@ -89,7 +89,7 @@ const {
             </div>
           </div>
           <div class="provider-card-right">
-            <label class="toggle" @click.stop>
+            <label class="toggle" @click.stop @dblclick.stop>
               <input
                 type="checkbox"
                 :checked="p.enabled"
@@ -130,7 +130,7 @@ const {
             </div>
             <template v-if="p.api_keys.length">
               <div v-for="(entry, ki) in p.api_keys" :key="ki" class="key-row">
-                <label class="toggle" @click.stop>
+                <label class="toggle" @click.stop @dblclick.stop>
                   <input
                     type="checkbox"
                     :checked="normalizeKey(entry).enabled"

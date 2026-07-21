@@ -47,9 +47,6 @@
 .provider-card:hover {
   border-color: var(--border);
 }
-.provider-card.off {
-  opacity: 0.45;
-}
 /* 拖动中的源卡片：半透明 + 轻微缩小 */
 .provider-card.dragging {
   opacity: 0.4;
