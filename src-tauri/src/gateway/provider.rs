@@ -17,6 +17,7 @@ use crate::config::types::{ApiKeyEntry, Protocol, ProviderConfig};
 ///
 /// 当前实现：Chat / Anthropic / Responses 三种协议。
 /// 未来可扩展：Gemini、Bedrock 等（不在本版范围）。
+// 部分方法是接口定义但当前未被直接调用（预留供后续扩展）
 #[allow(dead_code)]
 pub trait ProtocolAdapter: Send + Sync {
     /// 协议标识

@@ -16,6 +16,9 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
+pub mod comments;
+pub use comments::strip_comments;
+
 // ===================== 路径 =====================
 
 /// 返回 opencode 全局配置文件路径。
@@ -35,64 +38,6 @@ pub fn config_path() -> PathBuf {
     } else {
         base.join("opencode.json")
     }
-}
-
-// ===================== JSONC 注释剥离 =====================
-
-/// 剥离 JSONC 注释（`//` 行注释与 `/* */` 块注释），尊重字符串字面量。
-/// 按 Unicode code point 处理（不会切坏中文 / emoji）。
-/// 返回 `(无注释 JSON 文本, 是否曾出现注释)`。
-pub fn strip_comments(input: &str) -> (String, bool) {
-    let chars: Vec<char> = input.chars().collect();
-    let mut out = String::with_capacity(input.len());
-    let mut had_comment = false;
-    let mut i = 0;
-    let n = chars.len();
-    while i < n {
-        let c = chars[i];
-        // 字符串字面量：原样拷贝到闭合的未转义 "
-        if c == '"' {
-            out.push('"');
-            i += 1;
-            while i < n {
-                let ch = chars[i];
-                out.push(ch);
-                if ch == '\\' && i + 1 < n {
-                    // 转义序列，连同下一字符一起拷贝
-                    out.push(chars[i + 1]);
-                    i += 2;
-                    continue;
-                }
-                i += 1;
-                if ch == '"' {
-                    break;
-                }
-            }
-            continue;
-        }
-        // 行注释 //
-        if c == '/' && i + 1 < n && chars[i + 1] == '/' {
-            had_comment = true;
-            i += 2;
-            while i < n && chars[i] != '\n' {
-                i += 1;
-            }
-            continue;
-        }
-        // 块注释 /* */
-        if c == '/' && i + 1 < n && chars[i + 1] == '*' {
-            had_comment = true;
-            i += 2;
-            while i + 1 < n && !(chars[i] == '*' && chars[i + 1] == '/') {
-                i += 1;
-            }
-            i = (i + 2).min(n);
-            continue;
-        }
-        out.push(c);
-        i += 1;
-    }
-    (out, had_comment)
 }
 
 // ===================== 表单数据结构 =====================
@@ -528,7 +473,6 @@ pub fn save(form: &OcForm) -> std::io::Result<()> {
 
     // 备份原文件（存在时）—— 带时间戳，避免多次保存互相覆盖
     if path.exists() {
-        // opencode.jsonc → opencode.jsonc.20260717_153045.bak
         let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
         let bak_name = format!("{}.{}.bak", path.file_name().unwrap_or_default().to_string_lossy(), ts);
         let bak_path = path
@@ -661,7 +605,6 @@ mod tests {
         assert!(had);
         assert!(!out.contains("行注释"));
         assert!(!out.contains("块注释"));
-        // 字符串内的 // 和 /* 必须保留
         assert!(out.contains("http://example.com"));
         assert!(out.contains("/* not a comment */"));
         let v: Value = serde_json::from_str(&out).unwrap();
@@ -700,7 +643,6 @@ mod tests {
         assert_eq!(m.modalities.input, vec!["text".to_string()]);
         assert_eq!(m.limit.as_ref().unwrap().context, 1000000);
 
-        // 合并回一个含 mcp 的 root，验证 mcp 被保留
         let mut root2: Value = serde_json::from_str(json).unwrap();
         merge_form(&mut root2, &form);
         assert_eq!(root2["mcp"]["keep"]["command"][0], "x");
@@ -716,9 +658,7 @@ mod tests {
         let mut form = extract_form(&root);
         form.model = Some("a/c".into());
         merge_form(&mut root, &form);
-        // model 被更新
         assert_eq!(root["model"], "a/c");
-        // 未管理字段原样保留
         assert_eq!(root["permission"]["edit"], "ask");
         assert_eq!(root["instructions"][0], "x.md");
     }
@@ -732,7 +672,6 @@ mod tests {
             providers: vec![],
             disabled_providers: vec![],
         };
-        // 合并到空对象：空字段不应写入任何 key
         let mut root: Value = Value::Object(Map::new());
         merge_form(&mut root, &form);
         let obj = root.as_object().unwrap();
@@ -743,8 +682,6 @@ mod tests {
 
     #[test]
     fn ipc_roundtrip_preserves_apikey_camelcase() {
-        // 模拟 IPC 全链路：前端发送的 JSON（驼峰 apiKey）→ 反序列化为 OcForm
-        // 确认 rename 生效，apiKey 不丢失
         let json_from_frontend = r#"{
             "providers": [{
                 "id": "Local-oai",
@@ -766,14 +703,13 @@ mod tests {
 
     #[test]
     fn merge_empty_field_removes_key() {
-        // 用户在 UI 上把 model 置空保存后，文件里 model key 应被删除
         let mut root: Value = serde_json::from_str(
             r#"{"model":"Local-oai/glm-5.2","small_model":"a/b","default_agent":"build","mcp":{"keep":1}}"#,
         )
         .unwrap();
         let form = OcForm {
             model: None,
-            small_model: Some("   ".into()), // 纯空白也视为空
+            small_model: Some("   ".into()),
             default_agent: None,
             providers: vec![],
             disabled_providers: vec![],
@@ -783,7 +719,6 @@ mod tests {
         assert!(root.get("small_model").is_none(), "small_model 应被删除");
         assert!(root.get("default_agent").is_none(), "default_agent 应被删除");
         assert!(root.get("provider").is_none(), "空 provider 段应被删除");
-        // 未管理字段保留
         assert_eq!(root["mcp"]["keep"], 1);
     }
 
@@ -813,19 +748,16 @@ mod tests {
 }"#;
         let root: Value = serde_json::from_str(json).unwrap();
         let form = extract_form(&root);
-        // 提取时原样保留（含重复与空白），规范在合并阶段
         assert_eq!(form.disabled_providers.len(), 4);
         assert!(form.disabled_providers.contains(&"openai".to_string()));
         assert!(form.disabled_providers.contains(&"Local-oai".to_string()));
 
-        // 合并阶段：trim、去空、去重
         let mut root2: Value = serde_json::from_str(json).unwrap();
         merge_form(&mut root2, &form);
         let dp = root2["disabled_providers"].as_array().unwrap();
         assert_eq!(dp.len(), 2, "应去重去空");
         assert!(dp.iter().any(|v| v == "openai"));
         assert!(dp.iter().any(|v| v == "Local-oai"));
-        // 未管理字段保留
         assert_eq!(root2["mcp"]["keep"], 1);
     }
 

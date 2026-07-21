@@ -6,9 +6,9 @@ use serde_json::{json, Value};
 
 use crate::config::state::AppState;
 use crate::config::types::Protocol;
+use crate::error::AppError;
 use crate::gateway::converter;
 use crate::gateway::stream::{self, UsageCtx};
-use crate::infra::error::AppError;
 
 pub async fn proxy(State(st): State<AppState>, req: Request) -> Result<Response, AppError> {
     let consumer_key = auth(&st, req.headers())?;

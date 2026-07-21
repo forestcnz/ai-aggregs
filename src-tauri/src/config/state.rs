@@ -22,7 +22,6 @@ pub struct AppCtrl {
     /// 别名 → 上次成功响应的实际模型（内存记录，跨网关重建保留，进程退出即失）
     pub last_model: Arc<Mutex<HashMap<String, String>>>,
     /// 网关运行时 metrics（Arc 共享给 handler / stream / IPC 命令）
-    #[allow(dead_code)]
     pub metrics: Arc<crate::observability::GatewayMetrics>,
 }
 

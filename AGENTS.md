@@ -112,16 +112,16 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
   - `mod.rs` — 类型定义（`InternalRequest`/`InternalResponse`/`ChunkEvent` 等）
   - `codec.rs` — 非流式 req/resp 的 6 个 parse/emit 函数（Chat/Anthropic/Responses ↔ IR）
   - `stream_codec.rs` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 `IrStreamConverter`（替代原 4 个独立 stream converter）
-- `gateway/converter/` — 协议转换 dispatcher（`req_convert`/`resp_convert` 走 IR 单跳，消除原 Responses↔Anthropic 双跳经 Chat 的字段丢失风险）；`helpers.rs` 提供 ID/timestamp/stop_reason 映射给 stream 模块复用
+- `gateway/converter.rs` — 协议转换 dispatcher（`req_convert`/`resp_convert` 走 IR 单跳，消除原 Responses↔Anthropic 双跳经 Chat 的字段丢失风险）；同时提供 ID/timestamp/stop_reason 映射工具函数
 - `gateway/stream/` — 流式协议转换的入口与基础设施（`mod.rs` 暴露 `stream_passthrough*`/`stream_convert*` + `make_converter`，`pipeline.rs` 提供 `StreamConverter` trait + `Noop`，`usage.rs`/`config.rs` 辅助）。真正的转换逻辑在 `gateway/ir/stream_codec.rs`
+- `error.rs` — `AppError`(Axum HTTP) + `IpcError`(Tauri IPC)
 - `config/types.rs` — `Config`、`Protocol`、`ApiKeyEntry` 等纯数据类型
 - `config/state.rs` — `AppCtrl`、`AppState`、`ServerHandle`、IPC 返回类型
+- `config/opencode/` — `opencode.json` 读写/解析/合并（剥注释、表单↔JSON 双向转换）
+- `config/codex/` — `~/.codex/config.toml` 受管 provider 读写/合并（路径优先 `CODEX_HOME` 否则 `$HOME/.codex`；仅覆盖受管 provider 的 `name`/`base_url`/`experimental_bearer_token` + 顶层 `model`/`model_provider`，其它键原样保留；**TOML `#` 注释在 `toml::to_string` 后会丢失，保存前自动备份 `config.toml.YYYYMMDD_HHMMSS.bak` 并通过 `has_comments` 提示前端**；Codex 仅支持 `wire_api = "responses"`，网关以 `/v1/responses` 对接）
+- `config/claude/` — `~/.claude/settings.json` 的 `env` 段读写/合并（整体替换 env，保留其它顶层字段；备份 `.bak`；执行 `claude --version`）
 - `infra/db.rs` — SQLite 持久化（bundled rusqlite）
-- `infra/error.rs` — `AppError`(Axum HTTP) + `IpcError`(Tauri IPC)
 - `infra/log_bridge.rs` — tracing → log4rs 桥接 + 日志热更新 + 前端事件
-- `infra/opencode.rs` — `opencode.json` 读写/解析/合并（剥注释、表单↔JSON 双向转换）
-- `infra/claude_code.rs` — `~/.claude/settings.json` 的 `env` 段读写/合并（整体替换 env，保留其它顶层字段；备份 `.bak`；执行 `claude --version`）
-- `infra/codex.rs` — `~/.codex/config.toml` 受管 provider 读写/合并（路径优先 `CODEX_HOME` 否则 `$HOME/.codex`；仅覆盖受管 provider 的 `name`/`base_url`/`experimental_bearer_token` + 顶层 `model`/`model_provider`，其它键原样保留；**TOML `#` 注释在 `toml::to_string` 后会丢失，保存前自动备份 `config.toml.YYYYMMDD_HHMMSS.bak` 并通过 `has_comments` 提示前端**；Codex 仅支持 `wire_api = "responses"`，网关以 `/v1/responses` 对接）
 - `infra/tray.rs` — 系统托盘
 
 ### 关键行为

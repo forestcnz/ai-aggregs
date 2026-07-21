@@ -5,6 +5,7 @@
 
 mod api;
 mod config;
+mod error;
 mod gateway;
 mod infra;
 mod observability;

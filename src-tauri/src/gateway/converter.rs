@@ -4,35 +4,55 @@
 //! - `req_convert(src, s, d)`：A 协议 JSON → IR → B 协议 JSON
 //! - `resp_convert(src, s, d)`：同上，针对响应体
 //!
-//! 模块布局：
-//! - `helpers` — 通用 helper（ID/时间戳、stop_reason 映射、finish_reason 映射；
-//!   部分（rand_id/created_now/map_*_reason）被 stream 模块也用）
-//! - 真正的 parse/emit 实现在 `crate::gateway::ir::codec` 中
+//! 真正的 parse/emit 实现在 `crate::gateway::ir::codec` 中。
 //!
 //! 通过 IR 中转，N 协议只需 N 个 parse + N 个 emit 函数（共 2N），而非 N² 个方向。
 //! Responses ↔ Anthropic 不再走 Chat 双跳，直接经 IR 单跳。
 
-mod helpers;
-
 use serde_json::Value;
 
 use crate::config::types::Protocol;
+use crate::error::AppError;
 use crate::gateway::ir::codec::{
     emit_anthropic_req, emit_anthropic_resp, emit_chat_req, emit_chat_resp, emit_responses_req,
     emit_responses_resp, parse_anthropic_req, parse_anthropic_resp, parse_chat_req,
     parse_chat_resp, parse_responses_req, parse_responses_resp,
 };
-use crate::infra::error::AppError;
 
-// 公开的 helper（外部 `stream` 模块也会用）
-pub use helpers::{
-    created_now, map_finish_reason_chat_to_anthropic, rand_id,
-};
+// ===================== ID / 时间戳 =====================
 
-// 兼容性占位：原 map_stop_reason_anthropic_to_chat 仍被部分场景使用，
-// 但 IR 化后主要由 ir/codec.rs 内部处理；这里保留导出以防外部调用。
-#[allow(unused_imports)]
-pub use helpers::map_stop_reason_anthropic_to_chat;
+/// 生成十六进制纳秒时间戳 ID（无外部依赖，适合临时 ID）
+pub fn rand_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let n = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    format!("{n:x}")
+}
+
+/// 当前 Unix 时间戳（秒）
+pub fn created_now() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+// ===================== stop_reason / finish_reason 映射 =====================
+
+/// Chat finish_reason → Anthropic stop_reason
+pub fn map_finish_reason_chat_to_anthropic(fr: &str) -> String {
+    match fr {
+        "stop" => "end_turn".into(),
+        "tool_calls" => "tool_use".into(),
+        "length" => "max_tokens".into(),
+        "content_filter" => "refusal".into(),
+        "function_call" => "tool_use".into(),
+        _ => fr.into(),
+    }
+}
 
 // ===================== 分发（A → IR → B） =====================
 

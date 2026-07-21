@@ -18,10 +18,12 @@
 //! 路径定位：优先 `CODEX_HOME` 环境变量，否则 `$HOME/.codex/config.toml`
 //! （`HOME` → `USERPROFILE`）。
 
-use std::path::PathBuf;
+pub mod form;
 
-use serde::{Deserialize, Serialize};
+pub use form::{CodexForm, CodexLoadResult, CodexProvider, CodexSaveResult};
+
 use serde_json::{json, Value as JsonValue};
+use std::path::PathBuf;
 
 // ===================== 路径 =====================
 
@@ -103,42 +105,7 @@ pub fn has_comments(raw: &str) -> bool {
     false
 }
 
-// ===================== 表单数据结构 =====================
-
-/// 受管 provider（指向本网关的那一条）。id 同时作为顶层 `model_provider` 的值。
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct CodexProvider {
-    /// provider id（如 `aggregs`），即 `model_providers.<id>` 的 key 与 `model_provider` 的值
-    pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub base_url: Option<String>,
-    /// 网关 consumer key 直接写入（开箱即用；与 env_key/requires_openai_auth 互斥）
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub experimental_bearer_token: Option<String>,
-}
-
-/// 表单管理的 Codex 配置子集。
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct CodexForm {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
-    #[serde(default)]
-    pub provider: CodexProvider,
-    /// 加载时的受管 provider id（前端原样回传、不可编辑）。
-    /// 保存时若与 `provider.id` 不同，则删除旧 `[model_providers.<旧id>]`（改名清理）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub loaded_provider_id: Option<String>,
-    /// 是否在 config.toml 设 `model_catalog_json`（启用 /model 模型目录）。
-    /// form-only，不写入 config.toml；由 config.toml 是否已含该 key 推断。
-    #[serde(default)]
-    pub enable_model_catalog: bool,
-    /// 模型目录的手动清单（form-only；持久化于 catalog 文件，load 时回填）。
-    /// 保存时若开启目录，则克隆内置模板为每个模型生成一个 catalog 条目。
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub catalog_models: Vec<String>,
-}
+// ===================== 表单 ↔ toml::Value 转换 =====================
 
 /// 受管 provider 的默认空壳（id = `aggregs`）。
 fn default_provider() -> CodexProvider {
@@ -149,8 +116,6 @@ fn default_provider() -> CodexProvider {
         experimental_bearer_token: None,
     }
 }
-
-// ===================== 表单 ↔ toml::Value 转换 =====================
 
 /// Codex 内置 provider id（保留名，不可作为自定义 provider 覆盖）。
 const RESERVED_IDS: &[&str] = &["openai", "ollama", "lmstudio"];
@@ -311,30 +276,6 @@ pub fn merge_form(root: &mut toml::Value, form: &CodexForm, catalog_path: Option
 }
 
 // ===================== 文件读写 =====================
-
-/// load 返回的复合结构。
-#[derive(Serialize)]
-pub struct CodexLoadResult {
-    /// 解析后的配置文件绝对路径
-    pub path: String,
-    /// 文件是否存在（不存在时 form 为默认空壳）
-    pub exists: bool,
-    /// 原文件是否含 `#` 注释（前端据此提示「注释将丢失」）
-    pub has_comments: bool,
-    /// 表单数据
-    pub form: CodexForm,
-}
-
-/// save 返回的复合结构（前端据此 toast 模型目录生成结果）。
-#[derive(Serialize, Debug)]
-pub struct CodexSaveResult {
-    /// 模型目录是否成功生成并写入
-    pub catalog_ok: bool,
-    /// 生成的 catalog 条目数（0 = 未启用或失败）
-    pub catalog_count: usize,
-    /// 目录未生成时的原因（未启用时为 None）
-    pub catalog_error: Option<String>,
-}
 
 /// 读取并解析 Codex 配置文件，提取表单字段。文件不存在时返回默认空壳（exists=false）。
 pub fn load() -> std::io::Result<CodexLoadResult> {
@@ -592,7 +533,6 @@ command = "bar"
 
     #[test]
     fn extract_seeds_default_when_model_provider_reserved() {
-        // model_provider 指向内置 openai → 不应接管该表，种入默认 aggregs
         let toml_src = r#"
 model = "gpt-4o"
 model_provider = "openai"
@@ -634,7 +574,6 @@ command = "bar"
         };
         merge_form(&mut root, &form, None);
         let tbl = root.as_table().unwrap();
-        // model / model_provider 更新
         assert_eq!(tbl.get("model").and_then(toml::Value::as_str), Some("gpt-4o"));
         assert_eq!(
             tbl.get("model_provider").and_then(toml::Value::as_str),
@@ -644,16 +583,13 @@ command = "bar"
             .get("model_providers")
             .and_then(toml::Value::as_table)
             .unwrap();
-        // 兄弟表 openrouter 保留
         assert!(mp.contains_key("openrouter"));
-        // 受管表内非受管键 http_headers 保留，受管键已更新
         let agg = mp.get("aggregs").and_then(toml::Value::as_table).unwrap();
         assert_eq!(
             agg.get("name").and_then(toml::Value::as_str),
             Some("AI 聚合网关")
         );
         assert!(agg.contains_key("http_headers"));
-        // 顶层未管理键 mcp_servers 保留
         assert!(tbl.contains_key("mcp_servers"));
     }
 
@@ -717,7 +653,6 @@ name = "x"
         merge_form(&mut root, &form, None);
         let tbl = root.as_table().unwrap();
         assert!(tbl.get("model").is_none(), "空 model 应删除");
-        // 受管表三字段皆空 → 整表移除
         let mp = tbl
             .get("model_providers")
             .and_then(toml::Value::as_table)
@@ -735,7 +670,6 @@ name = "x"
 
     #[test]
     fn roundtrip_writes_expected_toml() {
-        // 空文件 → 保存 → 文本应含受管字段，且 model_provider=aggregs
         let mut root = toml::Value::Table(toml::value::Table::new());
         let form = CodexForm {
             model: Some("gpt-4o".into()),
@@ -788,7 +722,6 @@ name = "x"
 
     #[test]
     fn build_catalog_entries_overrides_slug() {
-        // 模板含 base_instructions 等字段，克隆后只覆盖 slug/display_name/description/visibility
         let template: JsonValue = serde_json::from_str(
             r#"{"slug":"template","display_name":"T","description":"d","visibility":"hidden",
                 "base_instructions":"full prompt","availability_nux":true,"upgrade":{}}"#,
@@ -804,7 +737,6 @@ name = "x"
             .filter_map(|e| e.get("slug").and_then(JsonValue::as_str))
             .collect();
         assert_eq!(slugs, vec!["glm-4-plus", "claude-3"]);
-        // 模板原有字段保留
         assert_eq!(
             entries[0].get("base_instructions").and_then(JsonValue::as_str),
             Some("full prompt")

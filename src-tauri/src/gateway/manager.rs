@@ -8,7 +8,7 @@ use crate::config::state::{AppCtrl, AppState, ServerHandle};
 use crate::config::types::Config;
 use crate::gateway::provider::Provider;
 use crate::infra::db;
-use crate::infra::error::IpcError;
+use crate::error::IpcError;
 use crate::infra::tray::update_tray;
 
 pub fn build_providers(cfg: &Config) -> anyhow::Result<Vec<Arc<Provider>>> {

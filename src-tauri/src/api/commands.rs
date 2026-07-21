@@ -9,10 +9,10 @@ use crate::gateway::manager::{
     rebuild_if_running, start_gateway_inner, stop_gateway_inner, sync_consumer_models,
 };
 use crate::infra::db;
-use crate::infra::error::IpcError;
-use crate::infra::opencode::{self, OcForm, OcLoadResult};
-use crate::infra::claude_code::{self, CcForm, CcLoadResult};
-use crate::infra::codex::{self, CodexForm, CodexLoadResult, CodexSaveResult};
+use crate::config::claude::{self as claude, CcForm, CcLoadResult};
+use crate::config::codex::{self, CodexForm, CodexLoadResult, CodexSaveResult};
+use crate::config::opencode::{self, OcForm, OcLoadResult};
+use crate::error::IpcError;
 
 #[tauri::command]
 pub fn get_config(app: tauri::AppHandle) -> Config {
@@ -370,14 +370,14 @@ pub async fn opencode_version() -> Result<Option<String>, IpcError> {
 /// 提取 `env` 段。文件不存在时返回空表单（exists=false），前端可据此新建。
 #[tauri::command]
 pub fn claude_code_config_load() -> Result<CcLoadResult, IpcError> {
-    claude_code::load().map_err(|e| IpcError(format!("读取 claude code 配置失败: {e}")))
+    claude::load().map_err(|e| IpcError(format!("读取 claude code 配置失败: {e}")))
 }
 
 /// 把表单的 env 段整体合并写回配置文件（仅替换 `env` key，
 /// 其余顶层字段如 enabledPlugins / statusLine 原样保留；保存前自动备份 .bak）。
 #[tauri::command]
 pub fn claude_code_config_save(form: CcForm) -> Result<(), IpcError> {
-    claude_code::save(&form).map_err(|e| IpcError(format!("保存 claude code 配置失败: {e}")))
+    claude::save(&form).map_err(|e| IpcError(format!("保存 claude code 配置失败: {e}")))
 }
 
 /// 执行 `claude --version` 获取版本号；未安装返回 None。
@@ -385,7 +385,7 @@ pub fn claude_code_config_save(form: CcForm) -> Result<(), IpcError> {
 /// 用 spawn_blocking 包裹，避免阻塞 tokio worker（claude 为外部进程）。
 #[tauri::command]
 pub async fn claude_code_version() -> Result<Option<String>, IpcError> {
-    tauri::async_runtime::spawn_blocking(|| Ok(claude_code::version()))
+    tauri::async_runtime::spawn_blocking(|| Ok(claude::version()))
         .await
         .map_err(|e| IpcError(format!("任务调度失败: {e}")))?
 }

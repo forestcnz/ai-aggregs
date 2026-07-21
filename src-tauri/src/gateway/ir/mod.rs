@@ -6,7 +6,7 @@
 //! 模块布局：
 //! - `mod`（本文件）— 类型定义（`InternalRequest`/`InternalResponse`/`ChunkEvent` 等）
 //! - `codec` — 非流式 req/resp 的 6 个 parse/emit 函数（Chat/Anthropic/Responses ↔ IR）
-//! - `stream_codec` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 4 个 stream converter
+//! - `relay` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 stream converter
 //!
 //! 设计参考：
 //! - cc-switch 的 reasoning_bridge envelope 思路（envelope 字段透传不透明上下文）
@@ -19,8 +19,8 @@ use std::collections::HashMap;
 
 // 子模块：req/resp 与 IR 的双向映射
 pub mod codec;
-// 子模块：流式 chunk 与 IR 的双向映射 + 4 个方向 stream converter
-pub mod stream_codec;
+// 子模块：流式 chunk 与 IR 的双向映射 + stream converter
+pub mod relay;
 
 /// 统一内部请求：作为协议转换的中间表示。
 ///

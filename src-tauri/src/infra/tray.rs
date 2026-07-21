@@ -67,7 +67,7 @@ pub fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
                     let running = app.state::<AppCtrl>().server.lock().unwrap().is_some();
                     // 根据当前状态决定启停；无论成功或失败都刷新托盘显示，
                     // 避免 UI 状态与后端实际状态不同步
-                    let result: Result<(), crate::infra::error::IpcError> = if running {
+                    let result: Result<(), crate::error::IpcError> = if running {
                         stop_gateway_inner(&app).await
                     } else {
                         start_gateway_inner(&app).await.map(|_| ())

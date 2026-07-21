@@ -4,8 +4,8 @@
 //! - `usage` — `UsageCtx` 用量记录、`extract_usage` 嗅探、`sniff_usage` SSE 解析
 //! - `config` — `StreamConfig` 心跳/超时配置、`append_utf8_safe` UTF-8 边界处理
 //! - `pipeline` — `StreamConverter` trait、`Noop` 直通
-//! - `crate::gateway::ir::stream_codec` — 真正的转换器实现：`IrStreamConverter`
-//!   （基于 `ChunkEvent` IR，4 个 parser + 3 个 emitter，覆盖所有 6 个方向）
+//! - `crate::gateway::ir::relay` — 真正的转换器实现：`IrStreamConverter`
+//!   （基于 `ChunkEvent` IR，parser + emitter，覆盖所有方向）
 //!
 //! 本模块（`mod.rs`）仅暴露 `stream_passthrough*` / `stream_convert*` 公共入口，
 //! 处理 SSE 收发循环、心跳与首字超时、UTF-8 边界、用量统计。
@@ -19,8 +19,8 @@ use axum::response::Response;
 use bytes::{Bytes, BytesMut};
 
 use crate::config::types::Protocol;
-use crate::gateway::ir::stream_codec::IrStreamConverter;
-use crate::infra::error::AppError;
+use crate::gateway::ir::relay::IrStreamConverter;
+use crate::error::AppError;
 
 // 公开 API
 pub use config::StreamConfig;
