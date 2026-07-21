@@ -23,6 +23,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 
+use crate::infra::process;
+
 // ===================== 路径 =====================
 
 /// Codex 用户级目录：优先 `CODEX_HOME`，否则 `$HOME/.codex`（`HOME` → `USERPROFILE`）。
@@ -389,21 +391,7 @@ pub fn save(form: &CodexForm, catalog_path: Option<&str>) -> std::io::Result<()>
     merge_form(&mut root, form, catalog_path);
 
     // 备份原文件（存在时）—— 带时间戳，避免多次保存互相覆盖
-    if path.exists() {
-        let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
-        let bak_name = format!(
-            "{}.{}.bak",
-            path.file_name().unwrap_or_default().to_string_lossy(),
-            ts
-        );
-        let bak_path = path
-            .parent()
-            .map(|p| p.join(&bak_name))
-            .unwrap_or_else(|| std::path::PathBuf::from(&bak_name));
-        if let Err(e) = std::fs::copy(&path, &bak_path) {
-            tracing::warn!(err = %e, "备份 codex 配置失败，继续写入");
-        }
-    }
+    process::backup_file(&path);
 
     // 确保父目录存在
     if let Some(parent) = path.parent() {
@@ -512,26 +500,7 @@ pub fn generate_catalog(model_names: &[String]) -> std::io::Result<(String, usiz
 /// 通过系统 shell 执行 `codex <args>`，由 shell 负责按 PATH / PATHEXT 解析
 /// （Windows 上 codex 是 npm 生成的 .cmd shim，需经 cmd.exe；Unix 经 sh）。
 fn run_codex(args: &str) -> std::io::Result<std::process::Output> {
-    let (shell, flag) = if cfg!(target_os = "windows") {
-        ("cmd.exe", "/c")
-    } else {
-        ("sh", "-c")
-    };
-    let mut cmd = std::process::Command::new(shell);
-    cmd.arg(flag)
-        .arg(format!("codex {args}"))
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    #[cfg(target_os = "windows")]
-    hide_console(&mut cmd);
-    cmd.output()
-}
-
-#[cfg(target_os = "windows")]
-fn hide_console(cmd: &mut std::process::Command) {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    cmd.creation_flags(CREATE_NO_WINDOW);
+    process::run_bin("codex", args)
 }
 
 /// 执行 `codex --version` 获取版本号；未安装或执行失败时返回 None。

@@ -74,10 +74,6 @@
   flex-direction: column;
   gap: 6px;
 }
-.addr {
-  font-size: 12px;
-  color: var(--text);
-}
 .btn.sm {
   padding: 5px 10px;
   font-size: 12px;

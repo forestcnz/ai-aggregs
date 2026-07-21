@@ -12,7 +12,6 @@ const open = ref(false)
 const inputEl = ref<HTMLInputElement | null>(null)
 const query = ref('')
 
-/** 下拉候选：options 中未选中的，按当前输入文本过滤 */
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   return props.options.filter(
@@ -20,21 +19,18 @@ const filtered = computed(() => {
   )
 })
 
-/** 当前输入是否可作为新项添加（非空、既未选中也不在 options 中） */
 const canAdd = computed(() => {
   const q = query.value.trim()
   if (!q) return false
   return !props.modelValue.includes(q) && !props.options.includes(q)
 })
 
-/** 从下拉中点选一项（加入选中） */
 function pick(val: string) {
   if (!props.modelValue.includes(val)) {
     emit('update:modelValue', [...props.modelValue, val])
   }
 }
 
-/** 移除某个已选项（tag 上的 ×） */
 function remove(val: string) {
   emit(
     'update:modelValue',
@@ -42,7 +38,6 @@ function remove(val: string) {
   )
 }
 
-/** 把当前输入文本作为新项添加（支持「自己添加」任意 id） */
 function addQuery() {
   const q = query.value.trim()
   if (!q) return
@@ -56,7 +51,6 @@ function onFocus() {
   open.value = true
 }
 async function onBlur() {
-  // 延迟关闭，让 mousedown 选值先生效
   await nextTick()
   setTimeout(() => {
     open.value = false
@@ -67,7 +61,6 @@ function onKeydown(e: KeyboardEvent) {
     e.preventDefault()
     addQuery()
   } else if (e.key === 'Backspace' && !query.value && props.modelValue.length) {
-    // 输入为空时退格 → 删除最后一个已选项
     remove(props.modelValue[props.modelValue.length - 1])
   }
 }
@@ -118,7 +111,6 @@ function onKeydown(e: KeyboardEvent) {
   width: 100%;
   max-width: 560px;
 }
-/* 输入区域：对齐 providers 的 .chip-input */
 .mcombo-field {
   display: flex;
   flex-wrap: wrap;
@@ -152,7 +144,6 @@ function onKeydown(e: KeyboardEvent) {
 .mcombo-input::placeholder {
   color: var(--text-weaker);
 }
-/* 已选 tag：对齐 providers API Keys 的 .chip */
 .mcombo-tag {
   display: inline-flex;
   align-items: center;
@@ -185,7 +176,6 @@ function onKeydown(e: KeyboardEvent) {
 .mcombo-tag-x:hover {
   color: var(--red);
 }
-/* 下拉面板（样式与 ModelCombobox .combo-menu 一致） */
 .mcombo-menu {
   position: absolute;
   top: calc(100% + 3px);

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use crate::api::router;
 use crate::config::state::{AppCtrl, AppState, ServerHandle};
@@ -9,7 +9,6 @@ use crate::config::types::Config;
 use crate::gateway::provider::Provider;
 use crate::infra::db;
 use crate::infra::error::IpcError;
-use crate::infra::tray::update_tray;
 
 pub fn build_providers(cfg: &Config) -> anyhow::Result<Vec<Arc<Provider>>> {
     let mut providers = Vec::new();
@@ -78,7 +77,7 @@ pub async fn start_gateway_inner(app: &tauri::AppHandle) -> Result<String, IpcEr
     *ctrl.providers.lock().unwrap() = providers;
 
     tracing::info!(addr = %addr, "网关已启动");
-    update_tray(app, true);
+    let _ = app.emit("gateway-state-changed", true);
     let _ = db::set_setting(&ctrl.db.lock().unwrap(), "gateway_running", "1");
     Ok(addr)
 }
@@ -93,7 +92,7 @@ pub async fn stop_gateway_inner(app: &tauri::AppHandle) -> Result<(), IpcError> 
     *ctrl.providers.lock().unwrap() = Vec::new();
     let _ = db::set_setting(&ctrl.db.lock().unwrap(), "gateway_running", "0");
     tracing::info!("网关已停止");
-    update_tray(app, false);
+    let _ = app.emit("gateway-state-changed", false);
     Ok(())
 }
 

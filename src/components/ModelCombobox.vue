@@ -5,7 +5,6 @@ const props = defineProps<{
   modelValue: string | null | undefined
   options: string[]
   placeholder?: string
-  /** 候选正在异步加载中（下拉面板显示加载提示，避免候选突然增多抖动） */
   loading?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
@@ -14,13 +13,11 @@ const open = ref(false)
 const inputEl = ref<HTMLInputElement | null>(null)
 const query = ref('')
 
-/** 输入框显示值：始终与 modelValue 同步（可手动编辑） */
 const display = computed({
   get: () => props.modelValue ?? '',
   set: (v: string) => emit('update:modelValue', v === '' ? null : v)
 })
 
-/** 下拉候选：按当前输入文本过滤 */
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   const base = props.options
@@ -33,7 +30,6 @@ function onFocus() {
   open.value = true
 }
 async function onBlur() {
-  // 延迟关闭，让 mousedown 选值先生效
   await nextTick()
   setTimeout(() => {
     open.value = false
@@ -87,7 +83,6 @@ function clearVal() {
   width: 100%;
   max-width: 420px;
 }
-/* input 样式与系统 .row > input / .row > select 完全一致，无额外装饰 */
 .combo-input {
   width: 100%;
   background: var(--bg-weak);
@@ -109,7 +104,6 @@ function clearVal() {
 .combo-input::placeholder {
   color: var(--text-weaker);
 }
-/* 自定义下拉面板 */
 .combo-menu {
   position: absolute;
   top: calc(100% + 3px);

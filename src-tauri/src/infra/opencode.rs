@@ -16,6 +16,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
+use crate::infra::process;
+
 // ===================== 路径 =====================
 
 /// 返回 opencode 全局配置文件路径。
@@ -527,18 +529,7 @@ pub fn save(form: &OcForm) -> std::io::Result<()> {
     merge_form(&mut root, form);
 
     // 备份原文件（存在时）—— 带时间戳，避免多次保存互相覆盖
-    if path.exists() {
-        // opencode.jsonc → opencode.jsonc.20260717_153045.bak
-        let ts = chrono::Local::now().format("%Y%m%d_%H%M%S");
-        let bak_name = format!("{}.{}.bak", path.file_name().unwrap_or_default().to_string_lossy(), ts);
-        let bak_path = path
-            .parent()
-            .map(|p| p.join(&bak_name))
-            .unwrap_or_else(|| std::path::PathBuf::from(&bak_name));
-        if let Err(e) = std::fs::copy(&path, &bak_path) {
-            tracing::warn!(err = %e, "备份 opencode 配置失败，继续写入");
-        }
-    }
+    process::backup_file(&path);
 
     // 确保父目录存在
     if let Some(parent) = path.parent() {
@@ -556,26 +547,7 @@ pub fn save(form: &OcForm) -> std::io::Result<()> {
 /// 通过系统 shell 执行 `opencode <args>`，由 shell 负责按 PATH / PATHEXT 解析
 /// （Windows 上 opencode 是 npm/bun 生成的 .cmd shim，需经 cmd.exe；Unix 经 sh）。
 fn run_opencode(args: &str) -> std::io::Result<std::process::Output> {
-    let (shell, flag) = if cfg!(target_os = "windows") {
-        ("cmd.exe", "/c")
-    } else {
-        ("sh", "-c")
-    };
-    let mut cmd = std::process::Command::new(shell);
-    cmd.arg(flag)
-        .arg(format!("opencode {args}"))
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    #[cfg(target_os = "windows")]
-    hide_console(&mut cmd);
-    cmd.output()
-}
-
-#[cfg(target_os = "windows")]
-fn hide_console(cmd: &mut std::process::Command) {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    cmd.creation_flags(CREATE_NO_WINDOW);
+    process::run_bin("opencode", args)
 }
 
 /// 执行 `opencode models`，从其输出（每行 `provider/model`）中同时提取：

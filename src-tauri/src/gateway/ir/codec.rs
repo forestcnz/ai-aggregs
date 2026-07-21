@@ -15,7 +15,7 @@ use serde_json::{json, Map, Value};
 use crate::gateway::convert_helpers::{
     clean_schema, strip_cache_control, strip_leading_anthropic_billing_header,
 };
-use crate::gateway::converter::{created_now, rand_id};
+use crate::gateway::ir::helpers::{created_now, rand_id};
 use crate::gateway::ir::{
     InternalContent, InternalFinishReason, InternalMessage, InternalReasoning,
     InternalReasoningBlock, InternalRequest, InternalResponse, InternalRole, InternalTool,

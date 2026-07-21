@@ -34,12 +34,6 @@ use usage::sniff_usage;
 
 // ===================== 公共入口 =====================
 
-/// 便捷入口（使用全局默认 StreamConfig）。handler.rs 已迁移到 _with_config 版本。
-#[allow(dead_code)]
-pub fn stream_passthrough(resp: reqwest::Response, ctx: UsageCtx) -> Response {
-    stream_passthrough_with_config(resp, ctx, StreamConfig::default())
-}
-
 pub fn stream_passthrough_with_config(
     resp: reqwest::Response,
     ctx: UsageCtx,
@@ -138,17 +132,6 @@ pub fn stream_passthrough_with_config(
 
     let body = Body::from_stream(tokio_stream::wrappers::ReceiverStream::new(rx));
     sse_response(body)
-}
-
-/// 便捷入口（使用全局默认 StreamConfig）。handler.rs 已迁移到 _with_config 版本。
-#[allow(dead_code)]
-pub async fn stream_convert(
-    resp: reqwest::Response,
-    src: Protocol,
-    dst: Protocol,
-    ctx: UsageCtx,
-) -> Result<Response, AppError> {
-    stream_convert_with_config(resp, src, dst, ctx, StreamConfig::default()).await
 }
 
 pub async fn stream_convert_with_config(

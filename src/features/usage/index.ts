@@ -1,5 +1,5 @@
 import { ref, onMounted, onActivated, watch } from 'vue'
-import { getConfig, getUsage, maskKey, type UsageSummary, type Config } from '../../api/commands'
+import { getConfig, getUsage, fmtNum, colorForModel, type UsageSummary, type Config } from '../../api/commands'
 
 export function useUsage() {
   const config = ref<Config | null>(null)
@@ -29,22 +29,6 @@ export function useUsage() {
     }
   }
 
-  // 格式化 token 数字（K / M）
-  function fmtNum(n: number): string {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
-    return String(n)
-  }
-
-  // 遮蔽 consumer key 中间部分（统一使用 api/commands.ts 中的实现，与后端一致）
-
-  // 模型配色（克制调色板）
-  const palette = ['#1f1e1e', '#646363', '#7c3aed', '#03b000', '#c0703a', '#2d7d8c', '#8b4513']
-
-  function colorForModel(index: number): string {
-    return palette[index % palette.length]
-  }
-
   // 筛选变化时重新加载
   watch([selectedKey, selectedDays], () => {
     loadUsage()
@@ -69,7 +53,6 @@ export function useUsage() {
     loading,
     loadUsage,
     fmtNum,
-    maskKey,
     colorForModel
   }
 }

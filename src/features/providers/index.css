@@ -24,11 +24,6 @@
   padding: 5px 10px;
   font-size: 12px;
 }
-.btn.xs {
-  padding: 3px 8px;
-  font-size: 11px;
-}
-
 /* ---- 卡片网格 ---- */
 .card-grid {
   display: grid;

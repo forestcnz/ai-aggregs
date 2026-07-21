@@ -11,7 +11,7 @@ mod observability;
 
 use std::sync::Mutex;
 
-use tauri::Manager;
+use tauri::{Listener, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 
 use crate::api::commands::*;
@@ -19,7 +19,7 @@ use crate::config::state::AppCtrl;
 use crate::config::types::default_config;
 use crate::infra::db;
 use crate::infra::log_bridge;
-use crate::infra::tray::build_tray;
+use crate::infra::tray::{build_tray, update_tray};
 
 // ===================== 日志/用量清理参数（集中常量） =====================
 /// 日志保留天数
@@ -135,6 +135,13 @@ pub fn run() {
 
             let tray_items = build_tray(app.handle())?;
             app.manage(tray_items);
+
+            // 监听 gateway-state-changed 事件以更新托盘显示
+            let app_handle = app.handle().clone();
+            app.listen("gateway-state-changed", move |event: tauri::Event| {
+                let running: bool = serde_json::from_str(event.payload()).unwrap_or(false);
+                update_tray(&app_handle, running);
+            });
 
             // 网关自动恢复改由前端在页面就绪（ready）后通过
             // autostart_gateway_if_configured 触发，避免网关先于界面就绪。

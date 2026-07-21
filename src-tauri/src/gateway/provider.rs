@@ -329,10 +329,6 @@ impl Provider {
                 .stream_first_output_timeout_secs
                 .filter(|&v| v > 0)
                 .map(std::time::Duration::from_secs),
-            interval_timeout: self
-                .stream_interval_timeout_secs
-                .filter(|&v| v > 0)
-                .map(std::time::Duration::from_secs),
         }
     }
 

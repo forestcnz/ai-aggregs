@@ -6,7 +6,7 @@ import {
   CC_MODEL_FIELDS,
   isSecretKey
 } from './index'
-import ModelCombobox from '../opencode-config/ModelCombobox.vue'
+import ModelCombobox from '../../components/ModelCombobox.vue'
 
 defineProps<{ version?: string | null }>()
 

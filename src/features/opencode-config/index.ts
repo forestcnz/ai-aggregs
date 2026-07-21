@@ -5,6 +5,8 @@ import {
   opencodeModelsCatalog,
   getConfig,
   maskKey,
+  gatewayV1Url,
+  fileBaseName as fileBaseNameFn,
   type OcForm,
   type OcProvider,
   type OcModel
@@ -57,16 +59,6 @@ function emptyProvider(id = '', baseUrl = ''): OcProvider {
     options: { baseURL: baseUrl || null, apiKey: null },
     models: []
   }
-}
-
-/** 把网关 listen 地址（如 `127.0.0.1:8000`）规范化为 `http://127.0.0.1:8000/v1` */
-function gatewayV1Url(listen: string): string {
-  const addr = listen.trim()
-  if (!addr) return ''
-  const withScheme = addr.startsWith('http://') || addr.startsWith('https://')
-    ? addr
-    : `http://${addr}`
-  return withScheme.endsWith('/v1') ? withScheme : `${withScheme}/v1`
 }
 
 export function useOpencodeConfig() {
@@ -146,12 +138,7 @@ export function useOpencodeConfig() {
   )
 
   /** 从完整路径中提取文件名（如 opencode.jsonc / opencode.json） */
-  const fileBaseName = computed(() => {
-    const p = filePath.value
-    if (!p) return 'opencode.jsonc'
-    const parts = p.replace(/\\/g, '/').split('/')
-    return parts[parts.length - 1] || 'opencode.jsonc'
-  })
+  const fileBaseName = computed(() => fileBaseNameFn(filePath.value, 'opencode.jsonc'))
 
   async function load() {
     loading.value = true

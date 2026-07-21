@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 
 use crate::config::types::Protocol;
-use crate::gateway::converter::{created_now, map_finish_reason_chat_to_anthropic, rand_id};
+use crate::gateway::ir::helpers::{created_now, map_finish_reason_chat_to_anthropic, rand_id};
 use crate::gateway::ir::{BlockKind, ChunkEvent, InternalFinishReason, InternalUsage};
 use crate::gateway::stream::StreamConverter;
 
@@ -1126,13 +1126,6 @@ impl AnthropicEmitter {
         }
         out
     }
-
-    /// 尝试宣告一个 tool_block（id + name 同时到齐时）。
-    ///
-    /// 注：宣告决策已内联到 on_event 的 ToolCallStart / ToolCallArgsDelta 分支，
-    /// 本方法保留为占位（暂无外部调用）；未来若需要从其它事件触发宣告可复用。
-    #[allow(dead_code)]
-    fn try_announce_tool(&mut self, _upstream_index: usize, _out: &mut Vec<String>) {}
 
     fn on_done(&mut self) -> Vec<String> {
         if self.sent_done {

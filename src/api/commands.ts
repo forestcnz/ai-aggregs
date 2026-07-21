@@ -394,6 +394,35 @@ export function onGatewayStateChanged(callback: (running: boolean) => void): Pro
 
 // ===================== 工具函数 =====================
 
+/** 把网关 listen 地址（如 `127.0.0.1:8000`）规范化为 `http://127.0.0.1:8000/v1` */
+export function gatewayV1Url(listen: string): string {
+  const addr = listen.trim()
+  if (!addr) return ''
+  const withScheme =
+    addr.startsWith('http://') || addr.startsWith('https://') ? addr : `http://${addr}`
+  return withScheme.endsWith('/v1') ? withScheme : `${withScheme}/v1`
+}
+
+/** 从绝对路径中提取文件名 */
+export function fileBaseName(path: string, fallback = 'file'): string {
+  if (!path) return fallback
+  const parts = path.replace(/\\/g, '/').split('/')
+  return parts[parts.length - 1] || fallback
+}
+
+/** 格式化 token 数字（K / M） */
+export function fmtNum(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
+  return String(n)
+}
+
+/** 模型分配色（克制调色板） */
+const palette = ['#1f1e1e', '#646363', '#7c3aed', '#03b000', '#c0703a', '#2d7d8c', '#8b4513']
+export function colorForModel(index: number): string {
+  return palette[index % palette.length]
+}
+
 /** 把 ApiKeyEntry 统一为 {key, enabled} 格式（兼容旧的纯字符串） */
 export function normalizeKey(entry: ApiKeyEntry): { key: string; enabled: boolean } {
   if (typeof entry === 'string') {

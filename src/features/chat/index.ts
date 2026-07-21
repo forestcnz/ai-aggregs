@@ -1,5 +1,5 @@
 import { ref, nextTick, onMounted, computed } from 'vue'
-import { getConfig, maskKey, type GatewayStatus, type Config } from '../../api/commands'
+import { getConfig, type GatewayStatus, type Config } from '../../api/commands'
 import { useDialog } from '../../composables/useDialog'
 
 type ChatProtocol = 'chat' | 'responses' | 'anthropic'
@@ -374,8 +374,6 @@ export function useChat(props: { status: GatewayStatus }) {
     }
   }
 
-  // ---- 工具：掩码显示 key（统一使用 api/commands.ts 中的实现）----
-
   return {
     protocol,
     selectedModel,
@@ -387,7 +385,6 @@ export function useChat(props: { status: GatewayStatus }) {
     textareaRef,
     models,
     apiKeys,
-    maskKey,
     send,
     stop,
     clearChat,

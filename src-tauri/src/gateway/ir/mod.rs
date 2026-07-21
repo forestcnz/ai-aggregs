@@ -21,6 +21,8 @@ use std::collections::HashMap;
 pub mod codec;
 // 子模块：流式 chunk 与 IR 的双向映射 + 4 个方向 stream converter
 pub mod stream_codec;
+// 子模块：公用 helper（ID/时间戳/finish_reason 映射）
+pub mod helpers;
 
 /// 统一内部请求：作为协议转换的中间表示。
 ///
@@ -288,11 +290,16 @@ pub enum ChunkEvent {
     /// 流结束（[DONE]）
     Done,
     /// 内容块开始（仅 Anthropic/Responses 显式，Chat 不区分）
-    #[allow(dead_code)]
-    BlockStart { index: usize, kind: BlockKind },
+    BlockStart {
+        #[allow(dead_code)]
+        index: usize,
+        kind: BlockKind,
+    },
     /// 内容块结束
-    #[allow(dead_code)]
-    BlockStop { index: usize },
+    BlockStop {
+        #[allow(dead_code)]
+        index: usize,
+    },
     /// 文本增量
     TextDelta(String),
     /// 推理内容增量

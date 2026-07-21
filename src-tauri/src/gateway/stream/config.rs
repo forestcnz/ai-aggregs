@@ -10,7 +10,7 @@ use bytes::BytesMut;
 /// 流式请求的超时与心跳配置。
 ///
 /// 所有字段为 `Option<Duration>`：`None` 表示禁用对应特性。
-/// 默认值通过 `StreamConfig::default()` 提供（keepalive=15s / first-output=120s / interval=60s）。
+/// 默认值通过 `StreamConfig::default()` 提供（keepalive=15s / first-output=120s）。
 ///
 /// 配置来源（优先级递减）：
 /// 1. ProviderConfig 的 `stream_*` 字段（provider 级覆盖）
@@ -21,9 +21,6 @@ pub struct StreamConfig {
     pub keepalive_interval: Option<Duration>,
     /// 首字超时：上游首个有效 chunk 到达前的最长等待
     pub first_output_timeout: Option<Duration>,
-    /// 间隔超时：两个上游 chunk 间的最长间隔
-    #[allow(dead_code)]
-    pub interval_timeout: Option<Duration>,
 }
 
 impl Default for StreamConfig {
@@ -31,28 +28,6 @@ impl Default for StreamConfig {
         Self {
             keepalive_interval: Some(Duration::from_secs(15)),
             first_output_timeout: Some(Duration::from_secs(120)),
-            interval_timeout: Some(Duration::from_secs(60)),
-        }
-    }
-}
-
-impl StreamConfig {
-    /// 从 ProviderConfig 的可选字段构造（provider 级覆盖），缺省回退全局默认
-    #[allow(dead_code)]
-    pub fn from_provider(cfg: &crate::config::types::ProviderConfig) -> Self {
-        Self {
-            keepalive_interval: cfg
-                .stream_keepalive_interval_secs
-                .filter(|&v| v > 0)
-                .map(Duration::from_secs),
-            first_output_timeout: cfg
-                .stream_first_output_timeout_secs
-                .filter(|&v| v > 0)
-                .map(Duration::from_secs),
-            interval_timeout: cfg
-                .stream_interval_timeout_secs
-                .filter(|&v| v > 0)
-                .map(Duration::from_secs),
         }
     }
 }

@@ -4,6 +4,7 @@ import {
   claudeCodeConfigSave,
   getConfig,
   maskKey,
+  fileBaseName as fileBaseNameFn,
   type CcForm,
   type CcEnvEntry
 } from '../../api/commands'
@@ -113,12 +114,7 @@ export function useClaudeCodeConfig() {
   )
 
   /** 从完整路径中提取文件名（如 settings.json） */
-  const fileBaseName = computed(() => {
-    const p = filePath.value
-    if (!p) return 'settings.json'
-    const parts = p.replace(/\\/g, '/').split('/')
-    return parts[parts.length - 1] || 'settings.json'
-  })
+  const fileBaseName = computed(() => fileBaseNameFn(filePath.value, 'settings.json'))
 
   const envCount = computed(() => form.value.env.length)
   const customCount = computed(() => customEntries.value.length)

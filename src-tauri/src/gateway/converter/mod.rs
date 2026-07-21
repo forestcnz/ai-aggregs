@@ -4,15 +4,12 @@
 //! - `req_convert(src, s, d)`：A 协议 JSON → IR → B 协议 JSON
 //! - `resp_convert(src, s, d)`：同上，针对响应体
 //!
-//! 模块布局：
-//! - `helpers` — 通用 helper（ID/时间戳、stop_reason 映射、finish_reason 映射；
-//!   部分（rand_id/created_now/map_*_reason）被 stream 模块也用）
-//! - 真正的 parse/emit 实现在 `crate::gateway::ir::codec` 中
+//! 真正的 parse/emit 实现在 `crate::gateway::ir::codec` 中；
+//! 通用 helper（ID/时间戳/finish_reason 映射）在 `crate::gateway::ir::helpers` 中，
+//! 这里通过 pub use 重新导出以保持外部兼容。
 //!
 //! 通过 IR 中转，N 协议只需 N 个 parse + N 个 emit 函数（共 2N），而非 N² 个方向。
 //! Responses ↔ Anthropic 不再走 Chat 双跳，直接经 IR 单跳。
-
-mod helpers;
 
 use serde_json::Value;
 
@@ -23,16 +20,6 @@ use crate::gateway::ir::codec::{
     parse_chat_resp, parse_responses_req, parse_responses_resp,
 };
 use crate::infra::error::AppError;
-
-// 公开的 helper（外部 `stream` 模块也会用）
-pub use helpers::{
-    created_now, map_finish_reason_chat_to_anthropic, rand_id,
-};
-
-// 兼容性占位：原 map_stop_reason_anthropic_to_chat 仍被部分场景使用，
-// 但 IR 化后主要由 ir/codec.rs 内部处理；这里保留导出以防外部调用。
-#[allow(unused_imports)]
-pub use helpers::map_stop_reason_anthropic_to_chat;
 
 // ===================== 分发（A → IR → B） =====================
 

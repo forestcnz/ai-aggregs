@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useOpencodeConfig, MODALITY_OPTIONS, npmSelectOptions } from './index'
-import ModelCombobox from './ModelCombobox.vue'
-import MultiCombobox from './MultiCombobox.vue'
+import ModelCombobox from '../../components/ModelCombobox.vue'
+import MultiCombobox from '../../components/MultiCombobox.vue'
 import type { OcModel } from '../../api/commands'
 
 const props = defineProps<{ version?: string | null }>()

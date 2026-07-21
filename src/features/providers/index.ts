@@ -158,13 +158,6 @@ export function useProviderList() {
     modalMode.value = null
   }
 
-  function onDocumentKeydown(e: KeyboardEvent) {
-    // ESC 关闭由 AppModal 组件内部处理；此处保留空函数避免破坏模板调用
-    if (e.key === 'Escape' && modalMode.value) {
-      closeModal()
-    }
-  }
-
   function submitModal() {
     const p = editingProvider.value
     if (!p.name.trim() || !p.base_url.trim()) {
@@ -350,10 +343,9 @@ export function useProviderList() {
   // KeepAlive 下，setInterval 改由 onActivated/onDeactivated 控制：
   // 切走时定时器仍会触发 IPC 拉运行时状态，纯浪费 CPU/数据库连接，
   // 应在切走（onDeactivated）时清理，切回（onActivated）时按需重建。
-  // onMounted 仅做一次性初始化（拉首屏数据 + 全局 keydown 监听）。
+  // onMounted 仅做一次性初始化（拉首屏数据）。
   onMounted(() => {
     refresh()
-    document.addEventListener('keydown', onDocumentKeydown)
   })
   onActivated(() => {
     if (!timer) timer = setInterval(refreshRuntime, 5000)
@@ -369,7 +361,6 @@ export function useProviderList() {
   })
   onUnmounted(() => {
     if (timer) clearInterval(timer)
-    document.removeEventListener('keydown', onDocumentKeydown)
     // 组件卸载时移除可能残留的拖拽监听
     document.removeEventListener('mousemove', onDocMouseMove)
     document.removeEventListener('mouseup', onDocMouseUp)

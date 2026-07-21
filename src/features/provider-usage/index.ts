@@ -3,6 +3,9 @@ import {
   getConfig,
   getProviderUsage,
   normalizeKey,
+  maskKey,
+  fmtNum,
+  colorForModel,
   type UsageSummary,
   type Config
 } from '../../api/commands'
@@ -44,22 +47,6 @@ export function useProviderUsage() {
     } finally {
       loading.value = false
     }
-  }
-
-  function fmtNum(n: number): string {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
-    return String(n)
-  }
-
-  function maskKey(key: string): string {
-    if (key.length <= 10) return key
-    return key.slice(0, 6) + '...' + key.slice(-4)
-  }
-
-  const palette = ['#1f1e1e', '#646363', '#7c3aed', '#03b000', '#c0703a', '#2d7d8c', '#8b4513']
-  function colorForModel(index: number): string {
-    return palette[index % palette.length]
   }
 
   // 供应商切换 → 重置 key 选择并重新加载

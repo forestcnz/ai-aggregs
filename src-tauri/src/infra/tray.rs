@@ -26,7 +26,6 @@ pub fn update_tray(app: &tauri::AppHandle, running: bool) {
         };
         let _ = tray.set_tooltip(Some(tip));
     }
-    let _ = app.emit("gateway-state-changed", running);
 }
 
 pub fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
@@ -79,6 +78,7 @@ pub fn build_tray(app: &tauri::AppHandle) -> tauri::Result<TrayItems> {
                             // 失败时按当前真实状态刷新托盘文字
                             let actual = app.state::<AppCtrl>().server.lock().unwrap().is_some();
                             update_tray(&app, actual);
+                            let _ = app.emit("gateway-state-changed", actual);
                         }
                     }
                 });

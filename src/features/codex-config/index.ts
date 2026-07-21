@@ -4,6 +4,8 @@ import {
   codexConfigSave,
   getConfig,
   maskKey,
+  gatewayV1Url,
+  fileBaseName as fileBaseNameFn,
   type CodexForm,
   type CodexProvider
 } from '../../api/commands'
@@ -25,16 +27,6 @@ function emptyForm(): CodexForm {
     enable_model_catalog: false,
     catalog_models: []
   }
-}
-
-/** 把网关 listen（如 `127.0.0.1:8000`）规范化为 Codex base URL：`http://127.0.0.1:8000/v1`
- * （Codex 走 Responses 协议，会向 {base_url}/responses 发请求，故需带 /v1） */
-function gatewayV1Url(listen: string): string {
-  const addr = listen.trim()
-  if (!addr) return ''
-  const withScheme =
-    addr.startsWith('http://') || addr.startsWith('https://') ? addr : `http://${addr}`
-  return withScheme.endsWith('/v1') ? withScheme : `${withScheme}/v1`
 }
 
 export function useCodexConfig() {
@@ -75,12 +67,7 @@ export function useCodexConfig() {
   })
 
   /** 从完整路径中提取文件名（如 config.toml） */
-  const fileBaseName = computed(() => {
-    const p = filePath.value
-    if (!p) return 'config.toml'
-    const parts = p.replace(/\\/g, '/').split('/')
-    return parts[parts.length - 1] || 'config.toml'
-  })
+  const fileBaseName = computed(() => fileBaseNameFn(filePath.value, 'config.toml'))
 
   async function load() {
     loading.value = true

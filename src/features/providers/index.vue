@@ -3,7 +3,7 @@ defineOptions({ name: 'ProviderList' })
 import { useProviderList } from './index'
 import { normalizeKey } from '../../api/commands'
 import AppModal from '../../components/AppModal.vue'
-import MultiCombobox from '../opencode-config/MultiCombobox.vue'
+import MultiCombobox from '../../components/MultiCombobox.vue'
 
 defineProps<{ gatewayRunning: boolean }>()
 const {

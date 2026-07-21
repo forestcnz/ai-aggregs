@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useCodexConfig } from './index'
-import ModelCombobox from '../opencode-config/ModelCombobox.vue'
-import MultiCombobox from '../opencode-config/MultiCombobox.vue'
+import ModelCombobox from '../../components/ModelCombobox.vue'
+import MultiCombobox from '../../components/MultiCombobox.vue'
 
 defineProps<{ version?: string | null }>()
 

@@ -40,34 +40,6 @@
   margin-bottom: 18px;
 }
 
-/* 注释丢失提示横幅 */
-.comment-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 13px;
-  margin-bottom: 14px;
-  border: 1px solid #c0703a;
-  border-radius: var(--r-md);
-  background: rgba(192, 112, 58, 0.04);
-  font-size: 11px;
-  color: var(--text);
-  line-height: 1.6;
-}
-.comment-banner .ic {
-  color: #c0703a;
-  flex-shrink: 0;
-  font-weight: 600;
-}
-.comment-banner b {
-  color: var(--text-strong);
-  font-weight: 500;
-}
-.comment-banner .dismiss {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
 /* 工具栏 */
 .oc-toolbar {
   display: flex;
@@ -105,53 +77,6 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-}
-
-/* 下拉菜单 */
-.dropdown {
-  position: relative;
-}
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  z-index: 40;
-  background: var(--bg);
-  border: 1px solid var(--text-strong);
-  border-radius: var(--r-md);
-  min-width: 230px;
-  padding: 5px;
-  box-shadow: 0 6px 20px rgba(31, 30, 30, 0.12);
-}
-.chev {
-  transition: var(--transition);
-}
-.dm-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: var(--transition);
-}
-.dm-item:hover {
-  background: var(--bg-weak);
-}
-.dm-item b {
-  font-size: 12px;
-  color: var(--text-strong);
-  font-weight: 600;
-}
-.dm-item span {
-  font-size: 10px;
-  color: var(--text-weak);
-  line-height: 1.5;
-}
-.dm-sep {
-  height: 1px;
-  background: var(--border-weak);
-  margin: 4px 2px;
 }
 
 /* group 容器 */
