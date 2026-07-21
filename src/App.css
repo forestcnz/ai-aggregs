@@ -113,6 +113,8 @@
   padding: 14px 12px;
   gap: 2px;
   flex-shrink: 0;
+  /* 启动入场：从左侧滑入，配合下方 nav-item 错峰淡入 */
+  animation: sidebar-slide-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .nav-item {
   display: flex;
@@ -125,6 +127,10 @@
   font-weight: 400;
   text-decoration: none;
   transition: var(--transition);
+  /* 启动入场：按 --i 顺序错峰淡入（i 由模板内联 style 提供） */
+  opacity: 0;
+  animation: nav-item-fade-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.08s + var(--i, 0) * 0.045s);
 }
 .nav-item:hover {
   background: var(--bg-weak);
@@ -208,6 +214,34 @@
   .app-loading .spinner {
     animation: none;
     border-top-color: var(--border);
+  }
+  /* 侧边栏入场动效在 reduced-motion 下一律关闭，nav-item 直接可见 */
+  .sidebar {
+    animation: none;
+  }
+  .nav-item {
+    opacity: 1;
+    animation: none;
+  }
+}
+@keyframes sidebar-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes nav-item-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 .content-flush {

@@ -144,14 +144,15 @@ const navTabs = computed(() => {
         <div class="sub">正在初始化…</div>
       </div>
       <template v-else>
-      <!-- 侧边栏 -->
+      <!-- 侧边栏 — ready 后从左侧滑入，nav-item 按序错峰淡入 -->
       <nav class="sidebar">
         <a
-          v-for="tab in navTabs"
+          v-for="(tab, i) in navTabs"
           :key="tab.id"
           href="#"
           class="nav-item"
           :class="{ active: activeTab === tab.id }"
+          :style="{ '--i': i }"
           @click.prevent="activeTab = tab.id as any"
         >
           <!-- 导航图标：线条方头 -->
