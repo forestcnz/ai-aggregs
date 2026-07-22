@@ -319,7 +319,8 @@ fn extract_usage_supports_openai_nested_cache_tokens() {
     let (input, output, total) = extract_usage(&response).expect("should extract");
     assert_eq!(input, 260);
     assert_eq!(output, 200);
-    assert_eq!(total, 380);
+    // total = input(含cache) + output = 260 + 200 = 460，不信任上游 total_tokens(380，不含cache)
+    assert_eq!(total, 460);
 }
 
 #[test]

@@ -81,11 +81,10 @@ pub fn extract_usage(v: &Value) -> Option<(u64, u64, u64)> {
             );
             // 加法哲学：cache 部分（命中+写入）同样按输入价计费，与上游计费规则一致
             let prompt_total = pt + cached + cache_creation;
-            let tt = u
-                .get("total_tokens")
-                .and_then(|x| x.as_u64())
-                .unwrap_or(prompt_total + ct);
-            return Some((prompt_total, ct, tt));
+            // total 不能信任上游的 total_tokens：其口径 = prompt_tokens + completion_tokens，
+            // 不含 cache token。若直接用上游值会导致 total < input（当 input 已合并 cache 时）。
+            // 始终用 prompt_total + ct 重新计算，确保 total >= input。
+            return Some((prompt_total, ct, prompt_total + ct));
         }
         // Anthropic / Responses 风格：usage.input_tokens / output_tokens
         // 加上 cache_creation_input_tokens / cache_read_input_tokens
