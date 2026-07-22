@@ -376,7 +376,10 @@
   padding: 5px 7px;
   cursor: text;
   min-height: 34px;
+  max-height: 120px;
+  overflow-y: auto;
   transition: var(--transition);
+  width: 100%;
 }
 .chip-input:focus-within {
   background: var(--bg-interactive-weaker);
@@ -418,7 +421,8 @@
 }
 .chip-field {
   flex: 1;
-  min-width: 130px;
+  min-width: 80px;
+  max-width: 100%;
   border: none;
   outline: none;
   background: transparent;
@@ -432,6 +436,7 @@
 /* 模型下拉容器：让 combo-menu 相对此容器定位 */
 .model-combo-wrap {
   position: relative;
+  width: 100%;
 }
 
 /* 下拉面板 — 与 ModelCombobox 一致 */
