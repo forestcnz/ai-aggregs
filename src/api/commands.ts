@@ -32,6 +32,10 @@ export interface ProviderConfig {
   enabled: boolean
   /** 固定思考强度（注入到发给上游的请求体），null 表示不注入 */
   reasoning_effort?: string | null
+  /** HTTP 代理 URL，如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080 */
+  proxy_url?: string | null
+  /** 代理认证 user:password，仅 proxy_url 设置时生效 */
+  proxy_auth?: string | null
 }
 
 /** 模型映射：把对外别名重定向到一组实际后端模型（负载均衡 / 故障转移） */

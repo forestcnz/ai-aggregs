@@ -53,7 +53,9 @@ export function useProviderList() {
       models: [],
       timeout_secs: 3000,
       enabled: true,
-      reasoning_effort: null
+      reasoning_effort: null,
+      proxy_url: null,
+      proxy_auth: null
     }
   }
 

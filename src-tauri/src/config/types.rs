@@ -117,6 +117,13 @@ pub struct ProviderConfig {
     /// 空白字符 ≥500 时中止该 tool 流）。缺省 = 启用。
     #[serde(default)]
     pub detect_infinite_whitespace: Option<bool>,
+    /// HTTP 代理 URL（如 `http://127.0.0.1:7890` 或 `socks5://127.0.0.1:1080`）。
+    /// 设置后该 provider 的所有请求通过此代理发出。
+    #[serde(default)]
+    pub proxy_url: Option<String>,
+    /// 代理认证（可选），格式 `user:password`，仅当 proxy_url 设置时生效。
+    #[serde(default)]
+    pub proxy_auth: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

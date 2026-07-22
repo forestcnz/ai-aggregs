@@ -229,6 +229,8 @@ mod tests {
             stream_first_output_timeout_secs: None,
             stream_interval_timeout_secs: None,
             detect_infinite_whitespace: None,
+            proxy_url: None,
+            proxy_auth: None,
         };
         Arc::new(Provider::new(&pc, 60).unwrap())
     }

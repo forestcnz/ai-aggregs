@@ -80,6 +80,10 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
     migrate_add_column(conn, "providers", "stream_interval_timeout_secs", "INTEGER")?;
     migrate_add_column(conn, "providers", "detect_infinite_whitespace", "INTEGER")?;
 
+    // v3 代理支持：proxy_url / proxy_auth
+    migrate_add_column(conn, "providers", "proxy_url", "TEXT")?;
+    migrate_add_column(conn, "providers", "proxy_auth", "TEXT")?;
+
     Ok(())
 }
 
@@ -133,7 +137,8 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
     let mut stmt = conn.prepare(
         "SELECT id, name, protocol, base_url, timeout_secs, enabled, reasoning_effort,
                 stream_keepalive_interval_secs, stream_first_output_timeout_secs,
-                stream_interval_timeout_secs, detect_infinite_whitespace
+                stream_interval_timeout_secs, detect_infinite_whitespace,
+                proxy_url, proxy_auth
          FROM providers ORDER BY sort_order",
     )?;
     let rows = stmt.query_map([], |row| {
@@ -149,6 +154,8 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             row.get::<_, Option<i64>>(8)?,
             row.get::<_, Option<i64>>(9)?,
             row.get::<_, Option<i64>>(10)?,
+            row.get::<_, Option<String>>(11)?,
+            row.get::<_, Option<String>>(12)?,
         ))
     })?;
 
@@ -165,6 +172,8 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             first_output,
             interval,
             detect_ws,
+            proxy_url,
+            proxy_auth,
         ) = row_result?;
 
         let mut api_keys = Vec::new();
@@ -210,6 +219,8 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             stream_interval_timeout_secs: interval.map(|v| v.max(0) as u64),
             // detect_infinite_whitespace：0 = false, 非 0 = true, NULL = None（默认 true）
             detect_infinite_whitespace: detect_ws.map(|v| v != 0),
+            proxy_url,
+            proxy_auth,
         });
     }
 
@@ -275,7 +286,8 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                 "UPDATE providers SET name=?2, protocol=?3, base_url=?4, timeout_secs=?5,
                  enabled=?6, reasoning_effort=?7, sort_order=?8,
                  stream_keepalive_interval_secs=?9, stream_first_output_timeout_secs=?10,
-                 stream_interval_timeout_secs=?11, detect_infinite_whitespace=?12
+                 stream_interval_timeout_secs=?11, detect_infinite_whitespace=?12,
+                 proxy_url=?13, proxy_auth=?14
                  WHERE id=?1",
                 params![
                     p.id,
@@ -290,6 +302,8 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                     first_output,
                     interval,
                     detect_ws,
+                    p.proxy_url,
+                    p.proxy_auth,
                 ],
             )?;
             p.id
@@ -298,8 +312,9 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                 "INSERT INTO providers
                     (name, protocol, base_url, timeout_secs, enabled, reasoning_effort, sort_order,
                      stream_keepalive_interval_secs, stream_first_output_timeout_secs,
-                     stream_interval_timeout_secs, detect_infinite_whitespace)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                     stream_interval_timeout_secs, detect_infinite_whitespace,
+                     proxy_url, proxy_auth)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                 params![
                     p.name,
                     p.protocol.as_str(),
@@ -312,6 +327,8 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                     first_output,
                     interval,
                     detect_ws,
+                    p.proxy_url,
+                    p.proxy_auth,
                 ],
             )?;
             tx.last_insert_rowid()

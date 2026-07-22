@@ -256,6 +256,25 @@ const {
         </div>
       </div>
 
+      <div class="mf-row">
+        <div class="mf">
+          <label>代理 URL</label>
+          <input
+            v-model="editingProvider.proxy_url"
+            class="f-input"
+            placeholder="http://127.0.0.1:7890 或 socks5://..."
+          />
+        </div>
+        <div class="mf">
+          <label>代理认证（user:password）</label>
+          <input
+            v-model="editingProvider.proxy_auth"
+            class="f-input"
+            placeholder="可选"
+          />
+        </div>
+      </div>
+
       <template #footer>
         <button
           v-if="modalMode === 'edit'"

@@ -221,10 +221,22 @@ impl Provider {
         //   - 非流式：应用 timeout_secs 限制整体响应时间
         //   - 流式：不设置请求超时，避免 SSE 长流被中途切断
         //   （SSE 可能持续数分钟，特别是 reasoning model）
-        let client = reqwest::Client::builder()
+        let mut client_builder = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(30))
-            .pool_idle_timeout(Duration::from_secs(90))
-            .build()?;
+            .pool_idle_timeout(Duration::from_secs(90));
+        if let Some(proxy_url) = &cfg.proxy_url {
+            let trimmed = proxy_url.trim();
+            if !trimmed.is_empty() {
+                let mut proxy = reqwest::Proxy::all(trimmed)?;
+                if let Some(auth) = &cfg.proxy_auth {
+                    if let Some((user, pass)) = auth.split_once(':') {
+                        proxy = proxy.basic_auth(user, pass);
+                    }
+                }
+                client_builder = client_builder.proxy(proxy);
+            }
+        }
+        let client = client_builder.build()?;
         let adapter = adapter_for(cfg.protocol);
         Ok(Self {
             id: cfg.id,
