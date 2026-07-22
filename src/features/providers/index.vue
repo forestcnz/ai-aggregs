@@ -16,6 +16,11 @@ const {
   editingProvider,
   modelInput,
   keyInput,
+  fetchedModels,
+  fetchingModels,
+  showModelDropdown,
+  modelInputEl,
+  filteredFetchedModels,
   onToggleProvider,
   onToggleKey,
   openAdd,
@@ -27,6 +32,9 @@ const {
   modalRemoveModel,
   modalAddKey,
   modalRemoveKey,
+  addFetchedModel,
+  onModelFocus,
+  onModelBlur,
   getRuntime,
   keyRuntime,
   maskKey,
@@ -233,19 +241,42 @@ const {
       </div>
 
       <!-- 模型 -->
-      <div class="mf">
+      <div class="mf model-field">
         <label>模型</label>
-        <div class="chip-input">
-          <span v-for="(m, mi) in editingProvider.models" :key="mi" class="chip">
-            <span class="chip-text">{{ m }}</span>
-            <button class="chip-x" @click="modalRemoveModel(mi)">×</button>
-          </span>
-          <input
-            v-model="modelInput"
-            class="chip-field"
-            :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'"
-            @keydown.enter.prevent="modalAddModel"
-          />
+        <div class="model-combo-wrap">
+          <div class="chip-input">
+            <span v-for="(m, mi) in editingProvider.models" :key="mi" class="chip">
+              <span class="chip-text">{{ m }}</span>
+              <button class="chip-x" @click="modalRemoveModel(mi)">×</button>
+            </span>
+            <input
+              ref="modelInputEl"
+              v-model="modelInput"
+              class="chip-field"
+              :placeholder="editingProvider.models.length ? '' : '模型名，回车添加'"
+              @focus="onModelFocus"
+              @blur="onModelBlur"
+              @keydown.enter.prevent="modalAddModel"
+            />
+          </div>
+          <div v-if="showModelDropdown" class="combo-menu">
+            <div v-if="fetchingModels" class="combo-item combo-loading">获取中…</div>
+            <div v-else-if="!editingProvider.base_url" class="combo-item combo-empty">请先填写 Base URL</div>
+            <div v-else-if="!editingProvider.api_keys.length" class="combo-item combo-empty">请先添加 API Key</div>
+            <div v-else-if="!fetchedModels.length" class="combo-item combo-none">无可用模型</div>
+            <template v-else>
+              <div
+                v-for="m in filteredFetchedModels"
+                :key="m"
+                class="combo-item"
+                :class="{ active: editingProvider.models.includes(m) }"
+                @mousedown.prevent="addFetchedModel(m)"
+              >
+                <span>{{ m }}</span>
+                <span v-if="editingProvider.models.includes(m)" class="combo-check">✓</span>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
 

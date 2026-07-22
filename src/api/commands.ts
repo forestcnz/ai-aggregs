@@ -183,6 +183,17 @@ export const getProviderUsage = (
 ) => invoke<UsageSummary>('get_provider_usage', { providerId, providerKey, days })
 
 /**
+ * 调用上游 provider 的 /v1/models 接口获取可用模型列表。
+ * 用于提供商编辑弹窗中的「从 /models 获取」功能。
+ */
+export const fetchProviderModels = (
+  baseUrl: string,
+  apiKey: string,
+  proxyUrl?: string | null,
+  proxyAuth?: string | null
+) => invoke<string[]>('fetch_provider_models', { baseUrl, apiKey, proxyUrl, proxyAuth })
+
+/**
  * 查询各别名上次成功响应的实际模型（内存记录）。
  * 返回 别名 → 实际模型 的映射，用于设置页高亮当前命中的后端模型。
  */

@@ -2,6 +2,7 @@ use tauri::Manager;
 use tauri_plugin_autostart::ManagerExt;
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use crate::config::state::{AppCtrl, GatewayStatus, ProviderRuntime, UsageModelRow, UsageSummary};
 use crate::config::types::Config;
@@ -470,5 +471,68 @@ pub async fn codex_version() -> Result<Option<String>, IpcError> {
 pub fn gateway_metrics(app: tauri::AppHandle) -> crate::observability::MetricsSnapshot {
     let ctrl = app.state::<AppCtrl>();
     ctrl.metrics.snapshot()
+}
+
+/// 调用上游 provider 的 /v1/models 接口获取可用模型列表。
+/// 用于提供商编辑弹窗中的「从 /models 获取」功能。
+#[tauri::command]
+pub async fn fetch_provider_models(
+    base_url: String,
+    api_key: String,
+    proxy_url: Option<String>,
+    proxy_auth: Option<String>,
+) -> Result<Vec<String>, IpcError> {
+    let base = base_url.trim_end_matches('/');
+    let url = format!("{}/models", base);
+
+    let mut client_builder = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(15));
+    if let Some(pu) = &proxy_url {
+        let trimmed = pu.trim();
+        if !trimmed.is_empty() {
+            let mut proxy = reqwest::Proxy::all(trimmed)
+                .map_err(|e| IpcError(format!("代理配置无效: {e}")))?;
+            if let Some(auth) = &proxy_auth {
+                if let Some((user, pass)) = auth.split_once(':') {
+                    proxy = proxy.basic_auth(user, pass);
+                }
+            }
+            client_builder = client_builder.proxy(proxy);
+        }
+    }
+    let client = client_builder
+        .build()
+        .map_err(|e| IpcError(format!("创建 HTTP 客户端失败: {e}")))?;
+
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .send()
+        .await
+        .map_err(|e| IpcError(format!("请求 /models 失败: {e}")))?;
+
+    if !resp.status().is_success() {
+        return Err(IpcError(format!(
+            "/models 返回 {} {}",
+            resp.status().as_u16(),
+            resp.status().canonical_reason().unwrap_or("")
+        )));
+    }
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| IpcError(format!("解析 /models 响应失败: {e}")))?;
+
+    let data = body["data"]
+        .as_array()
+        .ok_or_else(|| IpcError("/models 响应缺少 data 数组".into()))?;
+
+    let ids: Vec<String> = data
+        .iter()
+        .filter_map(|m| m["id"].as_str().map(String::from))
+        .collect();
+
+    Ok(ids)
 }
 

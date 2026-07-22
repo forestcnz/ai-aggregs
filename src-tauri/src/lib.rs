@@ -183,6 +183,7 @@ pub fn run() {
             codex_config_save,
             codex_version,
             gateway_metrics,
+            fetch_provider_models,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

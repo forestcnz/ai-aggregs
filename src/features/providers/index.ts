@@ -6,6 +6,8 @@ import {
   toggleProvider,
   toggleKey,
   maskKey,
+  fetchProviderModels,
+  normalizeKey,
   type Config,
   type ProviderConfig,
   type ProviderRuntime
@@ -42,6 +44,18 @@ export function useProviderList() {
   const editingIdx = ref(-1)
   const modelInput = ref('')
   const keyInput = ref('')
+
+  // /models 获取
+  const fetchedModels = ref<string[]>([])
+  const fetchingModels = ref(false)
+  const showModelDropdown = ref(false)
+  const modelInputEl = ref<HTMLInputElement | null>(null)
+
+  const filteredFetchedModels = computed(() => {
+    const q = modelInput.value.trim().toLowerCase()
+    if (!q) return fetchedModels.value
+    return fetchedModels.value.filter((m) => m.toLowerCase().includes(q))
+  })
 
   function blankProvider(): ProviderConfig {
     return {
@@ -138,6 +152,8 @@ export function useProviderList() {
     editingIdx.value = -1
     modelInput.value = ''
     keyInput.value = ''
+    fetchedModels.value = []
+    showModelDropdown.value = false
     modalMode.value = 'add'
   }
 
@@ -148,6 +164,8 @@ export function useProviderList() {
     editingIdx.value = idx
     modelInput.value = ''
     keyInput.value = ''
+    fetchedModels.value = []
+    showModelDropdown.value = false
     modalMode.value = 'edit'
   }
 
@@ -208,6 +226,44 @@ export function useProviderList() {
   }
   function modalRemoveModel(i: number) {
     editingProvider.value.models.splice(i, 1)
+  }
+
+  // ---- 从 /models 获取 ----
+
+  async function fetchModels() {
+    if (fetchingModels.value) return
+    const keys = editingProvider.value.api_keys
+    if (!keys.length) return
+    const firstKey = normalizeKey(keys[0]).key
+    fetchingModels.value = true
+    try {
+      fetchedModels.value = await fetchProviderModels(
+        editingProvider.value.base_url,
+        firstKey,
+        editingProvider.value.proxy_url,
+        editingProvider.value.proxy_auth
+      )
+    } catch {
+      fetchedModels.value = []
+    } finally {
+      fetchingModels.value = false
+    }
+  }
+
+  function addFetchedModel(m: string) {
+    if (!editingProvider.value.models.includes(m)) {
+      editingProvider.value.models.push(m)
+    }
+  }
+
+  function onModelFocus() {
+    if (!fetchedModels.value.length && !fetchingModels.value) {
+      fetchModels()
+    }
+    showModelDropdown.value = true
+  }
+  function onModelBlur() {
+    setTimeout(() => { showModelDropdown.value = false }, 150)
   }
 
   function modalAddKey() {
@@ -353,6 +409,11 @@ export function useProviderList() {
     editingProvider,
     modelInput,
     keyInput,
+    fetchedModels,
+    fetchingModels,
+    showModelDropdown,
+    modelInputEl,
+    filteredFetchedModels,
     onToggleProvider,
     onToggleKey,
     openAdd,
@@ -364,6 +425,9 @@ export function useProviderList() {
     modalRemoveModel,
     modalAddKey,
     modalRemoveKey,
+    addFetchedModel,
+    onModelFocus,
+    onModelBlur,
     getRuntime,
     keyRuntime,
     maskKey,
