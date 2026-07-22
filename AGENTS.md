@@ -1,173 +1,52 @@
 # ai-aggregs — Agent 指南
 
-AI API 聚合网关桌面应用。Tauri v2 + Vue 3 + Rust/Axum，同一进程内嵌网关。
+Tauri v2 桌面应用：Vue 3 前端 + Rust/Axum 网关运行在**同一进程**（网关并非独立服务，Axum 监听器挂在 Tauri 应用内，对外仅暴露用户配置的 `listen` 地址）。前端 ↔ 后端通过 Tauri IPC `invoke()` 通信，没有 REST 边界。
 
-## 包管理器
-
-- **JS → Bun**，勿用 npm/yarn/pnpm
-- **Rust → Cargo** (`src-tauri/`)
-
-## 禁止执行
-
-AI 不得执行以下命令（耗时长、会破坏缓存或启动 GUI 进程，不适用于自动化工作流）：
+## 禁止执行（耗时长 / 破坏缓存 / 启动 GUI）
 
 | 命令 | 原因 |
 |------|------|
-| `cargo clean` | 删除构建缓存，导致后续编译极慢 |
+| `cargo clean` | 删除构建缓存，后续编译极慢 |
 | `bun run tauri dev` | 启动完整 Tauri 窗口（GUI），阻塞终端 |
 | `bun run tauri build` | 打包完整安装包，耗时极长 |
 
-如需验证改动，使用 `cargo check`、`cargo clippy`、`bun run build` 等轻量命令替代。
+## 验证改动
 
-## 关键命令
-
-| 用途 | 命令 | 说明 |
+| 目的 | 命令 | 备注 |
 |------|------|------|
-| 完整应用开发 | `bun run tauri dev` | Vite 热重载 + Tauri 窗口 |
-| 仅前端开发 | `bun run dev` | Vite 服务器 :1420，无 Tauri |
-| 类型检查+构建 | `bun run build` | `vue-tsc --noEmit && vite build` |
-| Tauri 安装包 | `bun run tauri build` | MSI/NSIS/DMG |
-| 前端 lint | `bun run lint` | ESLint `src/` |
-| 前端 lint 修复 | `bun run lint:fix` | |
-| 前端格式化 | `bun run format` | Prettier `src/**/*.{ts,vue,css}` |
-| Rust check | `cargo check` | 在 `src-tauri/` 下运行 |
-| Rust lint | `cargo clippy` | 在 `src-tauri/` 下运行 |
-| Rust 格式化 | `cargo fmt` | 在 `src-tauri/` 下运行 |
-| Rust 测试 | `cargo test` | 在 `src-tauri/` 下运行 |
+| 前端 lint | `bun run lint` | 仅检查 `src/` |
+| 前端类型检查 + 构建 | `bun run build` | **这就是类型检查**：脚本先跑 `vue-tsc --noEmit` 再 `vite build`。无独立 `typecheck` 脚本 |
+| Rust 检查 / lint / 测试 | `cargo check` / `cargo clippy` / `cargo test` | **workdir = `src-tauri`** |
+| 格式化前端 | `bun run format` | prettier；或 `format:check` 只校验 |
 
-lint/format 顺序：编辑 → `bun run lint:fix` → `cargo clippy`(Rust) → `bun run build`(类型检查)。
+前端**没有测试运行器**（无 vitest/jest），前端验证 = `lint` + `build`。唯一的测试套件是 Rust 单元/集成测试，集中在协议转换：`src-tauri/src/gateway/tests.rs`。
 
-## 前端 (`src/`)
+## 架构关键点（文件名看不出来的）
 
-### 文件结构 (features 模式)
+- **网关进程模型**：Axum `Router`（`src-tauri/src/api/router.rs`）在 Tauri 应用进程内启动，按请求 URL 路径判定下游协议并转换：
+  - `/v1/chat/completions` → Chat，`/v1/responses` → Responses，`/v1/messages` → Anthropic
+  - 三协议经统一 IR（`gateway/ir/`）互转，单跳完成（`gateway/converter.rs::req_convert`）。改转换逻辑务必同步 `gateway/tests.rs` 的 round-trip / regression 用例。
+- **持久化位置**：SQLite（`rusqlite` 带 `bundled` 特性，随二进制编译）。数据库与日志**写在可执行文件同级目录**，不是工作目录：
+  - `data/config.db`（`infra/db.rs`），`logs/`（log4rs，按天+10MB 双滚动，gzip，保留 30 天 / 上限 10GB）
+  - 调试时去 `target/...` 或安装目录下找，别在仓库根目录找。
 
-```
-src/
-├── api/commands.ts       ← Tauri IPC 封装 + 类型（与 Rust 一一对应）+ 共享工具（maskKey/normalizeKey）
-├── App.{vue,ts,css}      ← 根组件，日志状态提升到此层级；provideDialog() 注入点
-├── components/           ← 全局通用组件
-│   ├── AppToast.vue      ← 全局 toast 容器（由 useDialog 驱动）
-│   ├── AppModal.vue      ← 通用遮罩 + 卡片壳（slot-based）
-│   └── AppConfirm.vue    ← 全局确认/提示框（由 useDialog 驱动）
-├── composables/
-│   └── useDialog.ts      ← 全局弹窗状态 + API（toast/alert/confirm）
-├── features/             ← 按功能拆分
-│   ├── dashboard/        ← 网关状态（仪表盘）
-│   ├── providers/        ← 提供商管理
-│   ├── chat/             ← 聊天
-│   ├── usage/            ← consumer 用量统计
-│   ├── provider-usage/   ← 供应商用量统计
-│   ├── opencode-config/  ← opencode.json 表单编辑
-│   ├── claude-code-config/ ← ~/.claude/settings.json 的 env 段编辑
-│   ├── codex-config/     ← ~/.codex/config.toml 受管 provider 表单编辑
-│   └── settings/         ← 设置
-```
+## 新增 / 修改 IPC 命令（最容易漏步骤）
 
-每个 feature 含 `index.vue`(template + props/emits)、`index.ts`(composable 逻辑)、`index.css`(样式)。
+一次完整的 IPC 契约改动需要**三处协同**，缺一会静默失败或类型错位：
 
-### 模式
+1. **Rust**：`src-tauri/src/api/commands.rs` 写 `#[tauri::command]` 函数
+2. **Rust**：`src-tauri/src/lib.rs` 的 `invoke_handler![...]` 列表里注册该函数名
+3. **TS**：`src/api/commands.ts` 加 `invoke('xxx')` 封装，**类型必须与 Rust 结构体一一对应**（该文件头注明了这一点）。结构体定义在 `src-tauri/src/config/types.rs`、`config/state.rs`。
 
-- **Composable 提取**：逻辑在 `index.ts` 中导出 `useXxx()` 函数，`.vue` 中调用并解构
-- **CSS 提取**：`<style src="./index.css" scoped>`
-- **Props/Emits**：保留在 `.vue` 中（编译器宏，不可外移）
-- **ESLint / vue-tsc**：外部 `.ts` 文件中的 bindings 通过 composable 返回值连接模板，no-unused-vars 在 eslint 配置中放行（`no-explicit-any: off`, `vue/multi-word-component-names: off`）
-- **Prettier**：`semi: false`, `singleQuote: true`, `printWidth: 100`, `trailingComma: "none"`, `tabWidth: 2`
+窗口为 `decorations: false`（自定义标题栏），前端自行处理最小化/最大化/关闭/拖拽；新增窗口控制需在 `capabilities/default.json` 补对应 `core:window:*` 权限。
 
-### 日志
+## 代码风格（偏离常见默认值）
 
-日志状态提升到 `App.vue`，避免切页丢失。通过 `gateway-log` 事件接收，最多保留 10 条。
+- Prettier：**无分号**、单引号、`printWidth: 100`、**无尾随逗号**（`trailingComma: "none"`）
+- ESLint：`@typescript-eslint/no-explicit-any` 已关闭（`any` 允许用）；`vue/multi-word-component-names` 关闭
+- 前端用 Vue 3 `<script setup>` + TS，按 `src/features/<功能>/` 切分；Rust edition 2021，`rustfmt` `max_width = 100`
+- JS 用 **Bun**（`bun install` / `bun run ...`），不用 npm/yarn
 
-### KeepAlive 缓存策略
+## 发版
 
-`App.vue` 内容区用 `<KeepAlive include="ChatView">` **仅缓存 AI 聊天页**（保留聊天记录/输入/发送中状态）。其它 tab 切换时销毁重建，确保每次进入是最新状态。**新增需要缓存的页面时**：给组件加 `defineOptions({ name: 'XxxView' })`，再把名字加到 `include`。**不要直接去掉 `include`**，否则会缓存所有 tab（providers 已知会被旧状态污染）。
-
-### 弹窗（toast / alert / confirm）
-
-**统一通过 `useDialog()` 调用，禁止在 feature 内自建 `msg` ref / `dialogMsg` / 本地 overlay。** `App.vue` 启动时 `provideDialog()` 注入全局状态，`<AppToast/>` + `<AppConfirm/>` 挂在根节点。
-
-```ts
-const { toast, alert, confirm } = useDialog()
-toast('保存成功', 'success')          // info | success | error，默认 2400ms 自动消失
-await alert({ title: '失败', message: String(e) })  // 单按钮，返回 Promise<void>
-const ok = await confirm({ message: '删除？', danger: true, confirmText: '删除' })  // 返回 boolean
-```
-
-- provider 拖拽排序后用 `save(true)` 静默保存（成功不提示，失败才提示）
-- feature 内需要模态框（如 providers 编辑表单）用 `<AppModal>`，通过 `open` prop + `@close` 控制，内容走 slot
-
-## 后端 (`src-tauri/src/`)
-
-### 模块布局
-
-- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 27 个 IPC 命令 + 2 个事件（`gateway-log`、`gateway-state-changed`）
-- `observability.rs` — 网关 metrics（11 个 AtomicU64 无锁计数器：请求/转换/上游错误），通过 `gateway_metrics` IPC 暴露；默认启用
-- `api/commands.rs` — 所有 `#[tauri::command]` 函数
-- `api/handler.rs` — Axum HTTP 请求处理（鉴权、model 路由、协议判定、failover）
-- `api/router.rs` — Axum 路由表 + CORS
-- `gateway/manager.rs` — 网关生命周期（启动/停止/重建/consumer models 同步）
-- `gateway/provider.rs` — 提供商运行时、密钥状态、failover 逻辑
-- `gateway/convert_helpers.rs` — 协议转换辅助（剥离 Claude Code billing header、JSON Schema 规范化、剥离 Anthropic `cache_control`、兼容 OpenAI 多种 cache token 字段）
-- `gateway/reasoning_bridge.rs` — 跨协议 reasoning envelope（base64 编码 thinking signature，经 Chat 中转时不丢失；Anthropic↔Responses 双跳关键）
-- `gateway/ir/` — **统一 IR 中间表示层（A→IR→B 单跳）**
-  - `mod.rs` — 类型定义（`InternalRequest`/`InternalResponse`/`ChunkEvent` 等）
-  - `codec/` — 非流式 req/resp 的 parse/emit 函数（Chat/Anthropic/Responses ↔ IR，每协议一个文件）
-  - `relay/` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 `IrStreamConverter`
-- `gateway/converter.rs` — 协议转换 dispatcher（`req_convert`/`resp_convert` 走 IR 单跳，消除原 Responses↔Anthropic 双跳经 Chat 的字段丢失风险）；同时提供 ID/timestamp/stop_reason 映射工具函数
-- `gateway/stream/` — 流式协议转换的入口与基础设施（`mod.rs` 暴露 `stream_passthrough_with_config`/`stream_convert_with_config` + `make_converter`，`pipeline.rs` 提供 `StreamConverter` trait + `Noop`，`usage.rs`/`config.rs` 辅助）。真正的转换逻辑在 `gateway/ir/relay/`
-- `error.rs` — `AppError`(Axum HTTP) + `IpcError`(Tauri IPC)
-- `config/types.rs` — `Config`、`Protocol`、`ApiKeyEntry` 等纯数据类型
-- `config/state.rs` — `AppCtrl`、`AppState`、`ServerHandle`、IPC 返回类型
-- `config/opencode/` — `opencode.json` 读写/解析/合并（剥注释、表单↔JSON 双向转换）
-- `config/codex/` — `~/.codex/config.toml` 受管 provider 读写/合并（路径优先 `CODEX_HOME` 否则 `$HOME/.codex`；仅覆盖受管 provider 的 `name`/`base_url`/`experimental_bearer_token` + 顶层 `model`/`model_provider`，其它键原样保留；**TOML `#` 注释在 `toml::to_string` 后会丢失，保存前自动备份 `config.toml.YYYYMMDD_HHMMSS.bak` 并通过 `has_comments` 提示前端**；Codex 仅支持 `wire_api = "responses"`，网关以 `/v1/responses` 对接）
-- `config/claude/` — `~/.claude/settings.json` 的 `env` 段读写/合并（整体替换 env，保留其它顶层字段；备份 `.bak`；执行 `claude --version`）
-- `infra/db.rs` — SQLite 持久化（bundled rusqlite）
-- `infra/log_bridge.rs` — tracing → log4rs 桥接 + 日志热更新 + 前端事件
-- `infra/tray.rs` — 系统托盘
-
-### 关键行为
-
-- 网关不暴露独立端口，Axum 嵌在 Tauri 进程内
-- 关闭窗口→隐藏到系统托盘，不从进程退出（托盘菜单退出）
-- `--minimized` 标志：启动时隐藏窗口（开机自启用此标志）
-- **async 命令中的 DB 操作必须用 `tauri::async_runtime::spawn_blocking` 包裹**（`save_config`、`UsageCtx::record` 已遵循此模式）。DB 连接是 `Arc<Mutex<rusqlite::Connection>>`（同步 rusqlite，非 async），在 async 路径直接 `.lock()` 会阻塞 tokio worker
-- 流式请求（SSE）不应用总超时：`Provider::client` 只设 `connect_timeout`，非流式请求通过 `RequestBuilder::timeout()` 单独设置
-- consumer key 比较用 `constant_time_eq`（防 timing attack）；未配置 key 时放行但启动告警
-
-### 协议自动检测 (URL 路径)
-
-| 路径 | 协议 |
-|------|------|
-| `/v1/chat/completions` | Chat |
-| `/v1/responses` | Responses |
-| `/v1/messages` | Anthropic |
-
-### 故障转移规则
-
-- 按配置的提供商顺序尝试
-- 仅在 **429 / 5xx / 超时** 时切换提供商
-- 4xx（非 429）不触发 failover
-- 所有密钥都被限流时，黑名单每 10 分钟全局重置一次
-
-### 类型约定
-
-`ApiKeyEntry` 是 untagged 枚举：纯字符串 `"sk-xxx"` 或对象 `{ key, enabled }`。前端用 `normalizeKey()` 统一。
-
-### 配置自动同步
-
-保存配置时 `consumer.models` 从所有已启用提供商的 models 并集重新计算。
-
-## 数据存储
-
-- `data/config.db` — SQLite（在可执行文件旁）
-- `logs/` — 日志文件（在可执行文件旁），log4rs 按天+大小双滚动，gzip 归档，保留 30 天，上限 10GB
-
-## 测试
-
-- **仅 Rust 端**有测试基础设施：`cargo test`（`src-tauri/` 下）
-- **前端无测试运行器**，勿添加
-
-## CI
-
-`.github/workflows/build.yml` — 推送 `v*` tag 触发，在 Windows + macOS (Intel + ARM) 上并行构建。产物上传到 GitHub Release（非 draft），使用 `tauri-action`。
-- 触发：`git tag v0.1.0 && git push origin v0.1.0`
-- 手动触发：GitHub 页面 → Actions → Build → Run workflow
+CI（`.github/workflows/build.yml`）仅在推送 `v*` tag 时触发，矩阵构建 Windows + macOS（aarch64 / x86_64），用 `tauri-apps/tauri-action` 发布 GitHub Release。本地不要跑 `tauri build`。
