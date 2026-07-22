@@ -1,0 +1,258 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+}
+
+/* ============================================================
+   自定义标题栏 — opencode.ai 风格
+   ============================================================ */
+.titlebar {
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-weak);
+  background: var(--bg);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+}
+.titlebar-brand {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+
+.titlebar-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+}
+.titlebar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  font-size: 10px;
+  color: var(--text-weak);
+}
+.titlebar-pill .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.titlebar-pill .dot.on {
+  background: var(--green);
+}
+.titlebar-pill .dot.off {
+  background: var(--text-weaker);
+}
+.titlebar-pill .pill-text {
+  color: var(--text);
+}
+.titlebar-pill .pill-addr {
+  color: var(--text-weak);
+}
+
+/* 窗口控制按钮 */
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+.win-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-weak);
+  transition: var(--transition);
+  font-family: inherit;
+}
+.win-btn:hover {
+  background: var(--bg-weak);
+  color: var(--text-strong);
+}
+.win-close:hover {
+  background: var(--red);
+  color: var(--text-inverted);
+}
+
+/* ============================================================
+   主体区
+   ============================================================ */
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.sidebar {
+  width: 200px;
+  border-right: 1px solid var(--border-weak);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px;
+  gap: 2px;
+  flex-shrink: 0;
+  /* 启动入场：从左侧滑入，配合下方 nav-item 错峰淡入 */
+  animation: sidebar-slide-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  text-decoration: none;
+  transition: var(--transition);
+  /* 启动入场：按 --i 顺序错峰淡入（i 由模板内联 style 提供） */
+  opacity: 0;
+  animation: nav-item-fade-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.08s + var(--i, 0) * 0.045s);
+}
+.nav-item:hover {
+  background: var(--bg-weak);
+  color: var(--text-strong);
+}
+.nav-item.active {
+  background: var(--bg-strong);
+  color: var(--text-inverted);
+}
+.nav-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.nav-spacer {
+  flex: 1;
+}
+.nav-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px;
+  font-size: 11px;
+  color: var(--text-weak);
+  border-top: 1px solid var(--border-weak);
+  margin: 0 -12px -14px;
+}
+.nav-footer .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.nav-footer .dot.on {
+  background: var(--green);
+}
+.nav-footer .dot.off {
+  background: var(--text-weaker);
+}
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  background: var(--bg);
+}
+/* 启动期（ready 前）内容区统一加载占位：与侧边栏导航一起在检测完成后出现 */
+.app-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 220px;
+  text-align: center;
+}
+.app-loading .spinner {
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--border-weak);
+  border-top-color: var(--text-strong);
+  border-radius: 50%;
+  animation: app-spin 0.8s linear infinite;
+}
+.app-loading .brand {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.app-loading .sub {
+  font-size: 11px;
+  color: var(--text-weak);
+}
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-loading .spinner {
+    animation: none;
+    border-top-color: var(--border);
+  }
+  /* 侧边栏入场动效在 reduced-motion 下一律关闭，nav-item 直接可见 */
+  .sidebar {
+    animation: none;
+  }
+  .nav-item {
+    opacity: 1;
+    animation: none;
+  }
+}
+@keyframes sidebar-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes nav-item-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.content-flush {
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* iframe 内容区（样式稿用）：填满内容空间，边框/背景与 .content 一致 */
+.content-frame {
+  flex: 1;
+  border: none;
+  background: var(--bg);
+}

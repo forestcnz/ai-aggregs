@@ -1,0 +1,507 @@
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--text-weak);
+  margin-top: 2px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn.xs {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+/* ---- 卡片网格 ---- */
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.provider-card {
+  background: var(--bg);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+}
+.provider-card:not(.off) {
+  border-color: var(--blue);
+}
+.provider-card:not(.off):hover {
+  border-color: #2563eb;
+}
+.provider-card:hover {
+  border-color: var(--border);
+}
+/* 拖动中的源卡片：半透明 + 轻微缩小 */
+.provider-card.dragging {
+  opacity: 0.4;
+  transform: scale(0.98);
+}
+/* 拖动悬停目标：顶部高亮提示放置位置 */
+.provider-card.drag-over {
+  box-shadow: 0 -2px 0 0 var(--text-strong);
+  border-color: var(--text-strong);
+}
+
+/* 拖动进行中：全区域统一 grabbing 光标 + 禁止选中文字 */
+.provider-dragging,
+.provider-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+/* 拖动排序手柄 */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+  color: var(--text-weak);
+  cursor: grab;
+  opacity: 0.5;
+  transition: var(--transition);
+  user-select: none;
+}
+.drag-handle:hover {
+  opacity: 1;
+  color: var(--text-strong);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* 协议内联小标签（名称旁） */
+.protocol-tag {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-weak);
+  border: 1px solid var(--border-weak);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  margin-left: 8px;
+}
+
+/* 卡片头部 */
+.provider-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  cursor: pointer;
+  user-select: none;
+}
+.provider-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.provider-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.provider-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 13px;
+  gap: 0;
+}
+.provider-name .name-text {
+  font-weight: 500;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.provider-card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* 展开详情区 */
+.provider-card-body {
+  padding: 12px 15px;
+  border-top: 1px solid var(--border-weak);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.provider-field {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 7px;
+  font-size: 12px;
+  align-items: start;
+}
+.provider-field .f-label {
+  color: var(--text-weak);
+  font-size: 11px;
+}
+.provider-field .f-value {
+  color: var(--text);
+  word-break: break-all;
+}
+.provider-field .f-value.mono {
+  font-size: 11px;
+}
+.models-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.models-tags span {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak);
+  color: var(--text);
+}
+.muted {
+  color: var(--text-weak);
+  font-style: italic;
+  font-size: 11px;
+}
+
+/* Key 列表 */
+.keys-section {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-weak);
+}
+.keys-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.keys-header span {
+  font-size: 10px;
+  color: var(--text-weak);
+}
+.key-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 9px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-weak);
+  margin-bottom: 4px;
+}
+.key-row .key-value {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text);
+}
+.key-status {
+  font-size: 9px;
+  padding: 1px 7px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  font-weight: 500;
+  border: 1px solid;
+}
+.key-status.ok {
+  border-color: var(--green);
+  color: var(--green);
+}
+.key-status.blacklisted {
+  border-color: var(--red);
+  color: var(--red);
+}
+.key-status.disabled {
+  border-color: var(--border-weak);
+  color: var(--text-weak);
+}
+
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px;
+  color: var(--text-weak);
+  font-size: 13px;
+}
+
+/* ---- 弹窗内部表单（由 AppModal 提供容器，这里仅样式化 slot 内容） ---- */
+.mf {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.mf label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.mf-row {
+  display: flex;
+  gap: 12px;
+}
+.mf .f-input,
+.mf .f-select {
+  width: 100%;
+  max-width: none;
+}
+.footer-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.danger-btn {
+  color: var(--red);
+  border-color: var(--border-weak);
+}
+.danger-btn:hover {
+  background: var(--red);
+  color: var(--text-inverted);
+  border-color: var(--red);
+}
+
+/* ---- 协议分段控件 ---- */
+.seg {
+  display: flex;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg);
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.seg > label {
+  flex: 1;
+  text-align: center;
+  padding: 7px 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-weak);
+  cursor: pointer;
+  transition: var(--transition);
+  border-right: 1px solid var(--border-weak);
+}
+.seg > label:last-child {
+  border-right: none;
+}
+.seg > label:hover {
+  background: var(--bg-weak);
+  color: var(--text-strong);
+}
+.seg input:checked + label {
+  background: var(--bg-strong);
+  color: var(--text-inverted);
+  border-color: var(--bg-strong);
+}
+
+/* ---- 输入框 ---- */
+.f-input {
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+  transition: var(--transition);
+  width: 100%;
+  max-width: 400px;
+}
+.f-input:focus {
+  background: var(--bg-interactive-weaker);
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
+.f-select {
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  transition: var(--transition);
+}
+.f-select:focus {
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
+
+/* ---- Chip 输入框 ---- */
+.chip-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 5px 7px;
+  cursor: text;
+  min-height: 34px;
+  max-height: 120px;
+  overflow-y: auto;
+  transition: var(--transition);
+  width: 100%;
+}
+.chip-input:focus-within {
+  background: var(--bg-interactive-weaker);
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg-interactive);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 1px 2px 1px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.chip:hover {
+  border-color: var(--border);
+}
+.chip-text {
+  color: var(--text);
+  font-size: 10px;
+}
+.chip-x {
+  background: none;
+  border: none;
+  color: var(--text-weak);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: var(--transition);
+}
+.chip-x:hover {
+  color: var(--red);
+}
+.chip-field {
+  flex: 1;
+  min-width: 80px;
+  max-width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 12px;
+  padding: 2px 0;
+  font-family: inherit;
+}
+
+/* ---- 从 /models 获取模型 ---- */
+/* 模型下拉容器：让 combo-menu 相对此容器定位 */
+.model-combo-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* 下拉面板 — 与 ModelCombobox 一致 */
+.model-combo-wrap .combo-menu {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg);
+  border: 1px solid var(--text-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 6px 20px rgba(31, 30, 30, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.model-combo-wrap .combo-menu::-webkit-scrollbar {
+  width: 6px;
+}
+.model-combo-wrap .combo-menu::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.model-combo-wrap .combo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--text);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.model-combo-wrap .combo-item:hover {
+  background: var(--bg-weak);
+  color: var(--text-strong);
+}
+.model-combo-wrap .combo-item.active {
+  background: var(--bg-weak);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.model-combo-wrap .combo-check {
+  color: var(--green);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+.model-combo-wrap .combo-empty {
+  color: var(--text-weak);
+  font-style: italic;
+  cursor: default;
+}
+.model-combo-wrap .combo-none {
+  color: var(--text-weaker);
+  cursor: default;
+  font-style: italic;
+}
+.model-combo-wrap .combo-loading {
+  color: var(--text-weak);
+  cursor: progress;
+  font-style: italic;
+}

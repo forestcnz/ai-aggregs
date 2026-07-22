@@ -1,0 +1,154 @@
+.dashboard-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--text-weak);
+  margin-top: 2px;
+  margin-bottom: 22px;
+}
+
+/* 统计卡 — 1px 分隔，无外框包裹 */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.stat-card {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border-weak);
+}
+.stat-card:last-child {
+  border-right: none;
+}
+.stat-card .label {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-weak);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 6px;
+}
+.stat-card .value {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.stat-card .value.running {
+  color: var(--green);
+}
+.stat-card .value.stopped {
+  color: var(--text-weak);
+}
+.stat-card .value.mono {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+/* 控制卡 */
+.control-card {
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.addr {
+  font-size: 12px;
+  color: var(--text);
+}
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* 日志面板 */
+.log-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.log-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.log-panel {
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.log-empty {
+  color: var(--text-weak);
+  text-align: center;
+  padding: 40px;
+}
+.log-line {
+  display: flex;
+  gap: 10px;
+}
+.log-line .time {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-weak);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.log-line .level {
+  flex-shrink: 0;
+  width: 42px;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.log-line .level.info {
+  color: var(--text-strong);
+}
+.log-line .level.warn {
+  color: var(--green);
+}
+.log-line .level.error {
+  color: var(--red);
+}
+.log-line .level.trace,
+.log-line .level.debug {
+  color: var(--text-weak);
+}
+.log-line .msg {
+  color: var(--text);
+  word-break: break-all;
+}

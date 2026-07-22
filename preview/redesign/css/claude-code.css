@@ -1,0 +1,341 @@
+/* ============================================================
+   Claude Code 配置页 · scoped 样式
+   复用全局 .btn / .btn-primary / .btn-secondary；
+   结构类（page-title / group / row / inp / key-field …）与本页 scoped 绑定。
+   ============================================================ */
+
+.oc-page {
+  padding-bottom: 40px;
+}
+
+.oc-loading {
+  padding: 40px;
+  color: var(--text-weak);
+  font-size: 13px;
+}
+
+/* 页标题 + 文件标记 */
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.file-tag {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 2px 7px;
+  letter-spacing: 0;
+}
+.page-sub {
+  font-size: 12px;
+  color: var(--text-weak);
+  margin-top: 3px;
+  margin-bottom: 18px;
+}
+.page-sub code {
+  font-family: inherit;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 0 5px;
+  font-size: 10px;
+  color: var(--text);
+}
+
+/* 工具栏 */
+.oc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.oc-path {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--text);
+  min-width: 0;
+}
+.oc-path .pth {
+  color: var(--text-strong);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.oc-path .meta {
+  color: var(--text-weak);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.oc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* group 容器 */
+.group {
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+.group h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.group h3 .gn {
+  font-size: 9px;
+  color: var(--text-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+}
+.group h3 .cnt {
+  font-size: 10px;
+  color: var(--text-weak);
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+/* 说明段落（含 code） */
+.oc-blocked-tip {
+  font-size: 11px;
+  color: var(--text-weak);
+  line-height: 1.7;
+  margin: -6px 0 12px;
+}
+.oc-blocked-tip code {
+  font-family: inherit;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 0 5px;
+  font-size: 10px;
+  color: var(--text);
+}
+.oc-blocked-tip b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* 行：label + input */
+.row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 11px;
+}
+.row:last-child {
+  margin-bottom: 0;
+}
+.row label {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 400;
+}
+
+/* 模型字段：两列堆叠网格（env 变量名较长，竖排 label + 下拉更紧凑清晰） */
+.cc-models {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.cc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.cc-field > label {
+  font-size: 10px;
+  color: var(--text-weak);
+  line-height: 1.4;
+}
+.cc-field-hint {
+  font-size: 9px;
+  color: var(--text-weaker);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* 输入框 */
+.inp {
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 16px;
+  outline: none;
+  transition: var(--transition);
+  max-width: 420px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 34px;
+}
+.inp.mono {
+  font-size: 11px;
+}
+.inp:focus {
+  border-color: var(--text-strong);
+}
+.inp::placeholder {
+  color: var(--text-weaker);
+}
+
+/* apiKey / 敏感值掩码展示 / 明文编辑 */
+.key-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+}
+.key-display {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-md);
+  font-size: 11px;
+  font-family: inherit;
+  line-height: 16px;
+  color: var(--text);
+  cursor: pointer;
+  transition: var(--transition);
+  min-height: 34px;
+  box-sizing: border-box;
+  word-break: break-all;
+}
+.key-display:hover {
+  border-color: var(--border);
+  color: var(--text-strong);
+}
+.key-field .inp {
+  flex: 1;
+  max-width: none;
+}
+
+/* 空态 */
+.oc-empty {
+  border: 1px dashed var(--border-weak);
+  border-radius: var(--r-md);
+  padding: 20px;
+  text-align: center;
+  color: var(--text-weak);
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+/* ---------- 其他环境变量列表 ---------- */
+.cc-env-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cc-env-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cc-env-key {
+  flex: 0 0 220px;
+  max-width: 220px;
+}
+.cc-env-val {
+  flex: 1;
+  min-width: 160px;
+  max-width: none;
+}
+.cc-env-del {
+  flex-shrink: 0;
+}
+
+/* 添加按钮行 */
+.oc-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.oc-add .hint {
+  font-size: 10px;
+  color: var(--text-weak);
+}
+
+/* 保存栏 */
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 18px;
+}
+.actions .save-hint {
+  font-size: 11px;
+  color: var(--text-weak);
+  margin-right: auto;
+  line-height: 1.6;
+}
+.actions .save-hint code {
+  font-family: inherit;
+  background: var(--bg-weak);
+  border: 1px solid var(--border-weak);
+  border-radius: var(--r-sm);
+  padding: 0 5px;
+  font-size: 10px;
+  color: var(--text);
+}
+
+/* 按钮紧凑变体（global .btn 的 sm 补充，scoped 生效） */
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* 响应式 */
+@media (max-width: 60rem) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+  .cc-models {
+    grid-template-columns: 1fr;
+  }
+  .cc-env-key {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .oc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .oc-actions {
+    justify-content: flex-end;
+  }
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 聊天</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/chat.css" />
+    <style>
+      /* 复刻 .content + .content-flush 到 body（iframe 内文档） */
+      body {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 24px 28px;
+        background: var(--bg);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chat-page">
+      <div class="chat-header">
+        <div class="chat-controls">
+          <select class="proto-select"><option>Chat</option><option>Responses</option><option selected>Anthropic</option></select>
+          <select class="model-select"><option>claude-opus-4.5</option><option>glm-5.2</option><option>gpt-4o</option></select>
+          <select class="key-select"><option>sk-agg-••3a9f</option></select>
+          <button class="btn btn-secondary sm">清空</button>
+        </div>
+      </div>
+
+      <div class="messages">
+        <div class="msg-row user">
+          <div class="msg-avatar">我</div>
+          <div class="msg-bubble"><div class="msg-content">用三句话解释什么是反向代理，以及它在 API 聚合中的作用</div></div>
+        </div>
+        <div class="msg-row assistant">
+          <div class="msg-avatar">AI</div>
+          <div class="msg-bubble">
+            <div class="thinking-block">
+              <div class="thinking-header"><span class="thinking-label">THINKING</span></div>
+              <div class="thinking-content">用户想要简洁的解释。反向代理是核心概念，应聚焦它如何隐藏后端、聚合多个上游。在 API 聚合场景中，关键点是统一入口 + 协议转换 + 故障转移。</div>
+            </div>
+            <div class="msg-content">反向代理是位于客户端与后端服务器之间的中间层，它接收所有外部请求再按规则转发到真正的后端，对外只暴露统一端点而隐藏后端拓扑。
+
+在 API 聚合中，反向代理把多个上游提供商（OpenAI、Anthropic、GLM…）汇聚到单一本地端点，按请求路径自动判定协议并互转，配合密钥池与故障转移实现高可用。</div>
+          </div>
+        </div>
+        <div class="msg-row user">
+          <div class="msg-avatar">我</div>
+          <div class="msg-bubble"><div class="msg-content">那三协议互转是怎么实现的？</div></div>
+        </div>
+        <div class="msg-row assistant">
+          <div class="msg-avatar">AI</div>
+          <div class="msg-bubble"><div class="msg-content">三协议（Chat / Responses / Anthropic）经统一 IR 中间表示互转，单跳完成。网关按请求 URL 路径判定下游协议，再转换为目标 provider 的协议格式转发。</div></div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <textarea class="input-box" placeholder="输入消息，Enter 发送，Shift+Enter 换行" rows="3"></textarea>
+        <button class="btn btn-primary send-btn">发送</button>
+      </div>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

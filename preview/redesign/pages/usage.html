@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>用量统计</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/usage.css" />
+    <style>
+      body { height: 100vh; overflow-y: auto; padding: 24px 28px; background: var(--bg); }
+    </style>
+  </head>
+  <body>
+    <div class="usage-root">
+      <h1 class="page-title">用量统计</h1>
+      <p class="page-sub">Consumer API Key 各模型 Token 使用量</p>
+
+      <div class="usage-filter">
+        <div class="uf-item"><span class="uf-label">Consumer Key</span>
+          <select class="select"><option>全部 Keys</option><option>sk-agg-••3a9f</option></select>
+        </div>
+        <div class="uf-item"><span class="uf-label">时间范围</span>
+          <div class="seg"><input type="radio" name="d" id="d1" /><label for="d1">今天</label><input type="radio" name="d" id="d7" checked /><label for="d7">7 天</label><input type="radio" name="d" id="d30" /><label for="d30">30 天</label><input type="radio" name="d" id="da" /><label for="da">全部</label></div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card"><span class="label">总请求数</span><span class="value">1,284</span></div>
+        <div class="stat-card"><span class="label">总 Token</span><span class="value">2.4M</span></div>
+        <div class="stat-card"><span class="label">输入 Token</span><span class="value">1.8M</span></div>
+        <div class="stat-card"><span class="label">输出 Token</span><span class="value">612K</span></div>
+      </div>
+
+      <div class="usage-head">
+        <h3>模型明细 <span class="ct">3 个模型</span></h3>
+        <button class="btn btn-secondary sm">刷新</button>
+      </div>
+
+      <div class="usage-table">
+        <div class="usage-thead"><span>模型</span><span class="num">占比</span><span class="num">请求数</span><span class="num">输入</span><span class="num">输出</span><span class="num">合计</span></div>
+        <div class="urow"><span class="mdl"><span class="mdot" style="background:#3b82f6"></span>claude-opus-4.5</span><span class="num">54%</span><span class="num">694</span><span class="num">1.2M</span><span class="num">402K</span><span class="num total">1.6M</span></div>
+        <div class="urow"><span class="mdl"><span class="mdot" style="background:#03b000"></span>glm-5.2</span><span class="num">31%</span><span class="num">398</span><span class="num">512K</span><span class="num">142K</span><span class="num total">654K</span></div>
+        <div class="urow"><span class="mdl"><span class="mdot" style="background:#c9a300"></span>gpt-4o</span><span class="num">15%</span><span class="num">192</span><span class="num">98K</span><span class="num">68K</span><span class="num total">166K</span></div>
+      </div>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

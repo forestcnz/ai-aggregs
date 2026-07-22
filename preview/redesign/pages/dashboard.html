@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>网关状态</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/dashboard.css" />
+    <style>
+      /* 复刻 .content + .content-flush 到 body（iframe 内文档） */
+      body {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 24px 28px;
+        background: var(--bg);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard-root">
+      <h1 class="page-title">网关状态</h1>
+      <p class="page-sub">管理 API 聚合网关的运行</p>
+
+      <div class="stats">
+        <div class="stat-card">
+          <span class="label">网关</span>
+          <span class="value running">运行中</span>
+        </div>
+        <div class="stat-card">
+          <span class="label">监听地址</span>
+          <span class="value mono">127.0.0.1:8849</span>
+        </div>
+      </div>
+
+      <div class="control-card">
+        <div class="status-info">
+          <div class="badge running"><div class="dot"></div>运行中</div>
+        </div>
+        <button class="btn btn-stop">停止网关</button>
+      </div>
+
+      <div class="log-section">
+        <div class="log-header">
+          <h3>运行日志</h3>
+          <button class="btn btn-secondary sm">清除</button>
+        </div>
+        <div class="log-panel">
+          <div class="log-line"><span class="time">14:32:01</span><span class="level info">INFO</span><span class="msg">网关已启动，监听 127.0.0.1:8849</span></div>
+          <div class="log-line"><span class="time">14:32:02</span><span class="level info">INFO</span><span class="msg">加载配置完成：3 个 provider，2 个 consumer key</span></div>
+          <div class="log-line"><span class="time">14:32:14</span><span class="level info">INFO</span><span class="msg">provider glm → 200 (1280ms) chat/completions glm-5.2</span></div>
+          <div class="log-line"><span class="time">14:32:15</span><span class="level warn">WARN</span><span class="msg">key #2 (sk-...7b2c) 被限流 429，加入黑名单 600s</span></div>
+          <div class="log-line"><span class="time">14:32:16</span><span class="level info">INFO</span><span class="msg">故障转移 → claude (anthropic) claude-opus-4.5</span></div>
+          <div class="log-line"><span class="time">14:33:08</span><span class="level info">INFO</span><span class="msg">provider claude → 200 (2104ms) messages claude-opus-4.5</span></div>
+          <div class="log-line"><span class="time">14:34:21</span><span class="level warn">WARN</span><span class="msg">未配置 consumer api_keys：本机任意进程均可无鉴权调用网关</span></div>
+        </div>
+      </div>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

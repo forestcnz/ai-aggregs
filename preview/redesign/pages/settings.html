@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>设置</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/settings.css" />
+    <style>
+      body { height: 100vh; overflow-y: auto; padding: 24px 28px; background: var(--bg); }
+    </style>
+  </head>
+  <body>
+    <div class="settings-page">
+      <h1 class="page-title">设置</h1>
+      <p class="page-sub">网关全局配置</p>
+
+      <div class="group">
+        <h3><span class="gn">01</span>通用</h3>
+        <div class="row"><label>监听地址</label><input type="text" value="127.0.0.1:8849" /></div>
+        <div class="row"><label>Key 黑名单时长(秒)</label><input type="number" value="600" /></div>
+        <div class="row"><label>日志级别</label><select><option>info</option><option>debug</option><option>warn</option><option>error</option></select></div>
+        <div class="row"><label>网关自动恢复</label><div class="inline-toggle"><label class="toggle"><input type="checkbox" checked /><span class="slider"></span></label><span>启动应用时恢复上次网关状态</span></div></div>
+      </div>
+
+      <div class="group">
+        <h3><span class="gn">02</span>Consumer</h3>
+        <div class="row"><label>API Keys</label>
+          <div class="chip-input"><span class="chip"><span class="chip-text">sk-agg-3a9f</span><button class="chip-x">×</button></span><span class="chip"><span class="chip-text">sk-agg-7b2c</span><button class="chip-x">×</button></span><input class="chip-field" placeholder="API Key，回车添加" /></div>
+        </div>
+        <div class="row"><label>Models</label>
+          <div class="auto-models"><div class="models-tags"><span class="model-tag">claude-opus-4.5</span><span class="model-tag">glm-5.2</span><span class="model-tag">glm-4-air</span><span class="model-tag">gpt-4o</span></div></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3><span class="gn">03</span>模型映射</h3>
+        <p class="group-desc">
+          用户请求「<b>别名</b>」时，重定向到一组「<b>实际后端模型</b>」（负载均衡 / 故障转移）。一个别名可映射多个后端，多个别名也可共享同一后端。<br />
+          <span class="legend"><i class="legend-dot"></i>蓝色 = 上次成功响应的模型（下次该别名优先使用）</span>
+        </p>
+        <div class="map-rule">
+          <div class="map-rule-head">
+            <div class="rh-left"><label class="toggle"><input type="checkbox" checked /><span class="slider"></span></label><span class="rh-title">映射规则 01</span></div>
+            <button class="btn btn-secondary sm">删除</button>
+          </div>
+          <div class="map-rule-body">
+            <div class="map-side map-alias"><span class="mside-lab">请求模型（别名）</span><input type="text" class="map-inp" value="gpt-4" /></div>
+            <div class="map-arrow">→</div>
+            <div class="map-side map-pool"><span class="mside-lab">实际模型（后端池）</span>
+              <div class="chip-input map-chips"><span class="chip chip-active"><span class="chip-text">glm-5.2</span><button class="chip-x">×</button></span><span class="chip"><span class="chip-text">claude-opus-4.5</span><button class="chip-x">×</button></span><input class="chip-field" placeholder="实际模型名，回车添加" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="map-rule off">
+          <div class="map-rule-head">
+            <div class="rh-left"><label class="toggle"><input type="checkbox" /><span class="slider"></span></label><span class="rh-title">映射规则 02</span></div>
+            <button class="btn btn-secondary sm">删除</button>
+          </div>
+          <div class="map-rule-body">
+            <div class="map-side map-alias"><span class="mside-lab">请求模型（别名）</span><input type="text" class="map-inp" value="claude-3.5" /></div>
+            <div class="map-arrow">→</div>
+            <div class="map-side map-pool"><span class="mside-lab">实际模型（后端池）</span>
+              <div class="chip-input map-chips"><span class="chip"><span class="chip-text">claude-opus-4.5</span><button class="chip-x">×</button></span><input class="chip-field" placeholder="实际模型名，回车添加" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="map-add"><button class="btn btn-secondary sm">+ 添加映射规则</button><span class="map-hint">同名别名被多条规则匹配时，仅首条生效</span></div>
+      </div>
+
+      <div class="group">
+        <h3><span class="gn">04</span>系统</h3>
+        <div class="row"><label>开机自启</label><div class="inline-toggle"><label class="toggle"><input type="checkbox" checked /><span class="slider"></span></label><span>系统启动时自动运行</span></div></div>
+      </div>
+
+      <div class="actions"><button class="btn btn-primary">保存配置</button></div>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

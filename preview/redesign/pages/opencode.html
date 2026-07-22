@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCode 配置</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/opencode.css" />
+    <style>
+      body { height: 100vh; overflow-y: auto; padding: 24px 28px; background: var(--bg); }
+
+      /* MultiCombobox 组件 scoped 样式（原样搬运自 MultiCombobox.vue） */
+      .mcombo {
+        position: relative;
+        width: 100%;
+        max-width: 560px;
+      }
+      .mcombo-field {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        background: var(--bg-weak);
+        border: 1px solid var(--border-weak);
+        border-radius: var(--r-md);
+        padding: 5px 7px;
+        cursor: text;
+        transition: var(--transition);
+        min-height: 34px;
+        box-sizing: border-box;
+      }
+      .mcombo-field:focus-within {
+        border-color: var(--text-strong);
+      }
+      .mcombo-input {
+        flex: 1;
+        min-width: 130px;
+        border: none;
+        outline: none;
+        background: transparent;
+        color: var(--text-strong);
+        font-size: 12px;
+        font-family: inherit;
+        padding: 2px 0;
+      }
+      .mcombo-input::placeholder {
+        color: var(--text-weaker);
+      }
+      .mcombo-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: var(--bg);
+        border: 1px solid var(--border-weak);
+        border-radius: var(--r-sm);
+        padding: 1px 2px 1px 7px;
+        font-size: 11px;
+        white-space: nowrap;
+        user-select: none;
+      }
+      .mcombo-tag:hover {
+        border-color: var(--border);
+      }
+      .mcombo-tag-nm {
+        color: var(--text);
+        font-size: 10px;
+      }
+      .mcombo-tag-x {
+        background: none;
+        border: none;
+        color: var(--text-weak);
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 1;
+        padding: 0 2px;
+        transition: var(--transition);
+      }
+      .mcombo-tag-x:hover {
+        color: var(--red);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="oc-page">
+      <h1 class="page-title">OpenCode 配置 <span class="file-tag">opencode.jsonc</span></h1>
+      <p class="page-sub">编辑 OpenCode 工具配置 · 与本网关联动</p>
+
+      <div class="oc-toolbar">
+        <div class="oc-path"><span class="pth">~/.config/opencode/opencode.jsonc</span><span class="meta">· 已存在</span></div>
+        <div class="oc-actions"><button class="btn btn-secondary sm">重新加载</button></div>
+      </div>
+
+      <div class="group">
+        <h3><span class="gn">01</span>屏蔽 Provider <span class="cnt">· 已屏蔽 2 个 · 候选 14 个</span><button class="btn btn-secondary sm oc-refresh">刷新候选</button></h3>
+        <p class="oc-blocked-tip">候选列表由 <code>opencode models</code> 动态获取；被屏蔽的 provider 不会被 opencode 加载（对应顶层 <code>disabled_providers</code>）。可多选，也可手动输入任意 id 后回车添加。</p>
+        <div class="mcombo">
+          <div class="mcombo-field">
+            <span class="mcombo-tag"><span class="mcombo-tag-nm">openai</span><button type="button" class="mcombo-tag-x" title="移除">×</button></span>
+            <span class="mcombo-tag"><span class="mcombo-tag-nm">gemini</span><button type="button" class="mcombo-tag-x" title="移除">×</button></span>
+            <input class="mcombo-input" placeholder="选择候选 provider，或输入任意 id（如 openai / gemini）后回车" />
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3><span class="gn">02</span>基础</h3>
+        <div class="row"><label>主模型 model</label><input class="inp" value="Local-oai/glm-5.2" /></div>
+        <div class="row"><label>轻量模型 small_model</label><input class="inp" value="Local-oai/glm-4-air" /></div>
+        <div class="row"><label>默认 agent</label><input class="inp" value="build" /></div>
+      </div>
+
+      <div class="group">
+        <h3><span class="gn">03</span>Provider <span class="cnt">· 1 个 · 2 个模型</span></h3>
+        <div class="oc-providers">
+          <div class="pv-card expanded">
+            <div class="pv-head">
+              <span class="pv-chevron"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" /></svg></span>
+              <span class="pv-id">Local-oai</span>
+              <span class="pv-npm">@ai-sdk/openai-compatible</span>
+              <span class="pv-modelcount">2 models</span>
+              <button class="btn btn-secondary sm">删除</button>
+            </div>
+            <div class="pv-body">
+              <div class="pv-fields">
+                <div class="mf"><label>id <span class="req">*</span></label><input class="inp" value="Local-oai" /></div>
+                <div class="mf"><label>name</label><input class="inp" value="本地网关" /></div>
+              </div>
+              <div class="pv-fields full"><div class="mf"><label>npm</label><select class="inp"><option>@ai-sdk/openai-compatible</option></select></div></div>
+              <div class="pv-fields full"><div class="mf"><label>baseURL</label><input class="inp mono" value="http://127.0.0.1:8849/v1" /></div></div>
+              <div class="pv-fields full"><div class="mf"><label>apiKey</label><div class="key-field"><span class="key-display">sk-agg-••••3a9f</span></div></div></div>
+
+              <div class="pv-models-head"><span class="lbl">Models <span class="ct">2 个</span></span><button class="btn btn-secondary sm">+ 添加模型</button></div>
+              <div class="md-row expanded">
+                <div class="md-row-head">
+                  <span class="md-chevron"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" /></svg></span>
+                  <span class="md-id">glm-5.2</span><span class="md-name">GLM 5.2</span>
+                  <span class="md-flags"><span class="md-flag on">reasoning</span><span class="md-flag on">tool_call</span></span>
+                  <button class="btn btn-secondary sm md-del">×</button>
+                </div>
+                <div class="md-body">
+                  <div class="md-grid"><div class="mf"><label>id <span class="req">*</span></label><input class="inp" value="glm-5.2" /></div><div class="mf"><label>name</label><input class="inp" value="GLM 5.2" /></div></div>
+                  <div class="md-toggles"><label class="toggle mini"><input type="checkbox"><span class="slider"></span></label><span class="tg-label">attachment</span><label class="toggle mini"><input type="checkbox" checked><span class="slider"></span></label><span class="tg-label">reasoning</span><label class="toggle mini"><input type="checkbox" checked><span class="slider"></span></label><span class="tg-label">tool_call</span></div>
+                  <div class="md-mods"><div class="md-mods-lab">Modalities</div><div class="mod-tags"><span class="mod-tag on"><span class="chk"></span>text</span></div></div>
+                </div>
+              </div>
+              <div class="md-row">
+                <div class="md-row-head">
+                  <span class="md-chevron"><svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="square" /></svg></span>
+                  <span class="md-id">glm-4-air</span><span class="md-name">GLM 4 Air</span>
+                  <span class="md-flags"><span class="md-flag">无标志</span></span>
+                  <button class="btn btn-secondary sm md-del">×</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="oc-add"><button class="btn btn-secondary sm">+ 添加 Provider</button><span class="hint">provider id 即 model 字段前缀（如 Local-oai/glm-5.2）</span></div>
+      </div>
+
+      <div class="actions"><span class="save-hint">按 key 合并写入 · mcp / permission / agent 等未表单字段原样保留 · 保存前自动备份</span><button class="btn btn-primary">保存到 opencode.jsonc</button></div>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>

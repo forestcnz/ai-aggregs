@@ -17,45 +17,30 @@ Tauri v2 壳 + Vue 3 前端 + Rust/Axum 网关嵌入同一进程。
 
 ---
 
-## 截图预览
+## 界面预览
 
-**网关状态** — 启停控制、监听地址、实时运行日志
+完整界面样式稿（9 个可交互页面，还原 opencode.ai 极简等宽美学）见 **[`preview/redesign/`](preview/redesign/)** — 浏览器打开 `index.html` 即进入，侧边栏导航可在各页面间**真实点击切换**。
 
-![网关状态](preview/redesign/dashboard.png)
+### 核心运营
 
-**供应商** — 多提供商列表、启用/禁用、密钥池、拖拽排序
+- **网关状态** — 启停控制、监听地址实时运行日志、限流/故障转移事件追踪
+- **供应商** — 多提供商卡片网格、协议标识（chat/responses/anthropic）、密钥池轮换、拖拽排序、key 黑名单倒计时
+- **AI 聊天** — 内置调试客户端，协议/模型/Key 三联选择，直连网关验证路由与协议转换，支持 Thinking 折叠
 
-![供应商](preview/redesign/providers.png)
+### 用量洞察
 
-**AI 聊天** — 内置调试客户端，直连网关验证路由与协议转换
+- **用量统计** — Consumer API Key 视角，按模型拆解 Token 用量（输入/输出/合计）与占比
+- **供量统计** — Provider 视角，按供应商 + Key 维度统计请求量与 Token 消耗
 
-![AI聊天](preview/redesign/chat.png)
+### 全局配置
 
-**用量统计** — Consumer API Key 各模型 Token 用量明细
+- **设置** — 监听地址、日志级别、网关自动恢复、模型映射（别名 → 后端池负载均衡，上次成功模型高亮）
 
-![用量统计](preview/redesign/usage.png)
+### 外部工具对接
 
-**供量统计** — 各 Provider 的请求量与 Token 消耗
-
-![供量统计](preview/redesign/provider-usage.png)
-
-**Claude Code 配置** — 同步网关端点到 `~/.claude/settings.json` 的 `env` 段
-
-![Claude Code](preview/redesign/claude-code.png)
-
-**Codex 配置** — 受管 Provider 写入 `~/.codex/config.toml`
-
-![Codex](preview/redesign/codex.png)
-
-**OpenCode 配置** — 表单编辑 `opencode.json`
-
-![OpenCode](preview/redesign/opencode.png)
-
-**设置** — Consumer Key / 网关参数 / 开机自启
-
-![设置](preview/redesign/settings.png)
-
-> 完整界面预览（含设计系统与导航）见 [`preview/redesign/_overview.png`](preview/redesign/_overview.png)，交互式版本 `preview/redesign/index.html`。
+- **OpenCode** — 表单编辑 `opencode.jsonc`（provider/model/屏蔽列表），动态获取候选
+- **Claude Code** — 同步网关端点到 `~/.claude/settings.json` 的 `env` 段（一键对接）
+- **Codex** — 受管 Provider 写入 `~/.codex/config.toml`（Responses 协议，含模型目录生成）
 
 ---
 
@@ -149,7 +134,7 @@ ai-aggregs/
 │   ├── gateway/              # 网关生命周期 / provider / 协议转换 / 流式
 │   ├── config/               # 配置类型与状态
 │   └── infra/                # 数据库 / 错误 / 日志桥接 / 托盘
-├── preview/redesign/         # 界面截图（README 引用）
+├── preview/redesign/         # 界面样式稿（可交互多页 HTML，浏览器打开）
 └── data/config.db            # SQLite 持久化（运行时生成）
 ```
 

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>供量统计</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/provider-usage.css" />
+    <style>
+      body { height: 100vh; overflow-y: auto; padding: 24px 28px; background: var(--bg); }
+    </style>
+  </head>
+  <body>
+    <div class="usage-root">
+      <h1 class="page-title">供量统计</h1>
+      <p class="page-sub">Provider API Key 各模型 Token 使用量</p>
+
+      <div class="usage-filter">
+        <div class="uf-item"><span class="uf-label">供应商</span>
+          <select class="select"><option>全部</option><option>glm</option><option>claude</option></select>
+        </div>
+        <div class="uf-item"><span class="uf-label">API Key</span>
+          <select class="select"><option>全部 Keys</option><option>#1 sk-••3a9f</option></select>
+        </div>
+        <div class="uf-item"><span class="uf-label">时间范围</span>
+          <div class="seg"><input type="radio" name="pd" id="pd1" checked /><label for="pd1">今天</label><input type="radio" name="pd" id="pd7" /><label for="pd7">7 天</label><input type="radio" name="pd" id="pd30" /><label for="pd30">30 天</label><input type="radio" name="pd" id="pda" /><label for="pda">全部</label></div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card"><span class="label">总请求数</span><span class="value">412</span></div>
+        <div class="stat-card"><span class="label">总 Token</span><span class="value">820K</span></div>
+        <div class="stat-card"><span class="label">输入 Token</span><span class="value">596K</span></div>
+        <div class="stat-card"><span class="label">输出 Token</span><span class="value">224K</span></div>
+      </div>
+
+      <div class="usage-head">
+        <h3>模型明细 <span class="ct">2 个模型</span></h3>
+        <button class="btn btn-secondary sm">刷新</button>
+      </div>
+
+      <div class="usage-table">
+        <div class="usage-thead"><span>模型</span><span class="num">占比</span><span class="num">请求数</span><span class="num">输入</span><span class="num">输出</span><span class="num">合计</span></div>
+        <div class="urow"><span class="mdl"><span class="mdot" style="background:#3b82f6"></span>glm-5.2</span><span class="num">68%</span><span class="num">280</span><span class="num">404K</span><span class="num">154K</span><span class="num total">558K</span></div>
+        <div class="urow"><span class="mdl"><span class="mdot" style="background:#03b000"></span>glm-4-air</span><span class="num">32%</span><span class="num">132</span><span class="num">192K</span><span class="num">70K</span><span class="num total">262K</span></div>
+      </div>
+    </div>
+    <script src="../shared.js"></script>
+  </body>
+</html>
