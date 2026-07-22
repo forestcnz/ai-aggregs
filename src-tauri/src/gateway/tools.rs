@@ -7,9 +7,6 @@
 //!
 //! 借鉴 sub2api `chatcompletions_responses_bridge.go` 和 cc-switch
 //! `transform_codex_anthropic.rs` 的设计，但适配 ai-aggregs 的 Value 操作风格。
-//
-// 部分函数当前未被 converter.rs 调用（预留用于响应方向还原）。
-#![allow(dead_code)]
 
 use serde_json::{json, Value};
 
@@ -101,69 +98,6 @@ pub struct NamespaceOwner {
     pub name: String,
 }
 
-/// 收集 Responses 请求中 namespace 子工具的摊平名 → 原始归属映射。
-///
-/// 响应方向（如 Chat → Responses）需要据此把模型对摊平名的调用还原为带
-/// `namespace` 字段的 function_call item（Codex 按 namespace+name 路由）。
-pub fn build_namespace_owner_map(tools: &[Value]) -> std::collections::HashMap<String, NamespaceOwner> {
-    let mut out = std::collections::HashMap::new();
-    for tool in tools {
-        let tool_type = tool.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        if tool_type != "namespace" {
-            continue;
-        }
-        let ns_name = tool.get("name").and_then(|n| n.as_str()).unwrap_or("");
-        if ns_name.is_empty() {
-            continue;
-        }
-        // Responses namespace 用 tools 或 children 字段（语义相同）
-        let children: Option<&Vec<Value>> = tool
-            .get("tools")
-            .and_then(|t| t.as_array())
-            .or_else(|| tool.get("children").and_then(|c| c.as_array()));
-        let Some(children) = children else {
-            continue;
-        };
-        for (flat_tool, owner) in flatten_namespace_children(ns_name, children) {
-            let flat_name = flat_tool
-                .pointer("/function/name")
-                .and_then(|n| n.as_str())
-                .unwrap_or("")
-                .to_string();
-            if !flat_name.is_empty() {
-                out.insert(flat_name, owner);
-            }
-        }
-    }
-    out
-}
-
-/// 收集 Responses 请求中 custom/freeform 工具的名字集合。
-///
-/// Chat 桥回程时需要据此把模型对这些工具的调用还原为 custom_tool_call 项
-/// （Codex 只按该类型路由）。
-pub fn collect_custom_tool_names(tools: &[Value]) -> std::collections::HashSet<String> {
-    let mut out = std::collections::HashSet::new();
-    for tool in tools {
-        let tool_type = tool.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        if tool_type == "custom" || tool_type == "freeform" {
-            if let Some(name) = tool.get("name").and_then(|n| n.as_str()) {
-                if !name.is_empty() {
-                    out.insert(name.to_string());
-                }
-            }
-        }
-    }
-    out
-}
-
-/// 检测 Responses 请求是否声明了 tool_search 服务端工具。
-pub fn has_tool_search_tool(tools: &[Value]) -> bool {
-    tools
-        .iter()
-        .any(|t| t.get("type").and_then(|v| v.as_str()) == Some("tool_search"))
-}
-
 /// 生成 tool_search 代理工具（function 形式）。
 pub fn tool_search_proxy_function() -> Value {
     json!({
@@ -187,25 +121,6 @@ pub fn custom_tool_to_function(tool: &Value) -> Value {
             "parameters": json!(CUSTOM_TOOL_INPUT_SCHEMA),
         }
     })
-}
-
-/// 从降级 function 调用的 arguments JSON 中还原 custom 工具的自由文本输入。
-///
-/// 优先取 `{"input": "..."}` 的 input 字段；模型未按 schema 输出时原样回传，
-/// 交由客户端校验、模型重试。
-pub fn extract_custom_tool_input(arguments: &str) -> String {
-    let trimmed = arguments.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-    let Ok(obj) = serde_json::from_str::<Value>(trimmed) else {
-        return trimmed.to_string();
-    };
-    if let Some(input) = obj.get("input").and_then(|v| v.as_str()) {
-        return input.to_string();
-    }
-    // 模型未按 schema 输出，原样回传
-    trimmed.to_string()
 }
 
 #[cfg(test)]
@@ -268,57 +183,6 @@ mod tests {
     }
 
     #[test]
-    fn build_namespace_owner_map_basic() {
-        let tools = vec![json!({
-            "type": "namespace",
-            "name": "mcp",
-            "tools": [{"type": "function", "name": "search"}]
-        })];
-        let map = build_namespace_owner_map(&tools);
-        assert_eq!(map.len(), 1);
-        let owner = map.get("mcp__search").unwrap();
-        assert_eq!(owner.namespace, "mcp");
-        assert_eq!(owner.name, "search");
-    }
-
-    #[test]
-    fn build_namespace_owner_map_uses_children_field() {
-        let tools = vec![json!({
-            "type": "namespace",
-            "name": "ns",
-            "children": [{"type": "function", "name": "child"}]
-        })];
-        let map = build_namespace_owner_map(&tools);
-        assert_eq!(map.len(), 1);
-        assert!(map.contains_key("ns__child"));
-    }
-
-    #[test]
-    fn collect_custom_tool_names_basic() {
-        let tools = vec![
-            json!({"type": "function", "name": "f1"}),
-            json!({"type": "custom", "name": "apply_patch"}),
-            json!({"type": "freeform", "name": "exec"}),
-        ];
-        let names = collect_custom_tool_names(&tools);
-        assert_eq!(names.len(), 2);
-        assert!(names.contains("apply_patch"));
-        assert!(names.contains("exec"));
-    }
-
-    #[test]
-    fn has_tool_search_detects_proxy() {
-        let tools = vec![
-            json!({"type": "function", "name": "f1"}),
-            json!({"type": "tool_search"}),
-        ];
-        assert!(has_tool_search_tool(&tools));
-
-        let tools_without = vec![json!({"type": "function", "name": "f1"})];
-        assert!(!has_tool_search_tool(&tools_without));
-    }
-
-    #[test]
     fn tool_search_proxy_function_shape() {
         let f = tool_search_proxy_function();
         assert_eq!(
@@ -352,32 +216,5 @@ mod tests {
             .unwrap_or("");
         assert!(params.contains("input"));
         assert!(params.contains("string"));
-    }
-
-    #[test]
-    fn extract_custom_tool_input_from_input_field() {
-        let args = r#"{"input": "patch content here"}"#;
-        let extracted = extract_custom_tool_input(args);
-        assert_eq!(extracted, "patch content here");
-    }
-
-    #[test]
-    fn extract_custom_tool_input_falls_back_to_raw() {
-        let args = r#"{"foo": "bar"}"#;
-        let extracted = extract_custom_tool_input(args);
-        // 没有 input 字段，原样回传
-        assert_eq!(extracted, r#"{"foo": "bar"}"#);
-    }
-
-    #[test]
-    fn extract_custom_tool_input_handles_empty() {
-        assert_eq!(extract_custom_tool_input(""), "");
-        assert_eq!(extract_custom_tool_input("   "), "");
-    }
-
-    #[test]
-    fn extract_custom_tool_input_handles_invalid_json() {
-        let extracted = extract_custom_tool_input("not json");
-        assert_eq!(extracted, "not json");
     }
 }

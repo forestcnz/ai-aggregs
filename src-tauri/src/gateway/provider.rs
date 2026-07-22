@@ -17,31 +17,17 @@ use crate::config::types::{ApiKeyEntry, Protocol, ProviderConfig};
 ///
 /// 当前实现：Chat / Anthropic / Responses 三种协议。
 /// 未来可扩展：Gemini、Bedrock 等（不在本版范围）。
-// 部分方法是接口定义但当前未被直接调用（预留供后续扩展）
-#[allow(dead_code)]
 pub trait ProtocolAdapter: Send + Sync {
-    /// 协议标识
-    fn protocol(&self) -> Protocol;
-    /// URL endpoint（如 `/chat/completions`、`/messages`）
-    fn endpoint(&self) -> &'static str;
     /// 构造鉴权 header 列表（按协议不同：Bearer / x-api-key 等）
     fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)>;
     /// 注入 reasoning effort 参数到请求体
     fn inject_reasoning(&self, body: &mut serde_json::Value, effort: &str);
-    /// 流式请求时注入 stream_options.include_usage（仅 Chat 协议需要）
-    fn inject_stream_options(&self, _body: &mut serde_json::Value, _stream: bool) {}
 }
 
 /// OpenAI Chat Completions 适配器
 pub struct ChatAdapter;
 
 impl ProtocolAdapter for ChatAdapter {
-    fn protocol(&self) -> Protocol {
-        Protocol::Chat
-    }
-    fn endpoint(&self) -> &'static str {
-        "/chat/completions"
-    }
     fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)> {
         if let Ok(v) = HeaderValue::from_str(&format!("Bearer {key}")) {
             vec![(HeaderName::from_static("authorization"), v)]
@@ -52,36 +38,12 @@ impl ProtocolAdapter for ChatAdapter {
     fn inject_reasoning(&self, body: &mut serde_json::Value, effort: &str) {
         body["reasoning_effort"] = serde_json::Value::String(effort.to_string());
     }
-    fn inject_stream_options(&self, body: &mut serde_json::Value, stream: bool) {
-        if stream {
-            // 流式 Chat 请求注入 stream_options.include_usage，确保上游在末尾 chunk 返回 token 用量
-            let so = body
-                .as_object_mut()
-                .map(|o| {
-                    o.entry("stream_options")
-                        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
-                })
-                .and_then(|v| v.as_object_mut());
-            if let Some(opts) = so {
-                opts.insert(
-                    "include_usage".to_string(),
-                    serde_json::Value::Bool(true),
-                );
-            }
-        }
-    }
 }
 
 /// Anthropic Messages 适配器
 pub struct AnthropicAdapter;
 
 impl ProtocolAdapter for AnthropicAdapter {
-    fn protocol(&self) -> Protocol {
-        Protocol::Anthropic
-    }
-    fn endpoint(&self) -> &'static str {
-        "/messages"
-    }
     fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)> {
         let mut headers = Vec::new();
         if let Ok(v) = HeaderValue::from_str(key) {
@@ -130,12 +92,6 @@ impl ProtocolAdapter for AnthropicAdapter {
 pub struct ResponsesAdapter;
 
 impl ProtocolAdapter for ResponsesAdapter {
-    fn protocol(&self) -> Protocol {
-        Protocol::Responses
-    }
-    fn endpoint(&self) -> &'static str {
-        "/responses"
-    }
     fn auth_headers(&self, key: &str) -> Vec<(HeaderName, HeaderValue)> {
         if let Ok(v) = HeaderValue::from_str(&format!("Bearer {key}")) {
             vec![(HeaderName::from_static("authorization"), v)]
@@ -190,17 +146,9 @@ pub struct Provider {
     pub models: Vec<String>,
     pub reasoning_effort: Option<String>,
     /// 流式 keepalive 心跳间隔（None 表示用全局默认）
-    #[allow(dead_code)]
     pub stream_keepalive_interval_secs: Option<u64>,
     /// 流式首字超时（None 表示用全局默认）
-    #[allow(dead_code)]
     pub stream_first_output_timeout_secs: Option<u64>,
-    /// 流式数据间隔超时（None 表示用全局默认）
-    #[allow(dead_code)]
-    pub stream_interval_timeout_secs: Option<u64>,
-    /// 是否检测 Copilot 无限空白 bug（None 表示用全局默认 true）
-    #[allow(dead_code)]
-    pub detect_infinite_whitespace: Option<bool>,
     keys: Vec<ApiKeyEntry>,
     blacklist: Mutex<HashMap<usize, Instant>>,
     blacklist_disabled_until: Mutex<Option<Instant>>,
@@ -247,8 +195,6 @@ impl Provider {
             reasoning_effort: cfg.reasoning_effort.clone(),
             stream_keepalive_interval_secs: cfg.stream_keepalive_interval_secs,
             stream_first_output_timeout_secs: cfg.stream_first_output_timeout_secs,
-            stream_interval_timeout_secs: cfg.stream_interval_timeout_secs,
-            detect_infinite_whitespace: cfg.detect_infinite_whitespace,
             keys: cfg.api_keys.clone(),
             blacklist: Mutex::new(HashMap::new()),
             blacklist_disabled_until: Mutex::new(None),
@@ -340,10 +286,6 @@ impl Provider {
                 .map(std::time::Duration::from_secs),
             first_output_timeout: self
                 .stream_first_output_timeout_secs
-                .filter(|&v| v > 0)
-                .map(std::time::Duration::from_secs),
-            interval_timeout: self
-                .stream_interval_timeout_secs
                 .filter(|&v| v > 0)
                 .map(std::time::Duration::from_secs),
         }

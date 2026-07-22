@@ -9,13 +9,12 @@
 //! - `relay` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 stream converter
 //!
 //! 设计参考：
-//! - cc-switch 的 reasoning_bridge envelope 思路（envelope 字段透传不透明上下文）
+//! - cc-switch 的 reasoning_bridge envelope 思路（通过 extensions 透传不透明上下文）
 //! - sub2api 的 `json.RawMessage` 折中（强类型主干 + 透传未知字段）
 //! - Anthropic / OpenAI / Responses 三协议字段并集
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::collections::HashMap;
 
 // 子模块：req/resp 与 IR 的双向映射
 pub mod codec;
@@ -27,7 +26,6 @@ pub mod relay;
 /// 设计原则：
 /// 1. **强类型主干**：核心字段（model、messages、tools 等）显式定义
 /// 2. **extensions 透传**：未知字段通过 `extensions` Map 透传，避免漏字段
-/// 3. **envelope 携带**：跨协议保真数据（reasoning signature 等）通过 envelopes 传递
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InternalRequest {
     /// 模型 ID（所有协议共有）
@@ -71,14 +69,6 @@ pub struct InternalRequest {
     /// Chat service_tier 等）放在此处，转换时直接拷贝到目标协议。
     #[serde(default, flatten)]
     pub extensions: Map<String, Value>,
-    /// 跨协议 envelope 数据（reasoning_bridge 写入）
-    ///
-    /// key 约定：
-    /// - `anthropic_thinking`：原 Anthropic thinking 块（base64 envelope）
-    /// - `openai_reasoning`：原 Responses reasoning item（base64 envelope）
-    #[serde(skip)]
-    #[allow(dead_code)]
-    pub envelopes: HashMap<String, String>,
 }
 
 /// 统一消息
@@ -282,12 +272,11 @@ pub enum ChunkEvent {
         id: String,
         model: String,
         role_announced: bool,
-        #[allow(dead_code)]
-        usage: Option<InternalUsage>,
     },
     /// 流结束（[DONE]）
     Done,
     /// 内容块开始（仅 Anthropic/Responses 显式，Chat 不区分）
+    /// index 由 parser 填充，emitter 维护独立 index 状态机不读取此字段
     #[allow(dead_code)]
     BlockStart { index: usize, kind: BlockKind },
     /// 内容块结束
@@ -405,16 +394,6 @@ mod tests {
         } else {
             panic!("should be Namespace");
         }
-    }
-
-    #[test]
-    fn ir_envelopes_not_serialized() {
-        let mut req = InternalRequest::default();
-        req.envelopes
-            .insert("anthropic_thinking".into(), "envelope_data".into());
-        let json = serde_json::to_string(&req).unwrap();
-        assert!(!json.contains("envelopes"));
-        assert!(!json.contains("anthropic_thinking"));
     }
 
     #[test]

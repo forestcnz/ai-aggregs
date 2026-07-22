@@ -47,7 +47,6 @@ pub fn parse_chat_event(event: Option<&str>, data: &str) -> Vec<ChunkEvent> {
                 id,
                 model,
                 role_announced: true,
-                usage: None,
             });
         }
     }

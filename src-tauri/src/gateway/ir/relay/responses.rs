@@ -32,7 +32,6 @@ pub fn parse_responses_event(event: Option<&str>, data: &str) -> Vec<ChunkEvent>
                 id,
                 model,
                 role_announced: false,
-                usage: None,
             }]
         }
         "response.output_item.added" => {

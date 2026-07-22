@@ -75,7 +75,7 @@ src/
 
 ### 日志
 
-日志状态提升到 `App.vue`，避免切页丢失。通过 `gateway-log` 事件接收，最多保留 500 条。
+日志状态提升到 `App.vue`，避免切页丢失。通过 `gateway-log` 事件接收，最多保留 10 条。
 
 ### KeepAlive 缓存策略
 
@@ -99,8 +99,8 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 
 ### 模块布局
 
-- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 26 个 IPC 命令 + 2 个事件（`gateway-log`、`gateway-state-changed`）
-- `observability.rs` — 网关 metrics（AtomicU64 无锁计数器），通过 `gateway_metrics` IPC 暴露；默认启用
+- `lib.rs` — Tauri 入口，初始化日志/数据库/托盘，注册 27 个 IPC 命令 + 2 个事件（`gateway-log`、`gateway-state-changed`）
+- `observability.rs` — 网关 metrics（11 个 AtomicU64 无锁计数器：请求/转换/上游错误），通过 `gateway_metrics` IPC 暴露；默认启用
 - `api/commands.rs` — 所有 `#[tauri::command]` 函数
 - `api/handler.rs` — Axum HTTP 请求处理（鉴权、model 路由、协议判定、failover）
 - `api/router.rs` — Axum 路由表 + CORS
@@ -110,10 +110,10 @@ const ok = await confirm({ message: '删除？', danger: true, confirmText: '删
 - `gateway/reasoning_bridge.rs` — 跨协议 reasoning envelope（base64 编码 thinking signature，经 Chat 中转时不丢失；Anthropic↔Responses 双跳关键）
 - `gateway/ir/` — **统一 IR 中间表示层（A→IR→B 单跳）**
   - `mod.rs` — 类型定义（`InternalRequest`/`InternalResponse`/`ChunkEvent` 等）
-  - `codec.rs` — 非流式 req/resp 的 6 个 parse/emit 函数（Chat/Anthropic/Responses ↔ IR）
-  - `stream_codec.rs` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 `IrStreamConverter`（替代原 4 个独立 stream converter）
+  - `codec/` — 非流式 req/resp 的 parse/emit 函数（Chat/Anthropic/Responses ↔ IR，每协议一个文件）
+  - `relay/` — 流式 SSE chunk 的 parse/emit + 状态机驱动的 `IrStreamConverter`
 - `gateway/converter.rs` — 协议转换 dispatcher（`req_convert`/`resp_convert` 走 IR 单跳，消除原 Responses↔Anthropic 双跳经 Chat 的字段丢失风险）；同时提供 ID/timestamp/stop_reason 映射工具函数
-- `gateway/stream/` — 流式协议转换的入口与基础设施（`mod.rs` 暴露 `stream_passthrough*`/`stream_convert*` + `make_converter`，`pipeline.rs` 提供 `StreamConverter` trait + `Noop`，`usage.rs`/`config.rs` 辅助）。真正的转换逻辑在 `gateway/ir/stream_codec.rs`
+- `gateway/stream/` — 流式协议转换的入口与基础设施（`mod.rs` 暴露 `stream_passthrough_with_config`/`stream_convert_with_config` + `make_converter`，`pipeline.rs` 提供 `StreamConverter` trait + `Noop`，`usage.rs`/`config.rs` 辅助）。真正的转换逻辑在 `gateway/ir/relay/`
 - `error.rs` — `AppError`(Axum HTTP) + `IpcError`(Tauri IPC)
 - `config/types.rs` — `Config`、`Protocol`、`ApiKeyEntry` 等纯数据类型
 - `config/state.rs` — `AppCtrl`、`AppState`、`ServerHandle`、IPC 返回类型

@@ -227,8 +227,6 @@ mod tests {
             reasoning_effort: None,
             stream_keepalive_interval_secs: None,
             stream_first_output_timeout_secs: None,
-            stream_interval_timeout_secs: None,
-            detect_infinite_whitespace: None,
             proxy_url: None,
             proxy_auth: None,
         };

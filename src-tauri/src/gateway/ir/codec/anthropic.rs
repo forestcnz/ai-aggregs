@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde_json::{json, Map, Value};
 
 use crate::error::AppError;
@@ -261,7 +259,6 @@ pub fn parse_anthropic_req(src: &Value) -> Result<InternalRequest, AppError> {
         reasoning,
         parallel_tool_calls: None,
         extensions: Map::new(),
-        envelopes: HashMap::new(),
     })
 }
 

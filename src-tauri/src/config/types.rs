@@ -109,14 +109,6 @@ pub struct ProviderConfig {
     /// 0 或缺省 = 使用全局默认 120s。reasoning model 长时间无输出时主动断开。
     #[serde(default)]
     pub stream_first_output_timeout_secs: Option<u64>,
-    /// 流式数据间隔超时（秒）：两个上游 chunk 之间的最长间隔。
-    /// 0 或缺省 = 使用全局默认 60s。
-    #[serde(default)]
-    pub stream_interval_timeout_secs: Option<u64>,
-    /// 是否检测 Copilot 上游的"无限空白 bug"（tool_call arguments 中连续
-    /// 空白字符 ≥500 时中止该 tool 流）。缺省 = 启用。
-    #[serde(default)]
-    pub detect_infinite_whitespace: Option<bool>,
     /// HTTP 代理 URL（如 `http://127.0.0.1:7890` 或 `socks5://127.0.0.1:1080`）。
     /// 设置后该 provider 的所有请求通过此代理发出。
     #[serde(default)]

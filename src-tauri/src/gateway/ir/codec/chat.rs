@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde_json::{json, Map, Value};
 
 use crate::error::AppError;
@@ -196,7 +194,6 @@ pub fn parse_chat_req(src: &Value) -> Result<InternalRequest, AppError> {
         reasoning,
         parallel_tool_calls: src.get("parallel_tool_calls").and_then(|x| x.as_bool()),
         extensions,
-        envelopes: HashMap::new(),
     })
 }
 

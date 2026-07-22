@@ -77,8 +77,6 @@ pub fn init_tables(conn: &Connection) -> anyhow::Result<()> {
     // ALTER TABLE ADD COLUMN 不支持 IF NOT EXISTS，需先检查列是否存在（幂等）。
     migrate_add_column(conn, "providers", "stream_keepalive_interval_secs", "INTEGER")?;
     migrate_add_column(conn, "providers", "stream_first_output_timeout_secs", "INTEGER")?;
-    migrate_add_column(conn, "providers", "stream_interval_timeout_secs", "INTEGER")?;
-    migrate_add_column(conn, "providers", "detect_infinite_whitespace", "INTEGER")?;
 
     // v3 代理支持：proxy_url / proxy_auth
     migrate_add_column(conn, "providers", "proxy_url", "TEXT")?;
@@ -137,7 +135,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
     let mut stmt = conn.prepare(
         "SELECT id, name, protocol, base_url, timeout_secs, enabled, reasoning_effort,
                 stream_keepalive_interval_secs, stream_first_output_timeout_secs,
-                stream_interval_timeout_secs, detect_infinite_whitespace,
                 proxy_url, proxy_auth
          FROM providers ORDER BY sort_order",
     )?;
@@ -152,10 +149,8 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             row.get::<_, Option<String>>(6)?,
             row.get::<_, Option<i64>>(7)?,
             row.get::<_, Option<i64>>(8)?,
-            row.get::<_, Option<i64>>(9)?,
-            row.get::<_, Option<i64>>(10)?,
-            row.get::<_, Option<String>>(11)?,
-            row.get::<_, Option<String>>(12)?,
+            row.get::<_, Option<String>>(9)?,
+            row.get::<_, Option<String>>(10)?,
         ))
     })?;
 
@@ -170,8 +165,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             reasoning_effort,
             keepalive,
             first_output,
-            interval,
-            detect_ws,
             proxy_url,
             proxy_auth,
         ) = row_result?;
@@ -216,9 +209,6 @@ pub fn load_config(conn: &Connection) -> anyhow::Result<Config> {
             // v2 流式工程化：DB 中存储为 INTEGER（0 表示禁用），运行时转为 Option<u64>
             stream_keepalive_interval_secs: keepalive.map(|v| v.max(0) as u64),
             stream_first_output_timeout_secs: first_output.map(|v| v.max(0) as u64),
-            stream_interval_timeout_secs: interval.map(|v| v.max(0) as u64),
-            // detect_infinite_whitespace：0 = false, 非 0 = true, NULL = None（默认 true）
-            detect_infinite_whitespace: detect_ws.map(|v| v != 0),
             proxy_url,
             proxy_auth,
         });
@@ -279,15 +269,12 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
         // 流式工程化字段：Option<u64> → Option<i64>（0 表示禁用）
         let keepalive: Option<i64> = p.stream_keepalive_interval_secs.map(|v| v as i64);
         let first_output: Option<i64> = p.stream_first_output_timeout_secs.map(|v| v as i64);
-        let interval: Option<i64> = p.stream_interval_timeout_secs.map(|v| v as i64);
-        let detect_ws: Option<i64> = p.detect_infinite_whitespace.map(|v| v as i64);
         let pid = if p.id > 0 {
             tx.execute(
                 "UPDATE providers SET name=?2, protocol=?3, base_url=?4, timeout_secs=?5,
                  enabled=?6, reasoning_effort=?7, sort_order=?8,
                  stream_keepalive_interval_secs=?9, stream_first_output_timeout_secs=?10,
-                 stream_interval_timeout_secs=?11, detect_infinite_whitespace=?12,
-                 proxy_url=?13, proxy_auth=?14
+                 proxy_url=?11, proxy_auth=?12
                  WHERE id=?1",
                 params![
                     p.id,
@@ -300,8 +287,6 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                     i as i64,
                     keepalive,
                     first_output,
-                    interval,
-                    detect_ws,
                     p.proxy_url,
                     p.proxy_auth,
                 ],
@@ -312,9 +297,8 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                 "INSERT INTO providers
                     (name, protocol, base_url, timeout_secs, enabled, reasoning_effort, sort_order,
                      stream_keepalive_interval_secs, stream_first_output_timeout_secs,
-                     stream_interval_timeout_secs, detect_infinite_whitespace,
                      proxy_url, proxy_auth)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                 params![
                     p.name,
                     p.protocol.as_str(),
@@ -325,8 +309,6 @@ pub fn save_config(conn: &Connection, cfg: &Config) -> anyhow::Result<()> {
                     i as i64,
                     keepalive,
                     first_output,
-                    interval,
-                    detect_ws,
                     p.proxy_url,
                     p.proxy_auth,
                 ],

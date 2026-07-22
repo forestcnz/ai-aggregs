@@ -20,7 +20,6 @@ pub fn parse_anthropic_event(event: Option<&str>, data: &str) -> Vec<ChunkEvent>
         "message_start" => {
             let mut id = String::new();
             let mut model = String::new();
-            let mut usage = None;
             if let Some(m) = v.get("message") {
                 if let Some(x) = m.get("id").and_then(|x| x.as_str()) {
                     id = x.to_string();
@@ -28,30 +27,11 @@ pub fn parse_anthropic_event(event: Option<&str>, data: &str) -> Vec<ChunkEvent>
                 if let Some(x) = m.get("model").and_then(|x| x.as_str()) {
                     model = x.to_string();
                 }
-                if let Some(u) = m.get("usage") {
-                    let it = u.get("input_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
-                    let cc = u
-                        .get("cache_creation_input_tokens")
-                        .and_then(|x| x.as_u64())
-                        .unwrap_or(0);
-                    let cr = u
-                        .get("cache_read_input_tokens")
-                        .and_then(|x| x.as_u64())
-                        .unwrap_or(0);
-                    usage = Some(InternalUsage {
-                        input_tokens: it + cc + cr,
-                        output_tokens: u.get("output_tokens").and_then(|x| x.as_u64()).unwrap_or(0),
-                        cache_read_tokens: cr,
-                        cache_creation_tokens: cc,
-                        reasoning_tokens: 0,
-                    });
-                }
             }
             vec![ChunkEvent::Start {
                 id,
                 model,
                 role_announced: false,
-                usage,
             }]
         }
         "content_block_start" => {
@@ -572,13 +552,6 @@ impl AnthropicEmitter {
         }
         out
     }
-
-    /// 尝试宣告一个 tool_block（id + name 同时到齐时）。
-    ///
-    /// 注：宣告决策已内联到 on_event 的 ToolCallStart / ToolCallArgsDelta 分支，
-    /// 本方法保留为占位（暂无外部调用）；未来若需要从其它事件触发宣告可复用。
-    #[allow(dead_code)]
-    fn try_announce_tool(&mut self, _upstream_index: usize, _out: &mut Vec<String>) {}
 
     pub(crate) fn on_done(&mut self) -> Vec<String> {
         if self.sent_done {
