@@ -17,7 +17,7 @@
 
 pub mod form;
 
-pub use form::{CcForm, CcLoadResult, ExtraEnvEntry};
+pub use form::{CcForm, CcLoadResult, EnvEntry};
 
 use std::path::PathBuf;
 
@@ -46,45 +46,20 @@ pub fn config_path() -> PathBuf {
 
 // ===================== 表单 ↔ Value 转换 =====================
 
-/// 已知的表单展示环境变量 key。
-/// 加载时匹配到这些 key 会填到对应字段；其余进入 extra_env。
-const MANAGED_KEYS: &[&str] = &[
-    "ANTHROPIC_BASE_URL",
-    "ANTHROPIC_AUTH_TOKEN",
-    "ANTHROPIC_MODEL",
-    "ANTHROPIC_SMALL_FAST_MODEL",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL",
-    "CLAUDE_CODE_SUBAGENT_MODEL",
-];
-
-/// 从 settings.json 的 env 对象中提取字段。
+/// 从 settings.json 的 env 对象中提取扁平 env 数组。
 fn extract_env(env: &Map<String, Value>) -> (CcForm, String) {
-    let get_str = |key: &str| -> Option<String> {
-        env.get(key).and_then(Value::as_str).map(String::from)
-    };
-    let mut extra = Vec::new();
+    let mut entries = Vec::new();
     for (k, v) in env.iter() {
-        if !MANAGED_KEYS.contains(&k.as_str()) {
-            if let Some(s) = v.as_str() {
-                extra.push(ExtraEnvEntry {
-                    key: k.clone(),
-                    value: s.to_string(),
-                });
-            }
+        if let Some(s) = v.as_str() {
+            entries.push(EnvEntry {
+                key: k.clone(),
+                value: s.to_string(),
+                secret: None,
+            });
         }
     }
     let form = CcForm {
-        base_url: get_str("ANTHROPIC_BASE_URL"),
-        auth_token: get_str("ANTHROPIC_AUTH_TOKEN"),
-        model: get_str("ANTHROPIC_MODEL"),
-        small_fast_model: get_str("ANTHROPIC_SMALL_FAST_MODEL"),
-        default_haiku: get_str("ANTHROPIC_DEFAULT_HAIKU_MODEL"),
-        default_sonnet: get_str("ANTHROPIC_DEFAULT_SONNET_MODEL"),
-        default_opus: get_str("ANTHROPIC_DEFAULT_OPUS_MODEL"),
-        subagent_model: get_str("CLAUDE_CODE_SUBAGENT_MODEL"),
-        extra_env: extra,
+        env: entries,
         file_exists: false,
         raw_json: String::new(),
     };
@@ -92,25 +67,9 @@ fn extract_env(env: &Map<String, Value>) -> (CcForm, String) {
 }
 
 /// 把表单的 env 段构建为 Value::Object。
-/// 覆盖管理字段 + 附加自定义 env（extra_env），**整体替换** env 段。
 fn build_env_obj(form: &CcForm) -> Value {
     let mut env = Map::new();
-    // 管理字段：非空 trim 后写
-    let insert = |map: &mut Map<String, Value>, key: &str, val: &Option<String>| {
-        if let Some(s) = val.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-            map.insert(key.into(), json!(s));
-        }
-    };
-    insert(&mut env, "ANTHROPIC_BASE_URL", &form.base_url);
-    insert(&mut env, "ANTHROPIC_AUTH_TOKEN", &form.auth_token);
-    insert(&mut env, "ANTHROPIC_MODEL", &form.model);
-    insert(&mut env, "ANTHROPIC_SMALL_FAST_MODEL", &form.small_fast_model);
-    insert(&mut env, "ANTHROPIC_DEFAULT_HAIKU_MODEL", &form.default_haiku);
-    insert(&mut env, "ANTHROPIC_DEFAULT_SONNET_MODEL", &form.default_sonnet);
-    insert(&mut env, "ANTHROPIC_DEFAULT_OPUS_MODEL", &form.default_opus);
-    insert(&mut env, "CLAUDE_CODE_SUBAGENT_MODEL", &form.subagent_model);
-    // 自定义环境变量（保留加载时的未知条目，允许用户增删）
-    for entry in &form.extra_env {
+    for entry in &form.env {
         let k = entry.key.trim();
         let v = entry.value.trim();
         if !k.is_empty() && !v.is_empty() {
@@ -265,15 +224,9 @@ mod tests {
         let root: Value = serde_json::from_str(raw).unwrap();
         let env = root.get("env").and_then(Value::as_object).cloned().unwrap();
         let (form, _) = extract_env(&env);
-        assert_eq!(
-            form.base_url.as_deref(),
-            Some("http://127.0.0.1:8000/v1")
-        );
-        assert_eq!(form.model.as_deref(), Some("claude-sonnet-4-20250514"));
-        // 空字符串的 default_opus 应被加载为空
-        assert_eq!(form.default_opus.as_deref(), Some(""));
-        // 自定义变量进入 extra
-        assert!(form.extra_env.iter().any(|e| e.key == "CUSTOM_VAR"));
+        assert_eq!(form.env.len(), 9);
+        assert!(form.env.iter().any(|e| e.key == "ANTHROPIC_BASE_URL"));
+        assert!(form.env.iter().any(|e| e.key == "CUSTOM_VAR"));
     }
 
     #[test]
@@ -288,7 +241,7 @@ mod tests {
         let root: Value = serde_json::from_str(raw).unwrap();
         let env = root.get("env").and_then(Value::as_object).cloned().unwrap();
         let (form, _) = extract_env(&env);
-        assert_eq!(form.extra_env.len(), 1);
+        assert_eq!(form.env.len(), 2);
 
         // 构建 env 对象，验证 CUSTOM_VAR 保留
         let env_obj = build_env_obj(&form);
