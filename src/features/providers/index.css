@@ -44,6 +44,12 @@
   flex-direction: column;
   transition: var(--transition);
 }
+.provider-card:not(.off) {
+  border-color: var(--blue);
+}
+.provider-card:not(.off):hover {
+  border-color: #2563eb;
+}
 .provider-card:hover {
   border-color: var(--border);
 }
